@@ -106,7 +106,7 @@ function LeadCard({
   isAssigning: boolean
 }) {
   const [selectedAgent, setSelectedAgent] = useState('')
-  const cf = deal.customFields as Record<string, string> | null
+  const cf = (deal as any).customFields as Record<string, string> | null
   const insuranceType = cf?.insuranceType
   const source = cf?.source
 

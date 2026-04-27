@@ -11,7 +11,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:seed": "cd ../../packages/database && npx prisma db seed",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",

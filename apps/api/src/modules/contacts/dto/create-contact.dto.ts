@@ -1,6 +1,13 @@
 import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
-import { ContactStatus } from '@priority-crm/shared'
+
+export enum ContactStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  LEAD = 'LEAD',
+  CUSTOMER = 'CUSTOMER',
+  CHURNED = 'CHURNED',
+}
 
 export class CreateContactDto {
   @ApiProperty()

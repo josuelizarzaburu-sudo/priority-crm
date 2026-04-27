@@ -15,8 +15,6 @@
     "baseUrl": "./",
     "incremental": true,
     "paths": {
-      "@priority-crm/shared": ["../../packages/shared/src"],
-      "@priority-crm/database": ["../../packages/database/src"],
       "@prisma/client": ["../../packages/database/node_modules/@prisma/client"],
       "@prisma/client/*": ["../../packages/database/node_modules/@prisma/client/*"]
     }

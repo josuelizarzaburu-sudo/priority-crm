@@ -28,8 +28,7 @@
     "@nestjs/swagger": "^7.3.1",
     "@nestjs/throttler": "^5.1.2",
     "@nestjs/websockets": "^10.3.7",
-    "@priority-crm/database": "workspace:*",
-    "@priority-crm/shared": "workspace:*",
+
     "bcryptjs": "^2.4.3",
     "bull": "^4.12.4",
     "cache-manager": "^5.4.0",

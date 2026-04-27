@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install && pnpm --filter @priority-crm/shared build && pnpm --filter @priority-crm/database exec prisma generate && cd apps/api && pnpm build"
+buildCommand = "pnpm install && pnpm --filter @priority-crm/database exec prisma generate && cd apps/api && pnpm build"
 
 [deploy]
 startCommand = "node dist/main"

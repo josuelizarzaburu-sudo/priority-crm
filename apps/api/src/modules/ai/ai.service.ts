@@ -38,8 +38,8 @@ export class AiService {
           content: `Summarize this contact in 2-3 sentences for a sales rep:
 Name: ${contact.firstName} ${contact.lastName ?? ''}
 Company: ${contact.company ?? 'N/A'}
-Open deals: ${contact.deals.length} (total value: ${contact.deals.reduce((s, d) => s + (d.value ?? 0), 0)})
-Recent activities: ${contact.activities.map((a) => a.type).join(', ')}`,
+Open deals: ${contact.deals.length} (total value: ${contact.deals.reduce((s: number, d: any) => s + (d.value ?? 0), 0)})
+Recent activities: ${contact.activities.map((a: any) => a.type).join(', ')}`,
         },
       ],
     })
@@ -67,7 +67,7 @@ Recent activities: ${contact.activities.map((a) => a.type).join(', ')}`,
           role: 'user',
           content: `Deal: "${deal.title}" | Stage: ${deal.stage.name} | Value: $${deal.value ?? 0}
 Contact: ${deal.contact?.firstName} ${deal.contact?.lastName ?? ''}
-Last activities: ${deal.activities.map((a) => a.description).join('; ')}`,
+Last activities: ${deal.activities.map((a: { description: string }) => a.description).join('; ')}`,
         },
       ],
     })

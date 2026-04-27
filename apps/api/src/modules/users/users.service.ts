@@ -1,6 +1,5 @@
 import { Injectable, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import * as bcrypt from 'bcryptjs'
-import { UserRole } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateTeamMemberDto } from './dto/create-team-member.dto'
 
@@ -17,7 +16,7 @@ export class UsersService {
   }
 
   create(data: { name: string; email: string; password: string; organizationName?: string }) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const org = await tx.organization.create({
         data: { name: data.organizationName ?? `${data.name}'s Organization` },
       })
@@ -41,12 +40,11 @@ export class UsersService {
     })
   }
 
-  async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: UserRole) {
-    if (callerRole !== UserRole.ADMIN && callerRole !== UserRole.MANAGER) {
+  async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: string) {
+    if (callerRole !== 'ADMIN' && callerRole !== 'MANAGER') {
       throw new ForbiddenException('Only admins and managers can create team members')
     }
-    // Managers cannot create other admins
-    if (dto.role === UserRole.ADMIN && callerRole !== UserRole.ADMIN) {
+    if (dto.role === 'ADMIN' && callerRole !== 'ADMIN') {
       throw new ForbiddenException('Only admins can create admin users')
     }
 
@@ -61,8 +59,8 @@ export class UsersService {
     return user
   }
 
-  async removeTeamMember(targetId: string, organizationId: string, callerId: string, callerRole: UserRole) {
-    if (callerRole !== UserRole.ADMIN) throw new ForbiddenException('Only admins can remove users')
+  async removeTeamMember(targetId: string, organizationId: string, callerId: string, callerRole: string) {
+    if (callerRole !== 'ADMIN') throw new ForbiddenException('Only admins can remove users')
     if (targetId === callerId) throw new ForbiddenException('You cannot remove yourself')
 
     const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })

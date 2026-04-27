@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { CommunicationChannel, MessageType } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
+
 import { SendMessageDto } from './dto/send-message.dto'
 import { WhatsappService } from './channels/whatsapp.service'
 import { EmailService } from './channels/email.service'
@@ -17,7 +17,7 @@ export class CommunicationsService {
 
   async getConversations(organizationId: string, channel?: string) {
     return this.prisma.conversation.findMany({
-      where: { organizationId, ...(channel ? { channel: channel as CommunicationChannel } : {}) },
+      where: { organizationId, ...(channel ? { channel: channel as string } : {}) },
       orderBy: { updatedAt: 'desc' },
       include: {
         contact: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
@@ -61,7 +61,7 @@ export class CommunicationsService {
         conversationId,
         content: dto.content,
         direction: 'OUTBOUND',
-        type: (dto.type ?? 'TEXT') as MessageType,
+        type: (dto.type ?? 'TEXT') as string,
         sentById: userId,
       },
     })

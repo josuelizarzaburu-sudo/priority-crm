@@ -45,7 +45,7 @@ export function UnassignedLeads() {
   const assignMutation = useMutation({
     mutationFn: ({ dealId, agentId }: { dealId: string; agentId: string }) =>
       api.put(`/pipeline/deals/${dealId}/assign`, { agentId }),
-    onSuccess: (_, { dealId }) => {
+    onSuccess: (_) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline', 'unassigned'] })
       queryClient.invalidateQueries({ queryKey: ['pipeline'] })
       toast({ title: 'Lead asignado', description: 'El agente fue notificado.' })

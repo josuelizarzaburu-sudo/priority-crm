@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": false,
+    "declarationMap": false,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "paths": {
+      "@priority-crm/shared": ["../../packages/shared/src"],
+      "@priority-crm/database": ["../../packages/database/src"],
+      "@prisma/client": ["../../packages/database/node_modules/@prisma/client"],
+      "@prisma/client/*": ["../../packages/database/node_modules/@prisma/client/*"]
+    }
+  }
+}

@@ -1,0 +1,305 @@
+// Priority CRM - Prisma Schema
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// ─── Organization ────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String?  @unique
+  logo      String?
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  contacts    Contact[]
+  deals       Deal[]
+  stages      PipelineStage[]
+  conversations Conversation[]
+  automations Automation[]
+  tags        Tag[]
+
+  @@map("organizations")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  avatar         String?
+  role           UserRole @default(MEMBER)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contacts       Contact[]     @relation("ContactCreatedBy")
+  assignedContacts Contact[]   @relation("ContactAssignedTo")
+  deals          Deal[]        @relation("DealCreatedBy")
+  assignedDeals  Deal[]        @relation("DealAssignedTo")
+  activities     Activity[]
+  automations    Automation[]
+  sentMessages   Message[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+// ─── Contacts ────────────────────────────────────────────────────────────────
+
+model Contact {
+  id             String        @id @default(cuid())
+  firstName      String
+  lastName       String?
+  email          String?
+  phone          String?
+  company        String?
+  position       String?
+  avatar         String?
+  status         ContactStatus @default(ACTIVE)
+  source         String?
+  notes          String?
+  customFields   Json?
+  organizationId String
+  createdById    String
+  assignedToId   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User           @relation("ContactCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?          @relation("ContactAssignedTo", fields: [assignedToId], references: [id])
+  deals        Deal[]
+  activities   Activity[]
+  conversations Conversation[]
+  tags         Tag[]          @relation("ContactTags")
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([phone])
+  @@map("contacts")
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  LEAD
+  CUSTOMER
+  CHURNED
+}
+
+// ─── Pipeline ────────────────────────────────────────────────────────────────
+
+model PipelineStage {
+  id             String   @id @default(cuid())
+  name           String
+  color          String   @default("#6366f1")
+  position       Int
+  probability    Int      @default(0)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deals        Deal[]
+
+  @@index([organizationId, position])
+  @@map("pipeline_stages")
+}
+
+model Deal {
+  id               String     @id @default(cuid())
+  title            String
+  value            Float?
+  currency         String     @default("USD")
+  probability      Int?
+  expectedCloseDate DateTime?
+  closedAt         DateTime?
+  status           DealStatus @default(OPEN)
+  notes            String?
+  customFields     Json?
+  position         Int        @default(0)
+  stageId          String
+  contactId        String?
+  organizationId   String
+  createdById      String
+  assignedToId     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  stage        PipelineStage @relation(fields: [stageId], references: [id])
+  contact      Contact?      @relation(fields: [contactId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("DealCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?         @relation("DealAssignedTo", fields: [assignedToId], references: [id])
+  activities   Activity[]
+
+  @@index([organizationId])
+  @@index([stageId, position])
+  @@map("deals")
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+// ─── Communications ───────────────────────────────────────────────────────────
+
+model Conversation {
+  id             String              @id @default(cuid())
+  channel        CommunicationChannel
+  status         ConversationStatus  @default(OPEN)
+  externalId     String?
+  contactId      String?
+  organizationId String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  contact      Contact?     @relation(fields: [contactId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     Message[]
+
+  @@index([organizationId, channel])
+  @@index([contactId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String          @id @default(cuid())
+  conversationId String
+  content        String
+  type           MessageType     @default(TEXT)
+  direction      MessageDirection
+  read           Boolean         @default(false)
+  externalId     String?
+  metadata       Json?
+  sentById       String?
+  createdAt      DateTime        @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sentBy       User?        @relation(fields: [sentById], references: [id])
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+enum CommunicationChannel {
+  WHATSAPP
+  EMAIL
+  VOIP
+  SMS
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  PENDING
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+  TEMPLATE
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// ─── Activities ───────────────────────────────────────────────────────────────
+
+model Activity {
+  id             String       @id @default(cuid())
+  type           ActivityType
+  description    String
+  metadata       Json?
+  contactId      String?
+  dealId         String?
+  userId         String?
+  organizationId String
+  createdAt      DateTime     @default(now())
+
+  contact Contact? @relation(fields: [contactId], references: [id])
+  deal    Deal?    @relation(fields: [dealId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+
+  @@index([contactId])
+  @@index([dealId])
+  @@map("activities")
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  STAGE_CHANGE
+  DEAL_CREATED
+  CONTACT_CREATED
+  MESSAGE_SENT
+  MESSAGE_RECEIVED
+}
+
+// ─── Automations ─────────────────────────────────────────────────────────────
+
+model Automation {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  trigger        String
+  conditions     Json?
+  actions        Json
+  isActive       Boolean  @default(true)
+  organizationId String
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId, trigger])
+  @@map("automations")
+}
+
+// ─── Tags ────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id             String   @id @default(cuid())
+  name           String
+  color          String   @default("#6366f1")
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contacts     Contact[]    @relation("ContactTags")
+
+  @@unique([name, organizationId])
+  @@map("tags")
+}

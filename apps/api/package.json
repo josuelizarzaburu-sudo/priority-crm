@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/main.ts",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
+    "@prisma/client": "^5.12.1",
     "@nestjs/bull": "^10.1.1",
     "@nestjs/cache-manager": "^2.2.1",
     "@nestjs/common": "^10.3.7",
@@ -46,8 +47,12 @@
     "twilio": "^5.0.4",
     "uuid": "^9.0.1"
   },
+  "prisma": {
+    "schema": "../../packages/database/prisma/schema.prisma"
+  },
   "devDependencies": {
     "@nestjs/cli": "^10.3.2",
+    "prisma": "^5.12.1",
     "@nestjs/schematics": "^10.1.1",
     "@nestjs/testing": "^10.3.7",
     "@types/bcryptjs": "^2.4.6",

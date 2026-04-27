@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "paths": {
+      "@priority-crm/shared": ["../../packages/shared/dist"],
+      "@priority-crm/database": ["../../packages/database/dist"],
+      "@prisma/client": ["../../packages/database/node_modules/@prisma/client"],
+      "@prisma/client/*": ["../../packages/database/node_modules/@prisma/client/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}

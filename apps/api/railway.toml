@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @priority-crm/database db:generate && pnpm --filter @priority-crm/shared build && pnpm --filter @priority-crm/api build"
+
+[deploy]
+startCommand = "node dist/main"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

@@ -17,7 +17,7 @@ export class CommunicationsService {
 
   async getConversations(organizationId: string, channel?: string) {
     return this.prisma.conversation.findMany({
-      where: { organizationId, ...(channel ? { channel: channel as string } : {}) },
+      where: { organizationId, ...(channel ? { channel: channel as any } : {}) },
       orderBy: { updatedAt: 'desc' },
       include: {
         contact: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
@@ -61,7 +61,7 @@ export class CommunicationsService {
         conversationId,
         content: dto.content,
         direction: 'OUTBOUND',
-        type: (dto.type ?? 'TEXT') as string,
+        type: (dto.type ?? 'TEXT') as any,
         sentById: userId,
       },
     })

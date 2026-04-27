@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  TrendingUp, Users, AlertCircle, CheckCircle2,
+  AlertCircle, CheckCircle2,
   ChevronDown, Filter, RefreshCw,
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -80,8 +80,6 @@ function isToday(dateStr: string) {
 // ─── Team stats ───────────────────────────────────────────────────────────────
 
 function buildTeamStats(deals: Deal[], agents: Agent[]) {
-  const now = new Date()
-
   // Unassigned bucket
   const unassigned = deals.filter((d) => !d.assignedToId && d.status === 'OPEN')
 

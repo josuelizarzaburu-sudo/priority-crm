@@ -10,6 +10,7 @@ export enum LeadSource {
   WEB = 'WEB',
   WHATSAPP = 'WHATSAPP',
   CALL = 'CALL',
+  LANDING_PAGE = 'landing_page',
 }
 
 export class IngestLeadDto {

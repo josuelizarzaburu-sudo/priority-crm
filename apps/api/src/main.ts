@@ -9,10 +9,14 @@ async function bootstrap() {
   const config = app.get(ConfigService)
 
   const isDev = config.get('NODE_ENV', 'development') !== 'production'
+  const allowedOrigins = [
+    'https://priority-health-production.up.railway.app',
+    ...config.get('CORS_ORIGINS', '').split(',').filter(Boolean),
+  ]
   app.enableCors({
     origin: isDev
       ? (_origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, true)
-      : config.get('CORS_ORIGINS', '').split(','),
+      : allowedOrigins,
     credentials: true,
   })
 

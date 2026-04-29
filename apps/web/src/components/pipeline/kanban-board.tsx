@@ -6,13 +6,29 @@ import { GripVertical, DollarSign } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePipelineStore } from '@/store'
 import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
 import { DealStatus } from '@priority-crm/shared'
 
-export function KanbanBoard() {
+interface KanbanBoardProps {
+  viewMode: 'mine' | 'all'
+  filterUserId: string | null
+  currentUserId: string
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+export function KanbanBoard({ viewMode, filterUserId, currentUserId }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
 
   const { data: stagesData } = useQuery({
@@ -33,14 +49,20 @@ export function KanbanBoard() {
     if (dealsData) setDeals(dealsData)
   }, [dealsData, setDeals])
 
-  const filteredDeals = searchQuery
+  const searchFiltered = searchQuery
     ? deals.filter((d) => d.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : deals
 
   function getStageDeals(stageId: string) {
-    return filteredDeals
-      .filter((d) => d.stageId === stageId && d.status === DealStatus.OPEN)
-      .sort((a, b) => a.position - b.position)
+    let result = searchFiltered.filter(
+      (d) => d.stageId === stageId && d.status === DealStatus.OPEN,
+    )
+    if (filterUserId) {
+      result = result.filter((d) => d.assignedToId === filterUserId)
+    } else if (viewMode === 'mine') {
+      result = result.filter((d) => d.assignedToId === currentUserId)
+    }
+    return result.sort((a, b) => a.position - b.position)
   }
 
   function getStageValue(stageId: string) {
@@ -50,7 +72,7 @@ export function KanbanBoard() {
   if (!stages.length) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
-        No pipeline stages configured.
+        No hay etapas configuradas en el pipeline.
       </div>
     )
   }
@@ -147,6 +169,7 @@ function DealCard({ deal }: { deal: Deal }) {
             {deal.contact.company ? ` · ${deal.contact.company}` : ''}
           </p>
         )}
+
         <div className="flex items-center justify-between">
           {deal.value ? (
             <span className="flex items-center gap-1 text-xs font-medium text-primary">
@@ -169,6 +192,24 @@ function DealCard({ deal }: { deal: Deal }) {
             >
               {deal.probability}%
             </span>
+          )}
+        </div>
+
+        {/* Owner */}
+        <div className="mt-2 flex items-center gap-1.5 border-t pt-2">
+          {deal.assignedTo ? (
+            <>
+              <Avatar className="h-5 w-5">
+                <AvatarFallback className="bg-primary/10 text-[9px] font-semibold text-primary">
+                  {getInitials(deal.assignedTo.name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate text-xs text-muted-foreground">
+                {deal.assignedTo.name}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs font-medium text-red-500">Sin asignar</span>
           )}
         </div>
       </CardContent>

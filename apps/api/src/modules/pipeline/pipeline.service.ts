@@ -41,6 +41,7 @@ export class PipelineService {
         stage: true,
         contact: { select: { id: true, firstName: true, lastName: true } },
         assignedTo: { select: { id: true, name: true } },
+        activities: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
       },
     })
   }

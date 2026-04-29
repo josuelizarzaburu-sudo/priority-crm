@@ -177,14 +177,14 @@ export class PipelineService {
     const position = (lastDeal?.position ?? 0) + 1000
 
     return this.prisma.deal.create({
-      data: { ...dto, organizationId, createdById, position },
+      data: { ...dto, customFields: dto.customFields as any, organizationId, createdById, position },
       include: { stage: true, contact: { select: { id: true, firstName: true, lastName: true } } },
     })
   }
 
   async updateDeal(id: string, dto: UpdateDealDto, organizationId: string) {
     await this.getDeal(id, organizationId)
-    return this.prisma.deal.update({ where: { id }, data: dto })
+    return this.prisma.deal.update({ where: { id }, data: dto as any })
   }
 
   async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string) {

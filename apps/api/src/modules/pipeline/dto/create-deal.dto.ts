@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator'
+import { IsString, IsNumber, IsOptional, IsObject, Min } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class CreateDealDto {
@@ -40,4 +40,9 @@ export class CreateDealDto {
   @IsString()
   @IsOptional()
   notes?: string
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>
 }

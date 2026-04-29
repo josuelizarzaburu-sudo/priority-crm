@@ -6,6 +6,8 @@ import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
 import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
+import { LogActivityDto } from './dto/log-activity.dto'
+import { CloseDealDto } from './dto/close-deal.dto'
 
 @ApiTags('Pipeline')
 @ApiBearerAuth()
@@ -62,6 +64,18 @@ export class PipelineController {
   @ApiOperation({ summary: 'Assign deal to an agent — MANAGER/ADMIN only' })
   assignDeal(@Param('id') id: string, @Body() dto: AssignDealDto, @Req() req: any) {
     return this.pipelineService.assignDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
+  }
+
+  @Post('deals/:id/activity')
+  @ApiOperation({ summary: 'Log a CALL/NOTE/EMAIL/MEETING/TASK activity on a deal' })
+  logActivity(@Param('id') id: string, @Body() dto: LogActivityDto, @Req() req: any) {
+    return this.pipelineService.logActivity(id, dto, req.user.organizationId, req.user.id)
+  }
+
+  @Put('deals/:id/close')
+  @ApiOperation({ summary: 'Mark deal as WON or LOST' })
+  closeDeal(@Param('id') id: string, @Body() dto: CloseDealDto, @Req() req: any) {
+    return this.pipelineService.closeDeal(id, dto, req.user.organizationId, req.user.id)
   }
 
   @Delete('deals/:id')

@@ -4,6 +4,8 @@ import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
 import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
+import { LogActivityDto } from './dto/log-activity.dto'
+import { CloseDealDto } from './dto/close-deal.dto'
 import { PipelineGateway } from './pipeline.gateway'
 
 @Injectable()
@@ -114,11 +116,57 @@ export class PipelineService {
         stage: true,
         contact: true,
         assignedTo: { select: { id: true, name: true, email: true } },
-        activities: { orderBy: { createdAt: 'desc' }, take: 20 },
+        activities: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          include: { user: { select: { id: true, name: true } } },
+        },
       },
     })
     if (!deal) throw new NotFoundException('Deal not found')
     return deal
+  }
+
+  async logActivity(dealId: string, dto: LogActivityDto, organizationId: string, userId: string) {
+    const deal = await this.getDeal(dealId, organizationId)
+    return this.prisma.activity.create({
+      data: {
+        type: dto.type as any,
+        description: dto.description,
+        dealId,
+        contactId: deal.contactId ?? null,
+        organizationId,
+        userId,
+      },
+      include: { user: { select: { id: true, name: true } } },
+    })
+  }
+
+  async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string) {
+    const deal = await this.getDeal(id, organizationId)
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data: {
+        status: dto.status as any,
+        closedAt: new Date(),
+        ...(dto.closingReason ? { notes: dto.closingReason } : {}),
+      },
+    })
+    await this.prisma.activity.create({
+      data: {
+        type: 'NOTE',
+        description:
+          dto.status === 'WON'
+            ? 'Deal marcado como Ganado'
+            : `Deal marcado como Perdido${dto.closingReason ? `: ${dto.closingReason}` : ''}`,
+        dealId: id,
+        contactId: deal.contactId ?? null,
+        organizationId,
+        userId,
+      },
+    })
+    this.gateway.broadcastDealUpdated(organizationId, updated)
+    return updated
   }
 
   async createDeal(dto: CreateDealDto, organizationId: string, createdById: string) {

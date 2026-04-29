@@ -17,6 +17,7 @@ interface KanbanBoardProps {
   viewMode: 'mine' | 'all'
   filterUserId: string | null
   currentUserId: string
+  onSelectDeal: (id: string) => void
 }
 
 function getInitials(name: string) {
@@ -28,7 +29,7 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-export function KanbanBoard({ viewMode, filterUserId, currentUserId }: KanbanBoardProps) {
+export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
 
   const { data: stagesData } = useQuery({
@@ -88,6 +89,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId }: KanbanBoa
             deals={getStageDeals(stage.id)}
             totalValue={getStageValue(stage.id)}
             onDrop={(dealId) => moveDeal(dealId, stage.id, getStageDeals(stage.id).length)}
+            onSelectDeal={onSelectDeal}
           />
         ))}
     </div>
@@ -99,11 +101,13 @@ function KanbanColumn({
   deals,
   totalValue,
   onDrop,
+  onSelectDeal,
 }: {
   stage: PipelineStage
   deals: Deal[]
   totalValue: number
   onDrop: (dealId: string) => void
+  onSelectDeal: (id: string) => void
 }) {
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
@@ -137,7 +141,7 @@ function KanbanColumn({
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-2">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} />
           ))}
         </div>
       </ScrollArea>
@@ -145,7 +149,7 @@ function KanbanColumn({
   )
 }
 
-function DealCard({ deal }: { deal: Deal }) {
+function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => void }) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData('dealId', deal.id)
   }
@@ -154,7 +158,8 @@ function DealCard({ deal }: { deal: Deal }) {
     <Card
       draggable
       onDragStart={handleDragStart}
-      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      onClick={() => onSelect(deal.id)}
+      className="cursor-pointer hover:shadow-md transition-shadow active:opacity-80"
     >
       <CardHeader className="p-3 pb-1">
         <div className="flex items-start justify-between gap-2">

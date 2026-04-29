@@ -16,6 +16,7 @@ import { ContactsService } from './contacts.service'
 import { CreateContactDto } from './dto/create-contact.dto'
 import { UpdateContactDto } from './dto/update-contact.dto'
 import { ContactsQueryDto } from './dto/contacts-query.dto'
+import { LogInteractionDto } from './dto/log-interaction.dto'
 
 @ApiTags('Contacts')
 @ApiBearerAuth()
@@ -25,14 +26,14 @@ export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List contacts with filters and pagination' })
+  @ApiOperation({ summary: 'List contacts — MEMBERs only see their own' })
   findAll(@Query() query: ContactsQueryDto, @Req() req: any) {
-    return this.contactsService.findAll(req.user.organizationId, query)
+    return this.contactsService.findAll(req.user.organizationId, query, req.user.id, req.user.role)
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
-    return this.contactsService.findOne(id, req.user.organizationId)
+    return this.contactsService.findOne(id, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Post()
@@ -51,8 +52,25 @@ export class ContactsController {
   }
 
   @Get(':id/timeline')
-  @ApiOperation({ summary: 'Get 360° contact timeline' })
+  @ApiOperation({ summary: 'Get full contact interaction timeline' })
   getTimeline(@Param('id') id: string, @Req() req: any) {
-    return this.contactsService.getTimeline(id, req.user.organizationId)
+    return this.contactsService.getTimeline(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Post(':id/interaction')
+  @ApiOperation({ summary: 'Log a contact interaction (call, WhatsApp, email, note)' })
+  logInteraction(@Param('id') id: string, @Body() dto: LogInteractionDto, @Req() req: any) {
+    return this.contactsService.logInteraction(
+      id,
+      dto,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
   }
 }

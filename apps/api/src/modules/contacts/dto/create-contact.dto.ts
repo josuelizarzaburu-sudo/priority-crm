@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator'
+import { IsString, IsEmail, IsOptional, IsEnum, IsObject } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export enum ContactStatus {
@@ -48,4 +48,9 @@ export class CreateContactDto {
   @IsEnum(ContactStatus)
   @IsOptional()
   status?: ContactStatus
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>
 }

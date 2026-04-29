@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useRouter } from 'next/navigation'
 import { useContactsStore } from '@/store'
 import { api } from '@/lib/api'
 import { formatDate, getInitials } from '@/lib/utils'
@@ -90,10 +91,14 @@ export function ContactsTable() {
 }
 
 function ContactRow({ contact }: { contact: Contact }) {
+  const router = useRouter()
   const fullName = `${contact.firstName}${contact.lastName ? ` ${contact.lastName}` : ''}`
 
   return (
-    <TableRow className="cursor-pointer hover:bg-muted/50">
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={() => router.push(`/contacts/${contact.id}`)}
+    >
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
@@ -111,7 +116,7 @@ function ContactRow({ contact }: { contact: Contact }) {
         </Badge>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{formatDate(contact.createdAt)}</TableCell>
-      <TableCell>
+      <TableCell onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -119,9 +124,12 @@ function ContactRow({ contact }: { contact: Contact }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>View details</DropdownMenuItem>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/contacts/${contact.id}`) }}>
+              Ver detalle
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={(e) => e.stopPropagation()}>
+              Eliminar
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

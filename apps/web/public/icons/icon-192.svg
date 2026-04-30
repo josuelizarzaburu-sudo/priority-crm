@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Full bleed navy background (safe for maskable) -->
+  <rect width="192" height="192" fill="#25324b"/>
+  <!-- Inner card with subtle depth -->
+  <rect x="16" y="16" width="160" height="160" rx="32" fill="#1d2e43"/>
+  <!-- Gold diagonal accent line (top-right) -->
+  <line x1="136" y1="16" x2="176" y2="56" stroke="#d3ac76" stroke-width="2.5" stroke-linecap="round" opacity="0.25"/>
+  <!-- "PC" wordmark -->
+  <text
+    x="96" y="107"
+    font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="72" font-weight="800"
+    fill="#d3ac76"
+    text-anchor="middle"
+    letter-spacing="-2"
+  >PC</text>
+  <!-- Gold underline accent -->
+  <rect x="58" y="122" width="76" height="3.5" rx="1.75" fill="#d3ac76" opacity="0.5"/>
+</svg>

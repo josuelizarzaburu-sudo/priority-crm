@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { GripVertical, DollarSign } from 'lucide-react'
+import { GripVertical, DollarSign, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -199,6 +199,20 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
             </span>
           )}
         </div>
+
+        {/* Follow-up overdue indicator */}
+        {(() => {
+          const fua = (deal as any).customFields?.followUpAt as string | undefined
+          if (!fua) return null
+          const isOverdue = new Date(fua) < new Date()
+          if (!isOverdue) return null
+          return (
+            <div className="mt-1.5 flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-600 dark:bg-red-950/30">
+              <Bell className="h-3 w-3" />
+              Seguimiento vencido
+            </div>
+          )
+        })()}
 
         {/* Owner */}
         <div className="mt-2 flex items-center gap-1.5 border-t pt-2">

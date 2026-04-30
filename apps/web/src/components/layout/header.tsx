@@ -1,9 +1,12 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { Bell, Search, Sparkles } from 'lucide-react'
+import { Bell, Sparkles } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useUIStore } from '@/store'
 import { useNotifications } from '@/hooks/use-notifications'
+import { GlobalSearch } from './global-search'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -13,10 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { api } from '@/lib/api'
 
 export function Header() {
   const { data: session } = useSession()
-  const { toggleCommandPalette, toggleAIAssistant } = useUIStore()
+  const { toggleAIAssistant } = useUIStore()
   useNotifications()
 
   const initials = session?.user?.name
@@ -25,17 +29,25 @@ export function Header() {
     .join('')
     .toUpperCase()
 
+  // Fetch deals to count overdue follow-ups
+  const { data: deals } = useQuery<any[]>({
+    queryKey: ['pipeline', 'deals-all'],
+    queryFn: () => api.get('/pipeline/deals').then((r) => r.data),
+    staleTime: 60_000,
+  })
+
+  const overdueCount = useMemo(() => {
+    if (!deals) return 0
+    const now = new Date()
+    return deals.filter((d) => {
+      const followUpAt = d.customFields?.followUpAt as string | undefined
+      return followUpAt && new Date(followUpAt) < now && d.status === 'OPEN'
+    }).length
+  }, [deals])
+
   return (
     <header className="flex h-16 items-center justify-between border-b px-6">
-      <Button
-        variant="outline"
-        className="w-72 justify-start gap-2 text-muted-foreground"
-        onClick={toggleCommandPalette}
-      >
-        <Search className="h-4 w-4" />
-        <span>Search anything...</span>
-        <kbd className="ml-auto text-xs">⌘K</kbd>
-      </Button>
+      <GlobalSearch />
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={toggleAIAssistant}>
@@ -44,7 +56,13 @@ export function Header() {
 
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+          {overdueCount > 0 ? (
+            <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+              {overdueCount}
+            </span>
+          ) : (
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-muted-foreground/30" />
+          )}
         </Button>
 
         <DropdownMenu>

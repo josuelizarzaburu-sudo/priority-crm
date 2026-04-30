@@ -103,6 +103,59 @@ export class ContactsService {
     return { activities, messages, deals }
   }
 
+  async search(q: string, organizationId: string, userId: string, role: string) {
+    const term = q.trim()
+    if (term.length < 2) return { contacts: [], deals: [] }
+
+    const [contacts, deals] = await Promise.all([
+      this.prisma.contact.findMany({
+        where: {
+          organizationId,
+          ...(role === 'MEMBER' ? { assignedToId: userId } : {}),
+          OR: [
+            { firstName: { contains: term, mode: 'insensitive' } },
+            { lastName: { contains: term, mode: 'insensitive' } },
+            { email: { contains: term, mode: 'insensitive' } },
+            { phone: { contains: term } },
+            { company: { contains: term, mode: 'insensitive' } },
+          ],
+        },
+        take: 5,
+        select: { id: true, firstName: true, lastName: true, email: true, phone: true, company: true },
+      }),
+      this.prisma.deal.findMany({
+        where: {
+          organizationId,
+          status: 'OPEN',
+          ...(role === 'MEMBER' ? { assignedToId: userId } : {}),
+          OR: [
+            { title: { contains: term, mode: 'insensitive' } },
+            { contact: { firstName: { contains: term, mode: 'insensitive' } } },
+            { contact: { lastName: { contains: term, mode: 'insensitive' } } },
+          ],
+        },
+        take: 5,
+        include: {
+          stage: { select: { name: true, color: true } },
+          contact: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+    ])
+    return { contacts, deals }
+  }
+
+  async checkDuplicate(email: string | undefined, phone: string | undefined, organizationId: string) {
+    if (!email && !phone) return { contact: null }
+    const conditions: any[] = []
+    if (email?.trim()) conditions.push({ email: email.trim() })
+    if (phone?.trim()) conditions.push({ phone: phone.trim() })
+    const contact = await this.prisma.contact.findFirst({
+      where: { organizationId, OR: conditions },
+      select: { id: true, firstName: true, lastName: true, email: true, phone: true, company: true },
+    })
+    return { contact }
+  }
+
   async logInteraction(
     id: string,
     dto: LogInteractionDto,

@@ -31,6 +31,22 @@ export class ContactsController {
     return this.contactsService.findAll(req.user.organizationId, query, req.user.id, req.user.role)
   }
 
+  @Get('search')
+  @ApiOperation({ summary: 'Global search across contacts and deals' })
+  search(@Query('q') q: string = '', @Req() req: any) {
+    return this.contactsService.search(q, req.user.organizationId, req.user.id, req.user.role)
+  }
+
+  @Get('check-duplicate')
+  @ApiOperation({ summary: 'Check for duplicate contact by email or phone' })
+  checkDuplicate(
+    @Query('email') email: string,
+    @Query('phone') phone: string,
+    @Req() req: any,
+  ) {
+    return this.contactsService.checkDuplicate(email, phone, req.user.organizationId)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.contactsService.findOne(id, req.user.organizationId, req.user.id, req.user.role)

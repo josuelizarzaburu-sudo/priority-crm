@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   X,
@@ -16,6 +16,8 @@ import {
   Clock,
   Mail,
   Users,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -67,6 +69,12 @@ interface DealPanelProps {
   users: TeamMember[]
 }
 
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const LEAD_STATUS_OPTIONS = [
   { value: 'SIN_GESTION', label: 'Sin gestión' },
   { value: 'CONTACTADO', label: 'Contactado' },
@@ -90,6 +98,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [showLostInput, setShowLostInput] = useState(false)
   const [closingReason, setClosingReason] = useState('')
   const [noteText, setNoteText] = useState('')
+  const [followUpDate, setFollowUpDate] = useState('')
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -98,6 +107,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     queryFn: () => api.get(`/pipeline/deals/${dealId}`).then((r) => r.data),
     enabled: !!dealId,
   })
+
+  // Sync follow-up input when deal loads or changes
+  useEffect(() => {
+    const fua = deal?.customFields?.followUpAt as string | undefined
+    setFollowUpDate(fua ? toDatetimeLocal(fua) : '')
+  }, [deal?.id, deal?.customFields?.followUpAt])
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['pipeline', 'deal', dealId] })
@@ -131,6 +146,19 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     onSuccess: () => {
       setNoteText('')
       invalidate()
+    },
+  })
+
+  const saveFollowUp = useMutation({
+    mutationFn: (isoDate: string | null) =>
+      api
+        .put(`/pipeline/deals/${dealId}`, {
+          customFields: { ...deal?.customFields, followUpAt: isoDate },
+        })
+        .then((r) => r.data),
+    onSuccess: (_, isoDate) => {
+      invalidate()
+      toast({ title: isoDate ? 'Seguimiento programado' : 'Seguimiento cancelado' })
     },
   })
 
@@ -300,6 +328,66 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   </Select>
                 </div>
               )}
+
+              <Separator />
+
+              {/* Follow-up reminder */}
+              {(() => {
+                const fua = deal.customFields?.followUpAt as string | undefined
+                const isOverdue = fua ? new Date(fua) < new Date() : false
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Seguimiento programado
+                    </p>
+                    {fua ? (
+                      <div
+                        className={`flex items-center justify-between rounded-md border p-2.5 ${
+                          isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20' : 'border-blue-200 bg-blue-50/50 dark:bg-blue-950/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Bell className={`h-4 w-4 ${isOverdue ? 'text-red-500' : 'text-blue-500'}`} />
+                          <div>
+                            <p className="text-xs font-medium">
+                              {format(new Date(fua), "d MMM yyyy, HH:mm", { locale: es })}
+                            </p>
+                            {isOverdue && (
+                              <p className="text-[11px] font-bold text-red-600">VENCIDO</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => saveFollowUp.mutate(null)}
+                          disabled={saveFollowUp.isPending}
+                          className="rounded p-1 hover:bg-muted"
+                          title="Cancelar seguimiento"
+                        >
+                          <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="datetime-local"
+                          value={followUpDate}
+                          min={new Date().toISOString().slice(0, 16)}
+                          onChange={(e) => setFollowUpDate(e.target.value)}
+                          className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!followUpDate || saveFollowUp.isPending}
+                          onClick={() => saveFollowUp.mutate(new Date(followUpDate).toISOString())}
+                        >
+                          <Bell className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <Separator />
 

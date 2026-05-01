@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Search, User, DollarSign, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 
 interface SearchContact {
@@ -28,7 +29,7 @@ interface SearchResults {
   deals: SearchDeal[]
 }
 
-export function GlobalSearch() {
+export function GlobalSearch({ className }: { className?: string } = {}) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -82,7 +83,7 @@ export function GlobalSearch() {
   }
 
   return (
-    <div ref={containerRef} className="relative w-72">
+    <div ref={containerRef} className={cn('relative w-72', className)}>
       {/* Input */}
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

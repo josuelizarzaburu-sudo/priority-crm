@@ -111,24 +111,24 @@ export function ContactsHeader() {
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold">Contacts</h1>
-        <p className="text-sm text-muted-foreground">Manage your contacts and leads</p>
+        <h1 className="text-xl font-bold md:text-2xl">Contacts</h1>
+        <p className="hidden text-sm text-muted-foreground sm:block">Manage your contacts and leads</p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 sm:flex-none">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."
-            className="w-56 pl-8"
+            className="w-full pl-8 sm:w-52"
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <Button onClick={() => setOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Contact
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">New Contact</span>
         </Button>
       </div>
 

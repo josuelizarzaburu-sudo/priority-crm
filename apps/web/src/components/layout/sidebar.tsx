@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
+import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard,
   Users,
@@ -20,6 +21,8 @@ import {
   BarChart3,
   Kanban,
   TrendingUp,
+  X,
+  LogOut,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -38,68 +41,128 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { sidebarCollapsed, toggleSidebar } = useUIStore()
+  const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useUIStore()
   const { data: session } = useSession()
   const role = (session?.user as any)?.role ?? 'MEMBER'
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
 
   return (
-    <aside
-      className={cn(
-        'relative flex flex-col border-r bg-card transition-all duration-300',
-        sidebarCollapsed ? 'w-16' : 'w-64',
+    <>
+      {/* Mobile backdrop — click outside to close */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={closeMobileMenu}
+          aria-hidden
+        />
       )}
-    >
-      <div className="flex h-16 items-center border-b px-4">
-        {!sidebarCollapsed && (
-          <span className="text-lg font-bold text-primary">Priority CRM</span>
-        )}
-      </div>
 
-      <nav className="flex-1 space-y-1 p-3">
-        {visibleItems.map(({ href, label, icon: Icon }) => (
+      <aside
+        className={cn(
+          // Base — mobile: fixed full-height drawer
+          'fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r bg-card transition-all duration-300',
+          // Mobile translate: open or hidden off-screen
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: back in normal flex flow, width based on collapsed state
+          'md:relative md:inset-auto md:z-auto md:translate-x-0',
+          sidebarCollapsed ? 'md:w-16' : 'md:w-64',
+        )}
+      >
+        {/* Brand header */}
+        <div className="flex h-14 items-center border-b px-4 md:h-16">
+          {/* Mobile: always show brand + close */}
+          <span className="flex-1 text-base font-bold text-primary md:hidden">Priority CRM</span>
+          {/* Desktop: show brand only when expanded */}
+          {!sidebarCollapsed && (
+            <span className="hidden flex-1 text-lg font-bold text-primary md:block">Priority CRM</span>
+          )}
+          {/* Mobile close button */}
+          <button
+            onClick={toggleMobileMenu}
+            className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted md:hidden"
+            aria-label="Cerrar menú"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Mobile: user info strip (replaces header avatar) */}
+        <div className="border-b px-4 py-3 md:hidden">
+          <p className="text-sm font-semibold leading-tight">
+            {session?.user?.name ?? 'Usuario'}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {session?.user?.email ?? ''}
+          </p>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {visibleItems.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={closeMobileMenu}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'hover:bg-accent hover:text-accent-foreground',
+                pathname.startsWith(href)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {/* Mobile: always show label. Desktop: hide when collapsed */}
+              <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
+                {label}
+              </span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Settings link */}
+        <div className="border-t p-3">
           <Link
-            key={href}
-            href={href}
+            href="/settings"
+            onClick={closeMobileMenu}
             className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              'hover:bg-accent hover:text-accent-foreground',
-              pathname.startsWith(href)
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground',
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
+              pathname.startsWith('/settings') && 'bg-primary text-primary-foreground',
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
-            {!sidebarCollapsed && <span>{label}</span>}
+            <Settings className="h-5 w-5 shrink-0" />
+            <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
+              Ajustes
+            </span>
           </Link>
-        ))}
-      </nav>
+        </div>
 
-      <div className="border-t p-3">
-        <Link
-          href="/settings"
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
-            pathname.startsWith('/settings') && 'bg-primary text-primary-foreground',
-          )}
+        {/* Mobile: sign-out button */}
+        <div className="border-t p-3 md:hidden">
+          <button
+            onClick={() => signOut()}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
+
+        {/* Desktop collapse toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-accent md:flex"
+          aria-label={sidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          <Settings className="h-5 w-5 shrink-0" />
-          {!sidebarCollapsed && <span>Ajustes</span>}
-        </Link>
-      </div>
-
-      <button
-        onClick={toggleSidebar}
-        className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-accent"
-      >
-        {sidebarCollapsed ? (
-          <ChevronRight className="h-3 w-3" />
-        ) : (
-          <ChevronLeft className="h-3 w-3" />
-        )}
-      </button>
-    </aside>
+          {sidebarCollapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </button>
+      </aside>
+    </>
   )
 }

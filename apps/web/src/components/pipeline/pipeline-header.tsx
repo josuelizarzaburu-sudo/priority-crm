@@ -73,76 +73,133 @@ export function PipelineHeader({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3">
+        {/* Title */}
         <div>
-          <h1 className="text-2xl font-bold">Pipeline</h1>
-          <p className="text-sm text-muted-foreground">Gestión de oportunidades de venta</p>
+          <h1 className="text-xl font-bold md:text-2xl">Pipeline</h1>
+          <p className="hidden text-sm text-muted-foreground sm:block">
+            Gestión de oportunidades de venta
+          </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Mis deals / Todos toggle */}
-          <div className="flex overflow-hidden rounded-md border">
-            <button
-              className={cn(
-                'px-3 py-1.5 text-sm transition-colors',
-                viewMode === 'all'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-              onClick={() => setViewMode('all')}
-            >
-              Todos
-            </button>
-            <button
-              className={cn(
-                'border-l px-3 py-1.5 text-sm transition-colors',
-                viewMode === 'mine'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted',
-              )}
-              onClick={() => setViewMode('mine')}
-            >
-              Mis deals
-            </button>
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* ── Desktop-only filter controls ────────────────────────── */}
+          <div className="hidden items-center gap-3 md:flex">
+            {/* Mine / All toggle */}
+            <div className="flex overflow-hidden rounded-md border">
+              <button
+                className={cn(
+                  'px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'all'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+                onClick={() => setViewMode('all')}
+              >
+                Todos
+              </button>
+              <button
+                className={cn(
+                  'border-l px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'mine'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+                onClick={() => setViewMode('mine')}
+              >
+                Mis deals
+              </button>
+            </div>
+
+            {/* Vendor filter */}
+            {isAdminOrManager && (
+              <Select
+                value={filterUserId ?? 'all'}
+                onValueChange={(v) => setFilterUserId(v === 'all' ? null : v)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Todos los vendedores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los vendedores</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar deals..."
+                className="w-52 pl-8"
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          {/* Vendor filter dropdown — admin/manager only */}
-          {isAdminOrManager && (
-            <Select
-              value={filterUserId ?? 'all'}
-              onValueChange={(v) => setFilterUserId(v === 'all' ? null : v)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Todos los vendedores" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los vendedores</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar deals..."
-              className="w-52 pl-8"
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo deal
+          {/* ── New deal button — always visible ───────────────────── */}
+          <Button onClick={() => setOpen(true)} size="sm" className="md:text-sm">
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Nuevo deal</span>
           </Button>
         </div>
       </div>
 
+      {/* ── Mobile filter strip ──────────────────────────────────────── */}
+      <div className="flex items-center gap-2 md:hidden">
+        {/* Mine / All toggle */}
+        <div className="flex overflow-hidden rounded-md border text-xs">
+          <button
+            className={cn(
+              'px-3 py-1.5 transition-colors',
+              viewMode === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground',
+            )}
+            onClick={() => setViewMode('all')}
+          >
+            Todos
+          </button>
+          <button
+            className={cn(
+              'border-l px-3 py-1.5 transition-colors',
+              viewMode === 'mine'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground',
+            )}
+            onClick={() => setViewMode('mine')}
+          >
+            Mis deals
+          </button>
+        </div>
+
+        {/* Compact vendor select */}
+        {isAdminOrManager && (
+          <Select
+            value={filterUserId ?? 'all'}
+            onValueChange={(v) => setFilterUserId(v === 'all' ? null : v)}
+          >
+            <SelectTrigger className="h-8 flex-1 text-xs">
+              <SelectValue placeholder="Vendedor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Create deal dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

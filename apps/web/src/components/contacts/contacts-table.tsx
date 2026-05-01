@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Mail, Phone } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -58,38 +58,57 @@ export function ContactsTable() {
       )
     : list
 
+  const empty = filtered.length === 0
+
   return (
-    <div className="rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="w-10" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
+    <>
+      {/* ── Desktop table ─────────────────────────────────────────────── */}
+      <div className="hidden rounded-lg border bg-card md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                {searchQuery ? 'No contacts found.' : 'No contacts yet. Create your first one.'}
-              </TableCell>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
-          ) : (
-            filtered.map((contact) => (
-              <ContactRow key={contact.id} contact={contact} />
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {empty ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  {searchQuery ? 'No contacts found.' : 'No contacts yet. Create your first one.'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((contact) => (
+                <ContactRow key={contact.id} contact={contact} />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* ── Mobile card list ──────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {empty ? (
+          <div className="rounded-xl border-2 border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
+            {searchQuery ? 'Sin resultados.' : 'Aún no hay contactos.'}
+          </div>
+        ) : (
+          filtered.map((contact) => (
+            <ContactCard key={contact.id} contact={contact} />
+          ))
+        )}
+      </div>
+    </>
   )
 }
 
+/* ── Desktop row ───────────────────────────────────────────────────────────── */
 function ContactRow({ contact }: { contact: Contact }) {
   const router = useRouter()
   const fullName = `${contact.firstName}${contact.lastName ? ` ${contact.lastName}` : ''}`
@@ -104,7 +123,7 @@ function ContactRow({ contact }: { contact: Contact }) {
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs">{getInitials(fullName)}</AvatarFallback>
           </Avatar>
-          <span className="font-medium text-sm">{fullName}</span>
+          <span className="text-sm font-medium">{fullName}</span>
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{contact.email ?? '—'}</TableCell>
@@ -134,5 +153,52 @@ function ContactRow({ contact }: { contact: Contact }) {
         </DropdownMenu>
       </TableCell>
     </TableRow>
+  )
+}
+
+/* ── Mobile card ───────────────────────────────────────────────────────────── */
+function ContactCard({ contact }: { contact: Contact }) {
+  const router = useRouter()
+  const fullName = `${contact.firstName}${contact.lastName ? ` ${contact.lastName}` : ''}`
+
+  return (
+    <button
+      className="w-full rounded-xl border bg-card p-4 text-left transition-colors active:bg-muted/50"
+      onClick={() => router.push(`/contacts/${contact.id}`)}
+    >
+      {/* Top row: avatar + name + status */}
+      <div className="flex items-center gap-3">
+        <Avatar className="h-11 w-11 shrink-0">
+          <AvatarFallback className="text-sm font-semibold">{getInitials(fullName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{fullName}</p>
+          {contact.company && (
+            <p className="truncate text-sm text-muted-foreground">{contact.company}</p>
+          )}
+        </div>
+        <Badge variant={STATUS_VARIANT[contact.status]} className="ml-auto shrink-0 capitalize text-xs">
+          {contact.status.toLowerCase()}
+        </Badge>
+      </div>
+
+      {/* Contact info row */}
+      {(contact.email || contact.phone) && (
+        <div className="mt-3 flex flex-col gap-1.5 border-t pt-3">
+          {contact.email && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{contact.email}</span>
+            </div>
+          )}
+          {contact.phone && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Phone className="h-3.5 w-3.5 shrink-0" />
+              <span>{contact.phone}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </button>
   )
 }

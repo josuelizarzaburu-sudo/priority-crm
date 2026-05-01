@@ -340,7 +340,7 @@ export function ReportsPage() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen p-6 lg:p-8" style={{ background: '#f4f5f7' }}>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8" style={{ background: '#f4f5f7' }}>
 
       {/* Page header */}
       <div className="mb-8">
@@ -360,7 +360,7 @@ export function ReportsPage() {
       </div>
 
       {/* ── KPI strip ───────────────────────────────────────────────────── */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         {([
           {
             label:  'Deals nuevos',
@@ -408,7 +408,7 @@ export function ReportsPage() {
       </div>
 
       {/* ── Funnel + Donut ──────────────────────────────────────────────── */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
 
         {/* Embudo */}
         <Panel className="p-6">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { GripVertical, DollarSign, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +31,7 @@ function getInitials(name: string) {
 
 export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
+  const [mobileStageIndex, setMobileStageIndex] = useState(0)
 
   const { data: stagesData } = useQuery({
     queryKey: ['pipeline', 'stages'],
@@ -78,11 +79,64 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
     )
   }
 
+  const sortedStages = [...stages].sort((a, b) => a.position - b.position)
+  const activeMobileStage = sortedStages[Math.min(mobileStageIndex, sortedStages.length - 1)]
+  const activeMobileDeals = activeMobileStage ? getStageDeals(activeMobileStage.id) : []
+
   return (
-    <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
-      {stages
-        .sort((a, b) => a.position - b.position)
-        .map((stage) => (
+    <div className="flex flex-1 flex-col overflow-hidden">
+
+      {/* ── Mobile: stage selector tabs ──────────────────────────────── */}
+      <div className="flex gap-2 overflow-x-auto pb-2 md:hidden">
+        {sortedStages.map((stage, i) => {
+          const count = getStageDeals(stage.id).length
+          const active = mobileStageIndex === i
+          return (
+            <button
+              key={stage.id}
+              onClick={() => setMobileStageIndex(i)}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all',
+                active ? 'text-white shadow-sm' : 'bg-muted/60 text-muted-foreground',
+              )}
+              style={active ? { backgroundColor: stage.color ?? '#6366f1' } : {}}
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor: active ? 'rgba(255,255,255,0.7)' : (stage.color ?? '#6366f1'),
+                }}
+              />
+              {stage.name}
+              <span
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold',
+                  active ? 'bg-white/25' : 'bg-background',
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Mobile: single-column deal list ──────────────────────────── */}
+      <div className="flex flex-col gap-3 overflow-y-auto pb-4 md:hidden">
+        {activeMobileDeals.length > 0 ? (
+          activeMobileDeals.map((deal) => (
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} />
+          ))
+        ) : (
+          <div className="rounded-xl border-2 border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
+            No hay deals en esta etapa
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop: horizontal kanban ───────────────────────────────── */}
+      <div className="hidden flex-1 gap-4 overflow-x-auto pb-4 md:flex">
+        {sortedStages.map((stage) => (
           <KanbanColumn
             key={stage.id}
             stage={stage}
@@ -92,6 +146,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
             onSelectDeal={onSelectDeal}
           />
         ))}
+      </div>
     </div>
   )
 }
@@ -130,7 +185,7 @@ function KanbanColumn({
             className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: stage.color ?? '#6366f1' }}
           />
-          <span className="font-medium text-sm">{stage.name}</span>
+          <span className="text-sm font-medium">{stage.name}</span>
           <Badge variant="secondary" className="h-5 text-xs">
             {deals.length}
           </Badge>
@@ -159,7 +214,7 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
       draggable
       onDragStart={handleDragStart}
       onClick={() => onSelect(deal.id)}
-      className="cursor-pointer hover:shadow-md transition-shadow active:opacity-80"
+      className="cursor-pointer transition-shadow active:opacity-80 hover:shadow-md"
     >
       <CardHeader className="p-3 pb-1">
         <div className="flex items-start justify-between gap-2">
@@ -169,7 +224,7 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
       </CardHeader>
       <CardContent className="px-3 pb-3">
         {deal.contact && (
-          <p className="text-xs text-muted-foreground mb-2">
+          <p className="mb-2 text-xs text-muted-foreground">
             {deal.contact.firstName} {deal.contact.lastName}
             {deal.contact.company ? ` · ${deal.contact.company}` : ''}
           </p>

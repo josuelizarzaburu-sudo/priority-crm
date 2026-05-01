@@ -194,10 +194,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       {isOpen && <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />}
 
       <div
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-background shadow-2xl transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-background shadow-2xl transition-transform duration-300 md:max-w-md ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
+        {/* Mobile drag handle */}
+        <div className="flex justify-center pt-2 md:hidden">
+          <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
+        </div>
+
         {/* Header */}
         <div className="flex items-start justify-between border-b px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -210,8 +215,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
               <span className="text-xs text-muted-foreground">{deal.stage.name}</span>
             )}
           </div>
-          <button onClick={onClose} className="ml-2 rounded-sm p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
+          <button
+            onClick={onClose}
+            className="ml-2 flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
 

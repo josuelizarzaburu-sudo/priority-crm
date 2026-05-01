@@ -29,7 +29,6 @@ export function Header() {
     .join('')
     .toUpperCase()
 
-  // Fetch deals to count overdue follow-ups
   const { data: deals } = useQuery<any[]>({
     queryKey: ['pipeline', 'deals-all'],
     queryFn: () => api.get('/pipeline/deals').then((r) => r.data),
@@ -46,15 +45,26 @@ export function Header() {
   }, [deals])
 
   return (
-    <header className="flex h-16 items-center justify-between border-b px-6">
-      <GlobalSearch />
+    <header className="flex h-14 items-center gap-3 border-b px-3 md:h-16 md:justify-between md:px-6">
 
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={toggleAIAssistant}>
+      {/* ── Mobile: logo + full-width search ─────────────────────────── */}
+      <span className="shrink-0 text-sm font-bold text-primary md:hidden">Priority</span>
+      <div className="flex flex-1 md:hidden">
+        <GlobalSearch className="w-full" />
+      </div>
+
+      {/* ── Desktop: search (left) ────────────────────────────────────── */}
+      <div className="hidden md:block">
+        <GlobalSearch />
+      </div>
+
+      {/* ── Desktop: action icons (right) ────────────────────────────── */}
+      <div className="hidden items-center gap-3 md:flex">
+        <Button variant="ghost" size="icon" onClick={toggleAIAssistant} className="h-9 w-9">
           <Sparkles className="h-5 w-5 text-primary" />
         </Button>
 
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="h-5 w-5" />
           {overdueCount > 0 ? (
             <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">

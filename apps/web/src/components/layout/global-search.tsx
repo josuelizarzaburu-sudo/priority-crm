@@ -96,7 +96,7 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => debouncedQuery.length >= 2 && setOpen(true)}
           placeholder="Buscar contactos y deals..."
-          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="h-9 w-full rounded-lg border border-[#e8eaef] bg-[#f8f9fc] pl-9 pr-9 text-sm text-[#25324b] outline-none placeholder:text-[#25324b]/40 transition-colors focus:border-[#25324b]/30 focus:bg-white focus:ring-2 focus:ring-[#25324b]/10"
         />
       </div>
 
@@ -154,11 +154,11 @@ export function GlobalSearch({ className }: { className?: string } = {}) {
                     >
                       <div
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                        style={{ backgroundColor: `${d.stage?.color ?? '#6366f1'}20` }}
+                        style={{ backgroundColor: `${d.stage?.color ?? '#25324b'}20` }}
                       >
                         <DollarSign
                           className="h-3.5 w-3.5"
-                          style={{ color: d.stage?.color ?? '#6366f1' }}
+                          style={{ color: d.stage?.color ?? '#25324b' }}
                         />
                       </div>
                       <div className="min-w-0 flex-1">

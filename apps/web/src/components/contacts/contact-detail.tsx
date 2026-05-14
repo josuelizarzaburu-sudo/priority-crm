@@ -72,7 +72,7 @@ const LEAD_STATUS_OPTIONS = [
 const INTERACTION_TYPES = [
   { value: 'CALL', label: 'Llamé', icon: Phone, color: 'text-blue-500' },
   { value: 'WHATSAPP', label: 'WhatsApp', icon: MessageSquare, color: 'text-green-500' },
-  { value: 'EMAIL', label: 'Email', icon: Mail, color: 'text-purple-500' },
+  { value: 'EMAIL', label: 'Email', icon: Mail, color: 'text-[#d3ac76]' },
   { value: 'NOTE', label: 'Nota interna', icon: FileText, color: 'text-gray-500' },
 ] as const
 
@@ -85,11 +85,11 @@ const CALL_RESULTS = [
 const TIMELINE_CONFIG: Record<string, { icon: React.ElementType; iconColor: string; bgColor: string }> = {
   CALL: { icon: Phone, iconColor: 'text-blue-500', bgColor: 'bg-blue-50' },
   MESSAGE_SENT: { icon: MessageSquare, iconColor: 'text-green-500', bgColor: 'bg-green-50' },
-  EMAIL: { icon: Mail, iconColor: 'text-purple-500', bgColor: 'bg-purple-50' },
+  EMAIL: { icon: Mail, iconColor: 'text-[#d3ac76]', bgColor: 'bg-amber-50' },
   NOTE: { icon: FileText, iconColor: 'text-gray-500', bgColor: 'bg-gray-100' },
   STAGE_CHANGE: { icon: Clock, iconColor: 'text-yellow-600', bgColor: 'bg-yellow-50' },
   DEAL_CREATED: { icon: DollarSign, iconColor: 'text-emerald-500', bgColor: 'bg-emerald-50' },
-  CONTACT_CREATED: { icon: UserPlus, iconColor: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+  CONTACT_CREATED: { icon: UserPlus, iconColor: 'text-[#25324b]', bgColor: 'bg-[#25324b]/8' },
 }
 
 const DEFAULT_CONFIG = { icon: FileText, iconColor: 'text-gray-400', bgColor: 'bg-gray-100' }

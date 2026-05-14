@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { GripVertical, DollarSign, Bell } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePipelineStore } from '@/store'
@@ -73,7 +71,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
 
   if (!stages.length) {
     return (
-      <div className="flex flex-1 items-center justify-center text-muted-foreground">
+      <div className="flex flex-1 items-center justify-center text-[#25324b]/50">
         No hay etapas configuradas en el pipeline.
       </div>
     )
@@ -97,21 +95,21 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
               onClick={() => setMobileStageIndex(i)}
               className={cn(
                 'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all',
-                active ? 'text-white shadow-sm' : 'bg-muted/60 text-muted-foreground',
+                active ? 'text-white shadow-md' : 'bg-[#f0f2f7] text-[#25324b]/60',
               )}
-              style={active ? { backgroundColor: stage.color ?? '#6366f1' } : {}}
+              style={active ? { backgroundColor: stage.color ?? '#25324b' } : {}}
             >
               <span
                 className="h-2 w-2 rounded-full"
                 style={{
-                  backgroundColor: active ? 'rgba(255,255,255,0.7)' : (stage.color ?? '#6366f1'),
+                  backgroundColor: active ? 'rgba(255,255,255,0.7)' : (stage.color ?? '#25324b'),
                 }}
               />
               {stage.name}
               <span
                 className={cn(
                   'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold',
-                  active ? 'bg-white/25' : 'bg-background',
+                  active ? 'bg-white/25' : 'bg-white text-[#25324b]',
                 )}
               >
                 {count}
@@ -125,17 +123,17 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
       <div className="flex flex-col gap-3 overflow-y-auto pb-4 md:hidden">
         {activeMobileDeals.length > 0 ? (
           activeMobileDeals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={activeMobileStage?.color} />
           ))
         ) : (
-          <div className="rounded-xl border-2 border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border-2 border-dashed border-[#25324b]/12 px-4 py-12 text-center text-sm text-[#25324b]/40">
             No hay deals en esta etapa
           </div>
         )}
       </div>
 
       {/* ── Desktop: horizontal kanban ───────────────────────────────── */}
-      <div className="hidden flex-1 gap-4 overflow-x-auto pb-4 md:flex">
+      <div className="hidden flex-1 gap-4 overflow-x-auto pb-4 kanban-scroll md:flex">
         {sortedStages.map((stage) => (
           <KanbanColumn
             key={stage.id}
@@ -175,65 +173,90 @@ function KanbanColumn({
 
   return (
     <div
-      className="flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30"
+      className="flex w-[288px] shrink-0 flex-col rounded-xl bg-[#f0f2f7] shadow-sm"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div className="flex items-center justify-between border-b px-3 py-2.5">
-        <div className="flex items-center gap-2">
+      {/* Column header — navy background */}
+      <div
+        className="flex items-center justify-between rounded-t-xl px-4 py-3"
+        style={{ backgroundColor: '#25324b' }}
+      >
+        <div className="flex items-center gap-2.5">
           <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: stage.color ?? '#6366f1' }}
+            className="h-2.5 w-2.5 rounded-full ring-2 ring-white/20"
+            style={{ backgroundColor: stage.color ?? '#d3ac76' }}
           />
-          <span className="text-sm font-medium">{stage.name}</span>
-          <Badge variant="secondary" className="h-5 text-xs">
+          <span className="text-sm font-semibold text-white">{stage.name}</span>
+          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/15 px-1.5 text-[11px] font-bold text-white">
             {deals.length}
-          </Badge>
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground">{formatCurrency(totalValue)}</span>
+        <span className="text-xs font-medium text-[#d3ac76]">{formatCurrency(totalValue)}</span>
       </div>
 
       <ScrollArea className="flex-1 p-2">
-        <div className="space-y-2">
+        <div className="space-y-2.5 py-0.5">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={stage.color} />
           ))}
+          {deals.length === 0 && (
+            <div className="rounded-lg border-2 border-dashed border-[#25324b]/12 px-3 py-8 text-center text-xs text-[#25324b]/35">
+              Sin deals
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>
   )
 }
 
-function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => void }) {
+function DealCard({
+  deal,
+  onSelect,
+  stageColor,
+}: {
+  deal: Deal
+  onSelect: (id: string) => void
+  stageColor?: string | null
+}) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData('dealId', deal.id)
   }
 
+  const borderColor = stageColor ?? '#25324b'
+
   return (
-    <Card
+    <div
       draggable
       onDragStart={handleDragStart}
       onClick={() => onSelect(deal.id)}
-      className="cursor-pointer transition-shadow active:opacity-80 hover:shadow-md"
+      className="cursor-pointer rounded-lg bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:-translate-y-px active:opacity-75"
+      style={{ borderLeft: `4px solid ${borderColor}` }}
     >
-      <CardHeader className="p-3 pb-1">
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-sm font-medium leading-tight">{deal.title}</span>
-          <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* Card body */}
+      <div className="px-3.5 pb-3 pt-3">
+        {/* Title + grip */}
+        <div className="flex items-start justify-between gap-2 pb-1.5">
+          <span className="text-[13.5px] font-semibold leading-snug text-[#25324b]">
+            {deal.title}
+          </span>
+          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-[#25324b]/25" />
         </div>
-      </CardHeader>
-      <CardContent className="px-3 pb-3">
+
+        {/* Contact */}
         {deal.contact && (
-          <p className="mb-2 text-xs text-muted-foreground">
-            {deal.contact.firstName} {deal.contact.lastName}
+          <p className="mb-2.5 text-xs leading-tight text-[#25324b]/55">
+            {deal.contact.firstName} {deal.contact.lastName ?? ''}
             {deal.contact.company ? ` · ${deal.contact.company}` : ''}
           </p>
         )}
 
+        {/* Value + probability */}
         <div className="flex items-center justify-between">
           {deal.value ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-primary">
-              <DollarSign className="h-3 w-3" />
+            <span className="flex items-center gap-1 text-xs font-bold text-[#d3ac76]">
+              <DollarSign className="h-3.5 w-3.5" />
               {formatCurrency(deal.value)}
             </span>
           ) : (
@@ -242,12 +265,12 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
           {deal.probability != null && (
             <span
               className={cn(
-                'text-xs font-medium',
+                'rounded-full px-2 py-0.5 text-[11px] font-semibold',
                 deal.probability >= 70
-                  ? 'text-green-600'
+                  ? 'bg-emerald-50 text-emerald-700'
                   : deal.probability >= 40
-                    ? 'text-yellow-600'
-                    : 'text-red-600',
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-red-50 text-red-600',
               )}
             >
               {deal.probability}%
@@ -255,14 +278,14 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
           )}
         </div>
 
-        {/* Follow-up overdue indicator */}
+        {/* Follow-up overdue */}
         {(() => {
           const fua = (deal as any).customFields?.followUpAt as string | undefined
           if (!fua) return null
           const isOverdue = new Date(fua) < new Date()
           if (!isOverdue) return null
           return (
-            <div className="mt-1.5 flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-600 dark:bg-red-950/30">
+            <div className="mt-2 flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600">
               <Bell className="h-3 w-3" />
               Seguimiento vencido
             </div>
@@ -270,23 +293,23 @@ function DealCard({ deal, onSelect }: { deal: Deal; onSelect: (id: string) => vo
         })()}
 
         {/* Owner */}
-        <div className="mt-2 flex items-center gap-1.5 border-t pt-2">
+        <div className="mt-2.5 flex items-center gap-1.5 border-t border-[#25324b]/6 pt-2.5">
           {deal.assignedTo ? (
             <>
               <Avatar className="h-5 w-5">
-                <AvatarFallback className="bg-primary/10 text-[9px] font-semibold text-primary">
+                <AvatarFallback className="bg-[#25324b]/10 text-[9px] font-semibold text-[#25324b]">
                   {getInitials(deal.assignedTo.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate text-xs text-muted-foreground">
+              <span className="truncate text-[11px] font-medium text-[#25324b]/55">
                 {deal.assignedTo.name}
               </span>
             </>
           ) : (
-            <span className="text-xs font-medium text-red-500">Sin asignar</span>
+            <span className="text-[11px] font-semibold text-red-500">Sin asignar</span>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

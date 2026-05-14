@@ -15,16 +15,15 @@ export function BottomNav() {
 
   const isAdmin = role === 'ADMIN' || role === 'MANAGER'
 
-  // Pipeline href and icon differ by role
-  const pipelineHref  = isAdmin ? '/pipeline'     : '/my-pipeline'
-  const pipelineLabel = isAdmin ? 'Pipeline'       : 'Mi Pipeline'
-  const PipelineIcon  = isAdmin ? LayoutDashboard  : Kanban
+  const pipelineHref  = isAdmin ? '/pipeline'    : '/my-pipeline'
+  const pipelineLabel = isAdmin ? 'Pipeline'      : 'Mi Pipeline'
+  const PipelineIcon  = isAdmin ? LayoutDashboard : Kanban
 
   type Tab = {
     href: string
     label: string
     icon: React.ElementType
-    match: string   // prefix used for active detection
+    match: string
     hidden?: boolean
   }
 
@@ -54,11 +53,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#e8eaef] bg-white shadow-[0_-1px_8px_rgba(37,50,75,0.08)] md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex h-16">
-        {/* Nav tabs */}
         {visibleTabs.map(({ href, label, icon: Icon, match }) => {
           const active = pathname.startsWith(match)
           return (
@@ -70,20 +68,20 @@ export function BottomNav() {
               <div
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-xl transition-all',
-                  active ? 'bg-primary/12' : '',
+                  active ? 'bg-[#25324b]' : 'bg-transparent',
                 )}
               >
                 <Icon
                   className={cn(
-                    'h-5 w-5 transition-colors',
-                    active ? 'text-primary' : 'text-muted-foreground',
+                    'h-[18px] w-[18px] transition-colors',
+                    active ? 'text-[#d3ac76]' : 'text-[#25324b]/45',
                   )}
                 />
               </div>
               <span
                 className={cn(
                   'text-[10px] font-semibold leading-none',
-                  active ? 'text-primary' : 'text-muted-foreground',
+                  active ? 'text-[#25324b]' : 'text-[#25324b]/45',
                 )}
               >
                 {label}
@@ -99,9 +97,9 @@ export function BottomNav() {
           aria-label="Menú"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-xl">
-            <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+            <MoreHorizontal className="h-[18px] w-[18px] text-[#25324b]/45" />
           </div>
-          <span className="text-[10px] font-semibold leading-none text-muted-foreground">Más</span>
+          <span className="text-[10px] font-semibold leading-none text-[#25324b]/45">Más</span>
         </button>
       </div>
     </nav>

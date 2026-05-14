@@ -244,7 +244,7 @@ function AgentDetailPanel({ stats }: { stats: AgentStats }) {
             />
             <BigMetric icon={<Target className="h-4 w-4 text-blue-500" />} label="En proceso" value={String(dealsInProgress)} />
             <BigMetric icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Ganados este mes" value={String(wonThisMonth)} />
-            <BigMetric icon={<TrendingUp className="h-4 w-4 text-purple-500" />} label="Tasa de conversión" value={`${conversionRate}%`} />
+            <BigMetric icon={<TrendingUp className="h-4 w-4 text-[#d3ac76]" />} label="Tasa de conversión" value={`${conversionRate}%`} />
             <BigMetric
               icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
               label="Pipeline total"
@@ -514,9 +514,9 @@ function DealRow({ deal, agents, onAssign, isAssigning }: {
       <TableCell>
         <span
           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
-          style={{ backgroundColor: `${deal.stage?.color ?? '#6366f1'}20`, color: deal.stage?.color ?? '#6366f1' }}
+          style={{ backgroundColor: `${deal.stage?.color ?? '#25324b'}20`, color: deal.stage?.color ?? '#25324b' }}
         >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: deal.stage?.color ?? '#6366f1' }} />
+          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: deal.stage?.color ?? '#25324b' }} />
           {deal.stage?.name ?? '—'}
         </span>
       </TableCell>

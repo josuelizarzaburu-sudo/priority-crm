@@ -76,8 +76,8 @@ export function PipelineHeader({
       <div className="flex items-center justify-between gap-3">
         {/* Title */}
         <div>
-          <h1 className="text-xl font-bold md:text-2xl">Pipeline</h1>
-          <p className="hidden text-sm text-muted-foreground sm:block">
+          <h1 className="text-2xl font-bold tracking-tight text-[#25324b] md:text-3xl">Pipeline</h1>
+          <p className="hidden text-sm text-[#25324b]/50 sm:block">
             Gestión de oportunidades de venta
           </p>
         </div>
@@ -86,13 +86,13 @@ export function PipelineHeader({
           {/* ── Desktop-only filter controls ────────────────────────── */}
           <div className="hidden items-center gap-3 md:flex">
             {/* Mine / All toggle */}
-            <div className="flex overflow-hidden rounded-md border">
+            <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15">
               <button
                 className={cn(
-                  'px-3 py-1.5 text-sm transition-colors',
+                  'px-3.5 py-1.5 text-sm font-medium transition-colors',
                   viewMode === 'all'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
                 )}
                 onClick={() => setViewMode('all')}
               >
@@ -100,10 +100,10 @@ export function PipelineHeader({
               </button>
               <button
                 className={cn(
-                  'border-l px-3 py-1.5 text-sm transition-colors',
+                  'border-l border-[#25324b]/15 px-3.5 py-1.5 text-sm font-medium transition-colors',
                   viewMode === 'mine'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
                 )}
                 onClick={() => setViewMode('mine')}
               >
@@ -153,13 +153,13 @@ export function PipelineHeader({
       {/* ── Mobile filter strip ──────────────────────────────────────── */}
       <div className="flex items-center gap-2 md:hidden">
         {/* Mine / All toggle */}
-        <div className="flex overflow-hidden rounded-md border text-xs">
+        <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15 text-xs">
           <button
             className={cn(
-              'px-3 py-1.5 transition-colors',
+              'px-3 py-1.5 font-medium transition-colors',
               viewMode === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground',
+                ? 'bg-[#25324b] text-[#d3ac76]'
+                : 'text-[#25324b]/60',
             )}
             onClick={() => setViewMode('all')}
           >
@@ -167,10 +167,10 @@ export function PipelineHeader({
           </button>
           <button
             className={cn(
-              'border-l px-3 py-1.5 transition-colors',
+              'border-l border-[#25324b]/15 px-3 py-1.5 font-medium transition-colors',
               viewMode === 'mine'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground',
+                ? 'bg-[#25324b] text-[#d3ac76]'
+                : 'text-[#25324b]/60',
             )}
             onClick={() => setViewMode('mine')}
           >

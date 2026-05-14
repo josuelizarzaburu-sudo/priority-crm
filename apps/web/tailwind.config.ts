@@ -21,6 +21,8 @@ const config: Config = {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        navy: { DEFAULT: '#25324b', light: '#2e3f5e' },
+        gold: { DEFAULT: '#d3ac76', dark: '#b8904f' },
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',

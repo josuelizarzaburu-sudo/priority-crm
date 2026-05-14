@@ -85,7 +85,7 @@ const LEAD_STATUS_OPTIONS = [
 
 const ACTIVITY_ICON: Record<string, React.ReactNode> = {
   CALL: <Phone className="h-3.5 w-3.5 text-blue-500" />,
-  EMAIL: <Mail className="h-3.5 w-3.5 text-purple-500" />,
+  EMAIL: <Mail className="h-3.5 w-3.5 text-[#d3ac76]" />,
   MEETING: <Users className="h-3.5 w-3.5 text-green-500" />,
   TASK: <CheckCircle className="h-3.5 w-3.5 text-orange-500" />,
   STAGE_CHANGE: <Clock className="h-3.5 w-3.5 text-yellow-500" />,

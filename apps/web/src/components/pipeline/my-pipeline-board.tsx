@@ -243,7 +243,7 @@ export function MyPipelineBoard() {
         <MetricCard
           label="Tasa de conversión"
           value={`${metrics.conversionRate}%`}
-          icon={<TrendingUp className="h-4 w-4 text-violet-600" />}
+          icon={<TrendingUp className="h-4 w-4 text-[#d3ac76]" />}
           sub="ganados / (ganados + perdidos)"
           highlight={metrics.conversionRate >= 50}
         />
@@ -308,7 +308,7 @@ function KanbanColumn({
         <div className="flex items-center gap-2">
           <span
             className="h-2.5 w-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: stage.color ?? '#6366f1' }}
+            style={{ backgroundColor: stage.color ?? '#25324b' }}
           />
           <span className="font-medium text-sm">{stage.name}</span>
           <Badge variant="secondary" className="h-5 text-xs">{deals.length}</Badge>

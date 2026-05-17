@@ -1,7 +1,5 @@
-import { Controller, Post, Get, Body, Query, Logger, Res, HttpStatus } from '@nestjs/common'
+import { Controller, Post, Get, Body, Logger, Res, Req } from '@nestjs/common'
 import { ApiTags, ApiOperation } from '@nestjs/swagger'
-import { ConfigService } from '@nestjs/config'
-import { Response } from 'express'
 import { WebhooksService } from './webhooks.service'
 import { LeadsService } from '../leads/leads.service'
 import { WhatsappBotService } from '../whatsapp/whatsapp-bot.service'
@@ -16,32 +14,21 @@ export class WebhooksController {
     private readonly webhooksService: WebhooksService,
     private readonly leadsService: LeadsService,
     private readonly whatsappBot: WhatsappBotService,
-    private readonly config: ConfigService,
   ) {}
 
   @Get('whatsapp')
-  @ApiOperation({ summary: 'Meta webhook verification challenge' })
-  verifyWhatsapp(
-    // Express qs parser turns hub.mode → req.query.hub.mode (nested object), so read the whole `hub` key
-    @Query('hub') hub: { mode?: string; verify_token?: string; challenge?: string },
-    @Res() res: Response,
-  ) {
-    const secret = this.config.get('META_WHATSAPP_WEBHOOK_SECRET')
+  verifyWhatsapp(@Req() req: any, @Res() res: any) {
+    const mode = req.query['hub.mode']
+    const token = req.query['hub.verify_token']
+    const challenge = req.query['hub.challenge']
 
-    if (!secret) {
-      this.logger.error('META_WHATSAPP_WEBHOOK_SECRET is not set — cannot verify webhook')
-      return res.status(HttpStatus.FORBIDDEN).send('Forbidden')
+    console.log('Webhook verification:', { mode, token, challenge })
+    console.log('Expected token:', process.env.META_WHATSAPP_WEBHOOK_SECRET)
+
+    if (mode === 'subscribe' && token === process.env.META_WHATSAPP_WEBHOOK_SECRET) {
+      return res.status(200).send(challenge)
     }
-
-    if (hub?.mode === 'subscribe' && hub?.verify_token === secret) {
-      this.logger.log('WhatsApp webhook verified successfully')
-      return res.status(HttpStatus.OK).send(hub.challenge)
-    }
-
-    this.logger.warn(
-      `WhatsApp webhook verification failed — mode="${hub?.mode}" token_match=${hub?.verify_token === secret}`,
-    )
-    return res.status(HttpStatus.FORBIDDEN).send('Forbidden')
+    return res.status(403).send('Forbidden')
   }
 
   @Post('whatsapp')

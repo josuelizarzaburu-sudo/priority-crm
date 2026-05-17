@@ -1,10 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import Anthropic from '@anthropic-ai/sdk'
+import type Redis from 'ioredis'
 import { LeadsService } from '../leads/leads.service'
 import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 
-type BotStep = 'asking_name' | 'asking_insurance' | 'asking_city' | 'completed'
+export const WHATSAPP_REDIS = 'WHATSAPP_REDIS'
+
+type BotStep = 'nombre' | 'seguro' | 'ciudad' | 'completado'
 
 interface BotSession {
   step: BotStep
@@ -12,125 +15,140 @@ interface BotSession {
   lastName?: string
   insuranceType?: InsuranceType
   city?: string
-  history: Array<{ role: 'user' | 'assistant'; content: string }>
 }
+
+const SESSION_TTL_SECONDS = 86400 // 24 h
 
 @Injectable()
 export class WhatsappBotService {
   private readonly logger = new Logger(WhatsappBotService.name)
-  private readonly sessions = new Map<string, BotSession>()
   private readonly anthropic: Anthropic
 
   constructor(
+    @Inject(WHATSAPP_REDIS) private readonly redis: Redis,
     private readonly config: ConfigService,
     private readonly leadsService: LeadsService,
   ) {
     this.anthropic = new Anthropic({ apiKey: config.get('ANTHROPIC_API_KEY') })
   }
 
+  // ─── Public entry point ───────────────────────────────────────────────────
+
   async processMessage(phone: string, text: string): Promise<void> {
-    let session = this.sessions.get(phone)
+    const session = await this.getSession(phone)
 
     if (!session) {
-      await this.startConversation(phone)
+      await this.handleInicio(phone)
       return
     }
 
-    session.history.push({ role: 'user', content: text })
-
     switch (session.step) {
-      case 'asking_name':
-        await this.handleNameStep(phone, session)
+      case 'nombre':
+        await this.handleNombre(phone, session, text)
         break
-      case 'asking_insurance':
-        await this.handleInsuranceStep(phone, session)
+      case 'seguro':
+        await this.handleSeguro(phone, session, text)
         break
-      case 'asking_city':
-        await this.handleCityStep(phone, session)
+      case 'ciudad':
+        await this.handleCiudad(phone, session, text)
         break
-      case 'completed':
-        await this.sendMessage(
-          phone,
-          '¡Un asesor de Priority ya tiene tus datos y te contactará muy pronto! 🎯',
-        )
+      case 'completado':
+        await this.sendMessage(phone, '¡Ya tenemos tus datos! Un asesor de Priority te contactará pronto. 🎯')
         break
     }
   }
 
-  private async startConversation(phone: string): Promise<void> {
-    const greeting =
-      'Hola! Soy el asistente de Priority Health 👋 ¿En qué puedo ayudarte hoy?\n\nPara comenzar, ¿me podrías decir tu nombre completo?'
+  // ─── Steps ────────────────────────────────────────────────────────────────
 
-    this.sessions.set(phone, {
-      step: 'asking_name',
-      history: [{ role: 'assistant', content: greeting }],
-    })
-
-    await this.sendMessage(phone, greeting)
+  private async handleInicio(phone: string): Promise<void> {
+    await this.saveSession(phone, { step: 'nombre' })
+    await this.sendMessage(
+      phone,
+      'Hola! Soy el asistente de Priority Health 👋\n\n¿Me podrías decir tu nombre completo?',
+    )
   }
 
-  private async handleNameStep(phone: string, session: BotSession): Promise<void> {
+  private async handleNombre(phone: string, session: BotSession, text: string): Promise<void> {
     const result = await this.askClaude<{ response: string; firstName: string; lastName: string | null }>(
-      session.history,
-      `El usuario está respondiendo con su nombre. Extrae el primer nombre y apellido.
-Responde de forma amigable confirmando el nombre y pregunta qué tipo de seguro le interesa: SALUD (seguro médico) o AUTO (seguro de auto).
-Devuelve SOLO JSON válido con esta estructura exacta:
-{ "response": "tu mensaje aquí", "firstName": "nombre", "lastName": "apellido o null si no dio" }`,
+      `El usuario respondió con su nombre. Mensaje: "${text}"
+Extrae el primer nombre y apellido.
+Si no quedó claro, pide que repita su nombre.
+Si sí quedó claro, confirma el nombre y pregunta qué tipo de seguro le interesa: SALUD (seguro médico) o AUTO (seguro de automóvil).
+Devuelve SOLO JSON: { "response": "...", "firstName": "...", "lastName": "... o null" }`,
     )
 
     if (result?.firstName) {
       session.firstName = result.firstName
       session.lastName = result.lastName ?? undefined
-      session.step = 'asking_insurance'
+      session.step = 'seguro'
+      await this.saveSession(phone, session)
     }
 
-    const msg = result?.response ?? '¿Me puedes decir tu nombre, por favor?'
-    session.history.push({ role: 'assistant', content: msg })
-    await this.sendMessage(phone, msg)
+    await this.sendMessage(phone, result?.response ?? '¿Me puedes decir tu nombre, por favor?')
   }
 
-  private async handleInsuranceStep(phone: string, session: BotSession): Promise<void> {
+  private async handleSeguro(phone: string, session: BotSession, text: string): Promise<void> {
     const result = await this.askClaude<{ response: string; insuranceType: 'SALUD' | 'AUTO' | null }>(
-      session.history,
-      `El usuario está indicando qué tipo de seguro le interesa.
-Detecta si mencionó SALUD (salud, médico, health, médica) o AUTO (auto, carro, coche, vehiculo, car).
-Si no quedó claro, pide que aclare entre SALUD o AUTO.
-Si sí quedó claro, confirma la elección y pregunta en qué ciudad vive.
-Devuelve SOLO JSON válido:
-{ "response": "tu mensaje aquí", "insuranceType": "SALUD" | "AUTO" | null }`,
+      `El usuario${session.firstName ? ` (${session.firstName})` : ''} indicó qué tipo de seguro quiere. Mensaje: "${text}"
+Detecta si dijo SALUD (salud, médico, médica, health) o AUTO (auto, carro, coche, vehículo).
+Si no quedó claro, pide que elija entre SALUD o AUTO.
+Si sí quedó claro, confirma y pregunta en qué ciudad vive.
+Devuelve SOLO JSON: { "response": "...", "insuranceType": "SALUD" | "AUTO" | null }`,
     )
 
     if (result?.insuranceType) {
       session.insuranceType = result.insuranceType as InsuranceType
-      session.step = 'asking_city'
+      session.step = 'ciudad'
+      await this.saveSession(phone, session)
     }
 
-    const msg = result?.response ?? '¿Te interesa seguro de SALUD o AUTO?'
-    session.history.push({ role: 'assistant', content: msg })
-    await this.sendMessage(phone, msg)
+    await this.sendMessage(phone, result?.response ?? '¿Te interesa seguro de SALUD o AUTO?')
   }
 
-  private async handleCityStep(phone: string, session: BotSession): Promise<void> {
+  private async handleCiudad(phone: string, session: BotSession, text: string): Promise<void> {
     const result = await this.askClaude<{ response: string; city: string | null }>(
-      session.history,
-      `El usuario está indicando su ciudad.
-Extrae el nombre de la ciudad que mencionó.
+      `El usuario indicó su ciudad. Mensaje: "${text}"
+Extrae el nombre de la ciudad.
 Si no quedó claro, pide que indique su ciudad.
-Si sí quedó claro, genera un mensaje de cierre cálido diciendo que un asesor de Priority lo contactará pronto.
-Devuelve SOLO JSON válido:
-{ "response": "tu mensaje de cierre aquí", "city": "nombre de ciudad o null" }`,
+Si sí quedó claro, genera un mensaje de cierre cálido: confirma que un asesor de Priority lo contactará pronto.
+Devuelve SOLO JSON: { "response": "...", "city": "... o null" }`,
     )
 
-    const msg = result?.response ?? '¡Gracias! Un asesor de Priority te contactará pronto 🎯'
-    session.history.push({ role: 'assistant', content: msg })
-    await this.sendMessage(phone, msg)
+    await this.sendMessage(phone, result?.response ?? '¡Gracias! Un asesor de Priority te contactará pronto 🎯')
 
     if (result?.city) {
       session.city = result.city
-      session.step = 'completed'
+      session.step = 'completado'
+      await this.saveSession(phone, session)
       await this.createLead(phone, session)
     }
   }
+
+  // ─── Redis helpers ────────────────────────────────────────────────────────
+
+  private sessionKey(phone: string) {
+    return `whatsapp:session:${phone}`
+  }
+
+  private async getSession(phone: string): Promise<BotSession | null> {
+    try {
+      const raw = await this.redis.get(this.sessionKey(phone))
+      return raw ? (JSON.parse(raw) as BotSession) : null
+    } catch (err) {
+      this.logger.error(`Redis GET error for ${phone}`, err)
+      return null
+    }
+  }
+
+  private async saveSession(phone: string, session: BotSession): Promise<void> {
+    try {
+      await this.redis.set(this.sessionKey(phone), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS)
+    } catch (err) {
+      this.logger.error(`Redis SET error for ${phone}`, err)
+    }
+  }
+
+  // ─── Lead creation ────────────────────────────────────────────────────────
 
   private async createLead(phone: string, session: BotSession): Promise<void> {
     if (!session.firstName || !session.insuranceType) return
@@ -143,38 +161,35 @@ Devuelve SOLO JSON válido:
         insuranceType: session.insuranceType,
         source: LeadSource.WHATSAPP,
       })
-      this.logger.log(`Lead created from WhatsApp bot for ${phone}`)
+      this.logger.log(`Lead created via WhatsApp bot for ${phone}`)
     } catch (err) {
       this.logger.error(`Failed to create lead for ${phone}`, err)
     }
   }
 
-  private async askClaude<T>(
-    history: Array<{ role: 'user' | 'assistant'; content: string }>,
-    instruction: string,
-  ): Promise<T | null> {
+  // ─── Claude helper ────────────────────────────────────────────────────────
+
+  private async askClaude<T>(instruction: string): Promise<T | null> {
     try {
       const { content } = await this.anthropic.messages.create({
         model: this.config.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
-        max_tokens: 400,
-        system: `Eres el asistente virtual de Priority Health, una empresa de seguros en México.
-Tu objetivo es calificar prospectos de forma amigable y natural.
-Habla siempre en español, sé cálido y profesional.
-IMPORTANTE: Solo responde con JSON válido, sin texto adicional antes o después.`,
-        messages: history.map((m) => ({ role: m.role, content: m.content })).concat([
-          { role: 'user', content: instruction },
-        ]),
+        max_tokens: 300,
+        system: `Eres el asistente virtual de Priority Health, aseguradora mexicana.
+Califica prospectos de forma amigable y natural. Habla siempre en español.
+Responde ÚNICAMENTE con JSON válido, sin texto adicional.`,
+        messages: [{ role: 'user', content: instruction }],
       })
 
       const raw = (content[0] as { text: string }).text.trim()
-      const jsonMatch = raw.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) return null
-      return JSON.parse(jsonMatch[0]) as T
+      const match = raw.match(/\{[\s\S]*\}/)
+      return match ? (JSON.parse(match[0]) as T) : null
     } catch (err) {
       this.logger.error('Claude call failed', err)
       return null
     }
   }
+
+  // ─── WhatsApp send ────────────────────────────────────────────────────────
 
   async sendMessage(to: string, body: string): Promise<void> {
     const token = this.config.get('META_WHATSAPP_TOKEN')

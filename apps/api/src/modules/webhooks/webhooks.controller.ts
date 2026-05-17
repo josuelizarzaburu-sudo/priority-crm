@@ -28,12 +28,19 @@ export class WebhooksController {
   ) {
     const secret = this.config.get('META_WHATSAPP_WEBHOOK_SECRET')
 
+    if (!secret) {
+      this.logger.error('META_WHATSAPP_WEBHOOK_SECRET is not set — cannot verify webhook')
+      return res.status(HttpStatus.FORBIDDEN).send('Forbidden')
+    }
+
     if (hub?.mode === 'subscribe' && hub?.verify_token === secret) {
-      this.logger.log('WhatsApp webhook verified')
+      this.logger.log('WhatsApp webhook verified successfully')
       return res.status(HttpStatus.OK).send(hub.challenge)
     }
 
-    this.logger.warn('WhatsApp webhook verification failed — token mismatch')
+    this.logger.warn(
+      `WhatsApp webhook verification failed — mode="${hub?.mode}" token_match=${hub?.verify_token === secret}`,
+    )
     return res.status(HttpStatus.FORBIDDEN).send('Forbidden')
   }
 

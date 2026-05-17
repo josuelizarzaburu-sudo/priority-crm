@@ -1,41 +1,67 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import Anthropic from '@anthropic-ai/sdk'
 import type Redis from 'ioredis'
 import { LeadsService } from '../leads/leads.service'
 import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 
 export const WHATSAPP_REDIS = 'WHATSAPP_REDIS'
 
-type BotStep = 'nombre' | 'seguro' | 'ciudad' | 'completado'
+type BotStep = 'nombre' | 'tipo' | 'ciudad' | 'completado'
 
 interface BotSession {
   step: BotStep
   firstName?: string
   lastName?: string
-  insuranceType?: InsuranceType
   city?: string
 }
 
 const SESSION_TTL_SECONDS = 86400 // 24 h
 
+// ─── Keyword sets ─────────────────────────────────────────────────────────────
+
+const SALUD_KEYWORDS = ['salud', 'seguro', 'médico', 'medico', 'vitality', 'saludsa', 'plan', 'póliza', 'poliza']
+
+const FAQ: Array<{ keywords: string[]; response: string }> = [
+  {
+    keywords: ['precio', 'costo', 'cuánto', 'cuanto', 'vale', 'pagar'],
+    response:
+      'Los planes de SALUDSA Vitality empiezan desde $24/mes. Un asesor te dará una cotización exacta según tu edad y necesidades 📋',
+  },
+  {
+    keywords: ['beneficio', 'cubre', 'cobertura', 'incluye', 'qué tiene', 'que tiene'],
+    response:
+      'SALUDSA Vitality cubre hospitalización, cirugías, ambulatorio, y además te premia con devolución de hasta 20% de tus cuotas por mantenerte activo 💪',
+  },
+  {
+    keywords: ['vitality', 'punto', 'premio', 'recompensa', 'apple watch', 'garmin', 'ejercicio'],
+    response:
+      'Con Vitality acumulas puntos por ejercitarte, y puedes ganar desde un café semanal hasta un Apple Watch o Garmin 🏃 Además recibes devolución de hasta 20% al año',
+  },
+  {
+    keywords: ['contacto', 'hablar', 'asesor', 'llamar', 'teléfono', 'telefono', 'agente'],
+    response:
+      'Un asesor te contactará en menos de 24 horas. ¿Me confirmas tu nombre y ciudad para asignarte el asesor más cercano?',
+  },
+]
+
+const DEFAULT_RESPONSE =
+  'Entiendo tu consulta 😊 Para darte información más específica, un asesor de Priority Health te contactará pronto. ¿Me das tu nombre y ciudad?'
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class WhatsappBotService {
   private readonly logger = new Logger(WhatsappBotService.name)
-  private readonly anthropic: Anthropic
 
   constructor(
     @Inject(WHATSAPP_REDIS) private readonly redis: Redis,
     private readonly config: ConfigService,
     private readonly leadsService: LeadsService,
-  ) {
-    this.anthropic = new Anthropic({ apiKey: config.get('ANTHROPIC_API_KEY') })
-  }
-
-  // ─── Public entry point ───────────────────────────────────────────────────
+  ) {}
 
   async processMessage(phone: string, text: string): Promise<void> {
     const session = await this.getSession(phone)
+    const lower = text.toLowerCase()
 
     if (!session) {
       await this.handleInicio(phone)
@@ -44,87 +70,130 @@ export class WhatsappBotService {
 
     switch (session.step) {
       case 'nombre':
-        await this.handleNombre(phone, session, text)
+        await this.handleNombre(phone, session, text, lower)
         break
-      case 'seguro':
-        await this.handleSeguro(phone, session, text)
+      case 'tipo':
+        await this.handleTipo(phone, session, lower)
         break
       case 'ciudad':
         await this.handleCiudad(phone, session, text)
         break
       case 'completado':
-        await this.sendMessage(phone, '¡Ya tenemos tus datos! Un asesor de Priority te contactará pronto. 🎯')
+        await this.handleCompletado(phone, lower)
         break
     }
   }
 
-  // ─── Steps ────────────────────────────────────────────────────────────────
+  // ─── Steps ──────────────────────────────────────────────────────────────────
 
   private async handleInicio(phone: string): Promise<void> {
     await this.saveSession(phone, { step: 'nombre' })
     await this.sendMessage(
       phone,
-      'Hola! Soy el asistente de Priority Health 👋\n\n¿Me podrías decir tu nombre completo?',
+      'Hola! Soy el asistente de Priority Health 👋 Te ayudo con información sobre SALUDSA Vitality.\n\nPara darte la mejor atención, ¿me puedes decir tu nombre completo?',
     )
   }
 
-  private async handleNombre(phone: string, session: BotSession, text: string): Promise<void> {
-    const result = await this.askClaude<{ response: string; firstName: string; lastName: string | null }>(
-      `El usuario respondió con su nombre. Mensaje: "${text}"
-Extrae el primer nombre y apellido.
-Si no quedó claro, pide que repita su nombre.
-Si sí quedó claro, confirma el nombre y pregunta qué tipo de seguro le interesa: SALUD (seguro médico) o AUTO (seguro de automóvil).
-Devuelve SOLO JSON: { "response": "...", "firstName": "...", "lastName": "... o null" }`,
-    )
-
-    if (result?.firstName) {
-      session.firstName = result.firstName
-      session.lastName = result.lastName ?? undefined
-      session.step = 'seguro'
-      await this.saveSession(phone, session)
+  private async handleNombre(
+    phone: string,
+    session: BotSession,
+    text: string,
+    lower: string,
+  ): Promise<void> {
+    // If input looks like a question, answer FAQ and re-ask for name
+    const faq = this.matchFAQ(lower)
+    if (faq && lower.includes('?')) {
+      await this.sendMessage(phone, faq + '\n\n¿Me podrías decir tu nombre completo para darte una mejor atención?')
+      return
     }
 
-    await this.sendMessage(phone, result?.response ?? '¿Me puedes decir tu nombre, por favor?')
+    const { firstName, lastName } = this.parseName(text)
+    session.firstName = firstName
+    session.lastName = lastName
+    session.step = 'tipo'
+    await this.saveSession(phone, session)
+
+    await this.sendMessage(
+      phone,
+      `Mucho gusto ${firstName}! ¿Te interesa un seguro de SALUD o tienes otra consulta?`,
+    )
   }
 
-  private async handleSeguro(phone: string, session: BotSession, text: string): Promise<void> {
-    const result = await this.askClaude<{ response: string; insuranceType: 'SALUD' | 'AUTO' | null }>(
-      `El usuario${session.firstName ? ` (${session.firstName})` : ''} indicó qué tipo de seguro quiere. Mensaje: "${text}"
-Detecta si dijo SALUD (salud, médico, médica, health) o AUTO (auto, carro, coche, vehículo).
-Si no quedó claro, pide que elija entre SALUD o AUTO.
-Si sí quedó claro, confirma y pregunta en qué ciudad vive.
-Devuelve SOLO JSON: { "response": "...", "insuranceType": "SALUD" | "AUTO" | null }`,
-    )
-
-    if (result?.insuranceType) {
-      session.insuranceType = result.insuranceType as InsuranceType
+  private async handleTipo(phone: string, session: BotSession, lower: string): Promise<void> {
+    if (this.containsAny(lower, SALUD_KEYWORDS)) {
       session.step = 'ciudad'
       await this.saveSession(phone, session)
+      await this.sendMessage(
+        phone,
+        '¡Perfecto! SALUDSA Vitality es el seguro que te premia por estar sano 💚\n\nTiene 4 niveles:\n• Bronze — 5% devolución\n• Silver — 10%\n• Gold — 15%\n• Platinum — 20%\n\n¿En qué ciudad estás?',
+      )
+      return
     }
 
-    await this.sendMessage(phone, result?.response ?? '¿Te interesa seguro de SALUD o AUTO?')
+    const faq = this.matchFAQ(lower)
+    await this.sendMessage(phone, faq ?? DEFAULT_RESPONSE)
+    // Stay in 'tipo' step waiting for a clearer intent
   }
 
   private async handleCiudad(phone: string, session: BotSession, text: string): Promise<void> {
-    const result = await this.askClaude<{ response: string; city: string | null }>(
-      `El usuario indicó su ciudad. Mensaje: "${text}"
-Extrae el nombre de la ciudad.
-Si no quedó claro, pide que indique su ciudad.
-Si sí quedó claro, genera un mensaje de cierre cálido: confirma que un asesor de Priority lo contactará pronto.
-Devuelve SOLO JSON: { "response": "...", "city": "... o null" }`,
+    session.city = text.trim()
+    session.step = 'completado'
+    await this.saveSession(phone, session)
+
+    await this.sendMessage(
+      phone,
+      `¡Listo! Un asesor de Priority Health en ${session.city} te contactará pronto con una cotización personalizada 🎯`,
     )
 
-    await this.sendMessage(phone, result?.response ?? '¡Gracias! Un asesor de Priority te contactará pronto 🎯')
+    await this.createLead(phone, session)
+  }
 
-    if (result?.city) {
-      session.city = result.city
-      session.step = 'completado'
-      await this.saveSession(phone, session)
-      await this.createLead(phone, session)
+  private async handleCompletado(phone: string, lower: string): Promise<void> {
+    const faq = this.matchFAQ(lower)
+    await this.sendMessage(
+      phone,
+      faq ?? '¡Ya tenemos tus datos! Un asesor de Priority Health te contactará pronto. 🎯',
+    )
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  private parseName(text: string): { firstName: string; lastName?: string } {
+    const parts = text.trim().split(/\s+/)
+    const firstName = parts[0]
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : undefined
+    return { firstName, lastName }
+  }
+
+  private containsAny(lower: string, keywords: string[]): boolean {
+    return keywords.some((kw) => lower.includes(kw))
+  }
+
+  private matchFAQ(lower: string): string | null {
+    const match = FAQ.find((entry) => this.containsAny(lower, entry.keywords))
+    return match?.response ?? null
+  }
+
+  // ─── Lead creation ────────────────────────────────────────────────────────────
+
+  private async createLead(phone: string, session: BotSession): Promise<void> {
+    if (!session.firstName) return
+
+    try {
+      await this.leadsService.ingestLead({
+        firstName: session.firstName,
+        lastName: session.lastName,
+        phone,
+        insuranceType: InsuranceType.SALUD,
+        source: LeadSource.WHATSAPP,
+      })
+      this.logger.log(`Lead created via WhatsApp bot for ${phone}`)
+    } catch (err) {
+      this.logger.error(`Failed to create lead for ${phone}`, err)
     }
   }
 
-  // ─── Redis helpers ────────────────────────────────────────────────────────
+  // ─── Redis ────────────────────────────────────────────────────────────────────
 
   private sessionKey(phone: string) {
     return `whatsapp:session:${phone}`
@@ -148,48 +217,7 @@ Devuelve SOLO JSON: { "response": "...", "city": "... o null" }`,
     }
   }
 
-  // ─── Lead creation ────────────────────────────────────────────────────────
-
-  private async createLead(phone: string, session: BotSession): Promise<void> {
-    if (!session.firstName || !session.insuranceType) return
-
-    try {
-      await this.leadsService.ingestLead({
-        firstName: session.firstName,
-        lastName: session.lastName,
-        phone,
-        insuranceType: session.insuranceType,
-        source: LeadSource.WHATSAPP,
-      })
-      this.logger.log(`Lead created via WhatsApp bot for ${phone}`)
-    } catch (err) {
-      this.logger.error(`Failed to create lead for ${phone}`, err)
-    }
-  }
-
-  // ─── Claude helper ────────────────────────────────────────────────────────
-
-  private async askClaude<T>(instruction: string): Promise<T | null> {
-    try {
-      const { content } = await this.anthropic.messages.create({
-        model: this.config.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
-        max_tokens: 300,
-        system: `Eres el asistente virtual de Priority Health, aseguradora mexicana.
-Califica prospectos de forma amigable y natural. Habla siempre en español.
-Responde ÚNICAMENTE con JSON válido, sin texto adicional.`,
-        messages: [{ role: 'user', content: instruction }],
-      })
-
-      const raw = (content[0] as { text: string }).text.trim()
-      const match = raw.match(/\{[\s\S]*\}/)
-      return match ? (JSON.parse(match[0]) as T) : null
-    } catch (err) {
-      this.logger.error('Claude call failed', err)
-      return null
-    }
-  }
-
-  // ─── WhatsApp send ────────────────────────────────────────────────────────
+  // ─── WhatsApp send ────────────────────────────────────────────────────────────
 
   async sendMessage(to: string, body: string): Promise<void> {
     const token = this.config.get('META_WHATSAPP_TOKEN')

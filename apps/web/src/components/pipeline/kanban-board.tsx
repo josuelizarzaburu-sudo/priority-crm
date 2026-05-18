@@ -137,7 +137,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
       <div className="flex flex-col gap-3 overflow-y-auto pb-4 md:hidden">
         {activeMobileDeals.length > 0 ? (
           activeMobileDeals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={activeMobileStage?.color} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={activeMobileStage?.color} allowDrag={false} />
           ))
         ) : (
           <div className="rounded-xl border-2 border-dashed border-[#25324b]/12 px-4 py-12 text-center text-sm text-[#25324b]/40">
@@ -229,10 +229,12 @@ function DealCard({
   deal,
   onSelect,
   stageColor,
+  allowDrag = true,
 }: {
   deal: Deal
   onSelect: (id: string) => void
   stageColor?: string | null
+  allowDrag?: boolean
 }) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData('dealId', deal.id)
@@ -242,11 +244,11 @@ function DealCard({
 
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
+      draggable={allowDrag}
+      onDragStart={allowDrag ? handleDragStart : undefined}
       onClick={() => onSelect(deal.id)}
       className="cursor-pointer rounded-lg bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:-translate-y-px active:opacity-75"
-      style={{ borderLeft: `4px solid ${borderColor}` }}
+      style={{ borderLeft: `4px solid ${borderColor}`, touchAction: 'manipulation' }}
     >
       {/* Card body */}
       <div className="px-3.5 pb-3 pt-3">

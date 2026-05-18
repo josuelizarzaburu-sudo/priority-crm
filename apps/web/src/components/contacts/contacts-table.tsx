@@ -161,40 +161,55 @@ function ContactCard({ contact }: { contact: Contact }) {
   const router = useRouter()
   const fullName = `${contact.firstName}${contact.lastName ? ` ${contact.lastName}` : ''}`
 
+  const STATUS_LABEL: Record<ContactStatus, string> = {
+    [ContactStatus.LEAD]: 'Lead',
+    [ContactStatus.ACTIVE]: 'Activo',
+    [ContactStatus.CUSTOMER]: 'Cliente',
+    [ContactStatus.INACTIVE]: 'Inactivo',
+    [ContactStatus.CHURNED]: 'Perdido',
+  }
+
   return (
     <button
-      className="w-full rounded-xl border bg-card p-4 text-left transition-colors active:bg-muted/50"
+      className="w-full rounded-2xl border bg-card px-5 py-4 text-left shadow-sm transition-all active:scale-[0.98] active:bg-muted/40"
+      style={{ touchAction: 'manipulation' }}
       onClick={() => router.push(`/contacts/${contact.id}`)}
     >
-      {/* Top row: avatar + name + status */}
-      <div className="flex items-center gap-3">
-        <Avatar className="h-11 w-11 shrink-0">
-          <AvatarFallback className="text-sm font-semibold">{getInitials(fullName)}</AvatarFallback>
+      {/* Top row: avatar + name + status badge */}
+      <div className="flex items-center gap-4">
+        <Avatar className="h-14 w-14 shrink-0">
+          <AvatarFallback className="bg-[#25324b]/10 text-base font-bold text-[#25324b]">
+            {getInitials(fullName)}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{fullName}</p>
+          <p className="truncate text-base font-semibold leading-tight">{fullName}</p>
           {contact.company && (
-            <p className="truncate text-sm text-muted-foreground">{contact.company}</p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{contact.company}</p>
           )}
         </div>
-        <Badge variant={STATUS_VARIANT[contact.status]} className="ml-auto shrink-0 capitalize text-xs">
-          {contact.status.toLowerCase()}
+        <Badge variant={STATUS_VARIANT[contact.status]} className="ml-auto shrink-0 text-xs">
+          {STATUS_LABEL[contact.status]}
         </Badge>
       </div>
 
-      {/* Contact info row */}
-      {(contact.email || contact.phone) && (
-        <div className="mt-3 flex flex-col gap-1.5 border-t pt-3">
-          {contact.email && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{contact.email}</span>
+      {/* Contact info */}
+      {(contact.phone || contact.email) && (
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4">
+          {contact.phone && (
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                <Phone className="h-4 w-4 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium">{contact.phone}</span>
             </div>
           )}
-          {contact.phone && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Phone className="h-3.5 w-3.5 shrink-0" />
-              <span>{contact.phone}</span>
+          {contact.email && (
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d3ac76]/10">
+                <Mail className="h-4 w-4 text-[#d3ac76]" />
+              </div>
+              <span className="truncate text-sm font-medium">{contact.email}</span>
             </div>
           )}
         </div>

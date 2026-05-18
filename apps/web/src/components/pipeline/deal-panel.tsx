@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   X,
+  ArrowLeft,
   Phone,
   MessageSquare,
   Trophy,
@@ -242,9 +243,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Mobile drag handle */}
-        <div className="flex justify-center pt-2 md:hidden">
-          <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
+        {/* Mobile: back button */}
+        <div className="flex items-center border-b px-4 py-2 md:hidden">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al pipeline
+          </button>
         </div>
 
         {/* Header */}

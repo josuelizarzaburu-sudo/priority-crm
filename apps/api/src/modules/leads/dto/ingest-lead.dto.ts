@@ -45,14 +45,30 @@ export class IngestLeadDto {
   source?: LeadSource = LeadSource.WEB
 
   @ApiProperty({ required: false, description: 'Practica deporte regularmente' })
-  @Transform(({ value }) => value === true || value === 'true')
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined
+    return value === true || value === 'true'
+  })
   @IsBoolean()
   @IsOptional()
   sport?: boolean
 
   @ApiProperty({ required: false, description: 'Tiene seguro actual' })
-  @Transform(({ value }) => value === true || value === 'true')
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined
+    return value === true || value === 'true'
+  })
   @IsBoolean()
   @IsOptional()
   insured?: boolean
+
+  @ApiProperty({ required: false, description: 'Tipo de perfil calculado (A/B/C/D) — ignorado, el backend lo recalcula' })
+  @IsString()
+  @IsOptional()
+  profileType?: string
+
+  @ApiProperty({ required: false, description: 'Notas o comentarios adicionales del lead' })
+  @IsString()
+  @IsOptional()
+  notes?: string
 }

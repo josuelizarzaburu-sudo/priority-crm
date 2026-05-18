@@ -1,4 +1,5 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsNotEmpty } from 'class-validator'
+import { IsString, IsEmail, IsOptional, IsEnum, IsNotEmpty, IsBoolean } from 'class-validator'
+import { Transform } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
 
 export enum InsuranceType {
@@ -42,4 +43,16 @@ export class IngestLeadDto {
   @IsEnum(LeadSource)
   @IsOptional()
   source?: LeadSource = LeadSource.WEB
+
+  @ApiProperty({ required: false, description: 'Practica deporte regularmente' })
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  @IsOptional()
+  sport?: boolean
+
+  @ApiProperty({ required: false, description: 'Tiene seguro actual' })
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  @IsOptional()
+  insured?: boolean
 }

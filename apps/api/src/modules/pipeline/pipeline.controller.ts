@@ -41,7 +41,7 @@ export class PipelineController {
 
   @Get('deals/:id')
   getDeal(@Param('id') id: string, @Req() req: any) {
-    return this.pipelineService.getDeal(id, req.user.organizationId)
+    return this.pipelineService.getDeal(id, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Post('deals')
@@ -51,13 +51,13 @@ export class PipelineController {
 
   @Put('deals/:id')
   updateDeal(@Param('id') id: string, @Body() dto: UpdateDealDto, @Req() req: any) {
-    return this.pipelineService.updateDeal(id, dto, req.user.organizationId)
+    return this.pipelineService.updateDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Put('deals/:id/move')
   @ApiOperation({ summary: 'Move deal to another stage' })
   moveDeal(@Param('id') id: string, @Body() dto: MoveDealDto, @Req() req: any) {
-    return this.pipelineService.moveDeal(id, dto, req.user.organizationId, req.user.id)
+    return this.pipelineService.moveDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Put('deals/:id/assign')
@@ -69,13 +69,13 @@ export class PipelineController {
   @Post('deals/:id/activity')
   @ApiOperation({ summary: 'Log a CALL/NOTE/EMAIL/MEETING/TASK activity on a deal' })
   logActivity(@Param('id') id: string, @Body() dto: LogActivityDto, @Req() req: any) {
-    return this.pipelineService.logActivity(id, dto, req.user.organizationId, req.user.id)
+    return this.pipelineService.logActivity(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Put('deals/:id/close')
   @ApiOperation({ summary: 'Mark deal as WON or LOST' })
   closeDeal(@Param('id') id: string, @Body() dto: CloseDealDto, @Req() req: any) {
-    return this.pipelineService.closeDeal(id, dto, req.user.organizationId, req.user.id)
+    return this.pipelineService.closeDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Delete('deals/:id')

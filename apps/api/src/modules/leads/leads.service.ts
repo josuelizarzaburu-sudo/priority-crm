@@ -74,6 +74,14 @@ export class LeadsService {
     })
     const position = (lastDeal?.position ?? 0) + 1000
 
+    const sport = dto.sport ?? false
+    const insured = dto.insured ?? false
+    let profileType: string
+    if (sport && insured) profileType = 'A'
+    else if (sport && !insured) profileType = 'B'
+    else if (!sport && insured) profileType = 'C'
+    else profileType = 'D'
+
     const insuranceLabel = dto.insuranceType === 'SALUD' ? 'Salud' : 'Auto'
     const deal = await this.prisma.deal.create({
       data: {
@@ -88,6 +96,9 @@ export class LeadsService {
           insuranceType: dto.insuranceType,
           source: dto.source ?? LeadSource.WEB,
           leadCreatedAt: new Date().toISOString(),
+          sport,
+          insured,
+          profileType,
         },
       },
       include: {

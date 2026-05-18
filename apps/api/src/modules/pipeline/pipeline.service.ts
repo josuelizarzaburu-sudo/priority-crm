@@ -110,7 +110,7 @@ export class PipelineService {
     return updated
   }
 
-  async getDeal(id: string, organizationId: string) {
+  async getDeal(id: string, organizationId: string, userId?: string, role?: string) {
     const deal = await this.prisma.deal.findFirst({
       where: { id, organizationId },
       include: {
@@ -125,11 +125,14 @@ export class PipelineService {
       },
     })
     if (!deal) throw new NotFoundException('Deal not found')
+    if (role === 'MEMBER' && userId && deal.assignedToId !== userId) {
+      throw new ForbiddenException('No tienes acceso a este deal')
+    }
     return deal
   }
 
-  async logActivity(dealId: string, dto: LogActivityDto, organizationId: string, userId: string) {
-    const deal = await this.getDeal(dealId, organizationId)
+  async logActivity(dealId: string, dto: LogActivityDto, organizationId: string, userId: string, role?: string) {
+    const deal = await this.getDeal(dealId, organizationId, userId, role)
     return this.prisma.activity.create({
       data: {
         type: dto.type as any,
@@ -143,8 +146,8 @@ export class PipelineService {
     })
   }
 
-  async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string) {
-    const deal = await this.getDeal(id, organizationId)
+  async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
+    const deal = await this.getDeal(id, organizationId, userId, role)
     const updated = await this.prisma.deal.update({
       where: { id },
       data: {
@@ -183,13 +186,13 @@ export class PipelineService {
     })
   }
 
-  async updateDeal(id: string, dto: UpdateDealDto, organizationId: string) {
-    await this.getDeal(id, organizationId)
+  async updateDeal(id: string, dto: UpdateDealDto, organizationId: string, userId?: string, role?: string) {
+    await this.getDeal(id, organizationId, userId, role)
     return this.prisma.deal.update({ where: { id }, data: dto as any })
   }
 
-  async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string) {
-    const deal = await this.getDeal(id, organizationId)
+  async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string, role?: string) {
+    const deal = await this.getDeal(id, organizationId, userId, role)
     const updated = await this.prisma.deal.update({
       where: { id },
       data: { stageId: dto.stageId, position: dto.position },

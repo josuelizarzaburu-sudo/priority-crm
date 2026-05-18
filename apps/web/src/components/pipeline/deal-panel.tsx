@@ -18,17 +18,34 @@ import {
   Users,
   Bell,
   BellOff,
+  Pencil,
+  Check,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
+
+type ProfileType = 'A' | 'B' | 'C' | 'D'
+
+const PROFILES: Record<ProfileType, { label: string; emoji: string; className: string }> = {
+  A: { label: 'Deportista con seguro',   emoji: '🏃🛡️', className: 'bg-green-100 text-green-700 border-green-200' },
+  B: { label: 'Deportista sin seguro',   emoji: '🏃🔍', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  C: { label: 'Sin deporte con seguro',  emoji: '🛋️🛡️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  D: { label: 'Sin deporte sin seguro',  emoji: '🛋️🔍', className: 'bg-violet-100 text-violet-700 border-violet-200' },
+}
+
+function getProfile(customFields?: Record<string, unknown> | null) {
+  const pt = customFields?.profileType as ProfileType | undefined
+  return pt ? (PROFILES[pt] ?? null) : null
+}
 
 interface ActivityEntry {
   id: string
@@ -99,6 +116,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [closingReason, setClosingReason] = useState('')
   const [noteText, setNoteText] = useState('')
   const [followUpDate, setFollowUpDate] = useState('')
+  const [editingContact, setEditingContact] = useState(false)
+  const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -106,6 +126,11 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     queryKey: ['pipeline', 'deal', dealId],
     queryFn: () => api.get(`/pipeline/deals/${dealId}`).then((r) => r.data),
     enabled: !!dealId,
+  })
+
+  const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['pipeline', 'stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
   })
 
   // Sync follow-up input when deal loads or changes
@@ -146,6 +171,25 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     onSuccess: () => {
       setNoteText('')
       invalidate()
+    },
+  })
+
+  const moveStage = useMutation({
+    mutationFn: (stageId: string) =>
+      api.put(`/pipeline/deals/${dealId}/move`, { stageId, position: 1000 }).then((r) => r.data),
+    onSuccess: () => {
+      invalidate()
+      toast({ title: 'Etapa actualizada' })
+    },
+  })
+
+  const updateContact = useMutation({
+    mutationFn: (data: { phone?: string; email?: string }) =>
+      api.put(`/contacts/${deal?.contactId}`, data).then((r) => r.data),
+    onSuccess: () => {
+      invalidate()
+      setEditingContact(false)
+      toast({ title: 'Contacto actualizado' })
     },
   })
 
@@ -252,6 +296,41 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 </Select>
               </div>
 
+              {/* Lead Profile Badge */}
+              {(() => {
+                const profile = getProfile(deal.customFields)
+                if (!profile) return null
+                return (
+                  <div className={cn('flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium w-fit', profile.className)}>
+                    <span>{profile.emoji}</span>
+                    <span>{profile.label}</span>
+                  </div>
+                )
+              })()}
+
+              <Separator />
+
+              {/* Stage change */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Etapa del pipeline
+                </p>
+                <Select
+                  value={deal.stageId}
+                  onValueChange={(v) => v && moveStage.mutate(v)}
+                  disabled={moveStage.isPending || isClosed}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Separator />
 
               {/* Deal Info */}
@@ -278,22 +357,88 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       </span>
                     </div>
                   )}
-                  {deal.contact?.phone && (
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Phone className="h-3.5 w-3.5" /> Teléfono
-                      </span>
-                      <span className="font-medium">{deal.contact.phone}</span>
+
+                  {/* Contact fields — editable */}
+                  {deal.contact && editingContact ? (
+                    <div className="space-y-2 px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <Input
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="Teléfono"
+                          className="h-7 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <Input
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          placeholder="Email"
+                          className="h-7 text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => updateContact.mutate({ phone: editPhone || undefined, email: editEmail || undefined })}
+                          disabled={updateContact.isPending}
+                        >
+                          <Check className="h-3 w-3" /> Guardar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setEditingContact(false)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-3 py-2 group">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5" /> Teléfono
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">{deal.contact?.phone ?? '—'}</span>
+                          <button
+                            className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                            onClick={() => {
+                              setEditPhone(deal.contact?.phone ?? '')
+                              setEditEmail(deal.contact?.email ?? '')
+                              setEditingContact(true)
+                            }}
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2 group">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <Mail className="h-3.5 w-3.5" /> Email
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-medium max-w-[160px]">{deal.contact?.email ?? '—'}</span>
+                          <button
+                            className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                            onClick={() => {
+                              setEditPhone(deal.contact?.phone ?? '')
+                              setEditEmail(deal.contact?.email ?? '')
+                              setEditingContact(true)
+                            }}
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                    </>
                   )}
-                  {deal.contact?.email && (
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Mail className="h-3.5 w-3.5" /> Email
-                      </span>
-                      <span className="truncate font-medium">{deal.contact.email}</span>
-                    </div>
-                  )}
+
                   {deal.expectedCloseDate && (
                     <div className="flex items-center justify-between px-3 py-2">
                       <span className="flex items-center gap-1.5 text-muted-foreground">

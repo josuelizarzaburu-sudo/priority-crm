@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, CheckCircle2, Shield, Car } from 'lucide-react'
+import { Loader2, CheckCircle2, Shield, Car, Dumbbell, Sofa, ShieldCheck, ShieldOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +17,8 @@ const schema = z.object({
   phone: z.string().min(8, 'Ingresa un teléfono válido'),
   email: z.string().email('Ingresa un email válido').optional().or(z.literal('')),
   insuranceType: z.enum(['SALUD', 'AUTO'], { required_error: 'Selecciona el tipo de seguro' }),
+  sport: z.boolean().default(false),
+  insured: z.boolean().default(false),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -24,6 +26,16 @@ type FormValues = z.infer<typeof schema>
 const INSURANCE_OPTIONS = [
   { value: 'SALUD', label: 'Seguro de Salud', description: 'Cobertura médica para ti y tu familia', icon: Shield },
   { value: 'AUTO', label: 'Seguro de Auto', description: 'Protección para tu vehículo', icon: Car },
+] as const
+
+const SPORT_OPTIONS = [
+  { value: true,  label: 'Sí, hago deporte', icon: Dumbbell },
+  { value: false, label: 'No hago deporte',   icon: Sofa },
+] as const
+
+const INSURED_OPTIONS = [
+  { value: true,  label: 'Sí, tengo seguro',   icon: ShieldCheck },
+  { value: false, label: 'No tengo seguro',     icon: ShieldOff },
 ] as const
 
 export function QuoteForm() {
@@ -36,9 +48,14 @@ export function QuoteForm() {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) })
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { sport: false, insured: false },
+  })
 
   const selectedInsurance = watch('insuranceType')
+  const selectedSport = watch('sport')
+  const selectedInsured = watch('insured')
 
   async function onSubmit(values: FormValues) {
     setError(null)
@@ -118,6 +135,52 @@ export function QuoteForm() {
             <div className="space-y-1.5">
               <Label htmlFor="lastName">Apellido</Label>
               <Input id="lastName" placeholder="Pérez" {...register('lastName')} />
+            </div>
+          </div>
+
+          {/* Sport */}
+          <div className="space-y-2">
+            <Label>¿Practicas deporte regularmente? *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {SPORT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  onClick={() => setValue('sport', value, { shouldValidate: true })}
+                  className={cn(
+                    'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
+                    selectedSport === value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border text-muted-foreground',
+                  )}
+                >
+                  <Icon className="h-6 w-6" />
+                  <span className="text-sm font-medium">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Insured */}
+          <div className="space-y-2">
+            <Label>¿Ya cuentas con un seguro? *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {INSURED_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  onClick={() => setValue('insured', value, { shouldValidate: true })}
+                  className={cn(
+                    'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
+                    selectedInsured === value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border text-muted-foreground',
+                  )}
+                >
+                  <Icon className="h-6 w-6" />
+                  <span className="text-sm font-medium">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
 

@@ -11,6 +11,20 @@ import { cn, formatCurrency } from '@/lib/utils'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
 import { DealStatus } from '@priority-crm/shared'
 
+type ProfileType = 'A' | 'B' | 'C' | 'D'
+
+const PROFILES: Record<ProfileType, { label: string; emoji: string; className: string }> = {
+  A: { label: 'Deportista con seguro',   emoji: '🏃🛡️', className: 'bg-green-100 text-green-700 border-green-200' },
+  B: { label: 'Deportista sin seguro',   emoji: '🏃🔍', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  C: { label: 'Sin deporte con seguro',  emoji: '🛋️🛡️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  D: { label: 'Sin deporte sin seguro',  emoji: '🛋️🔍', className: 'bg-violet-100 text-violet-700 border-violet-200' },
+}
+
+function getProfile(customFields?: Record<string, unknown> | null) {
+  const pt = customFields?.profileType as ProfileType | undefined
+  return pt ? (PROFILES[pt] ?? null) : null
+}
+
 interface KanbanBoardProps {
   viewMode: 'mine' | 'all'
   filterUserId: string | null
@@ -277,6 +291,18 @@ function DealCard({
             </span>
           )}
         </div>
+
+        {/* Lead profile badge */}
+        {(() => {
+          const profile = getProfile((deal as any).customFields)
+          if (!profile) return null
+          return (
+            <div className={cn('mt-2 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', profile.className)}>
+              <span>{profile.emoji}</span>
+              <span>{profile.label}</span>
+            </div>
+          )
+        })()}
 
         {/* Follow-up overdue */}
         {(() => {

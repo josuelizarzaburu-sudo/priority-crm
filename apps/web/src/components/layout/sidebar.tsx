@@ -14,8 +14,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
-  Phone,
   UserCheck,
   UsersRound,
   BarChart3,
@@ -36,9 +34,7 @@ const NAV_ITEMS = [
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ['ADMIN', 'MANAGER'] },
-  { href: '/calls',            label: 'Llamadas',           icon: Phone,           roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/ai-assistant',     label: 'Asistente IA',       icon: Sparkles,        roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ['ADMIN', 'MANAGER'] },
+{ href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ['ADMIN', 'MANAGER'] },
 ]
 
 export function Sidebar() {

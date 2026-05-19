@@ -43,7 +43,18 @@ export class WhatsappBotService {
     private readonly leadsService: LeadsService,
   ) {}
 
+  private isRestart(text: string): boolean {
+    const t = text.trim().toLowerCase()
+    return ['hola', 'inicio', 'start', 'reiniciar', 'reset'].includes(t)
+  }
+
   async processMessage(phone: string, text: string): Promise<void> {
+    if (this.isRestart(text)) {
+      await this.redis.del(this.sessionKey(phone))
+      await this.handleInicio(phone)
+      return
+    }
+
     const session = await this.getSession(phone)
 
     if (!session) {

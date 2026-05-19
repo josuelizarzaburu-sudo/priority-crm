@@ -6,48 +6,32 @@ import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 
 export const WHATSAPP_REDIS = 'WHATSAPP_REDIS'
 
-type BotStep = 'nombre' | 'tipo' | 'ciudad' | 'completado'
+type BotStep = 'sport' | 'insured' | 'nombre' | 'completado'
 
 interface BotSession {
   step: BotStep
+  sport?: boolean
+  insured?: boolean
   firstName?: string
   lastName?: string
-  city?: string
 }
 
 const SESSION_TTL_SECONDS = 86400 // 24 h
 
-// ─── Keyword sets ─────────────────────────────────────────────────────────────
+const MSG_BIENVENIDA =
+  'Hola! Soy el asistente de Priority Health 👋 Pensando siempre en tu bienestar. Te haré 2 preguntas rápidas.'
 
-const SALUD_KEYWORDS = ['salud', 'seguro', 'médico', 'medico', 'vitality', 'saludsa', 'plan', 'póliza', 'poliza']
+const MSG_SPORT =
+  '¿Practicas deporte o actividad física regularmente?\n1️⃣ Sí, me ejercito\n2️⃣ No hago ejercicio'
 
-const FAQ: Array<{ keywords: string[]; response: string }> = [
-  {
-    keywords: ['precio', 'costo', 'cuánto', 'cuanto', 'vale', 'pagar'],
-    response:
-      'Los planes de SALUDSA Vitality empiezan desde $24/mes. Un asesor te dará una cotización exacta según tu edad y necesidades 📋',
-  },
-  {
-    keywords: ['beneficio', 'cubre', 'cobertura', 'incluye', 'qué tiene', 'que tiene'],
-    response:
-      'SALUDSA Vitality cubre hospitalización, cirugías, ambulatorio, y además te premia con devolución de hasta 20% de tus cuotas por mantenerte activo 💪',
-  },
-  {
-    keywords: ['vitality', 'punto', 'premio', 'recompensa', 'apple watch', 'garmin', 'ejercicio'],
-    response:
-      'Con Vitality acumulas puntos por ejercitarte, y puedes ganar desde un café semanal hasta un Apple Watch o Garmin 🏃 Además recibes devolución de hasta 20% al año',
-  },
-  {
-    keywords: ['contacto', 'hablar', 'asesor', 'llamar', 'teléfono', 'telefono', 'agente'],
-    response:
-      'Un asesor te contactará en menos de 24 horas. ¿Me confirmas tu nombre y ciudad para asignarte el asesor más cercano?',
-  },
-]
+const MSG_INSURED =
+  '¿Tienes seguro de salud actualmente?\n1️⃣ Sí, tengo seguro\n2️⃣ No tengo seguro'
 
-const DEFAULT_RESPONSE =
-  'Entiendo tu consulta 😊 Para darte información más específica, un asesor de Priority Health te contactará pronto. ¿Me das tu nombre y ciudad?'
+const MSG_NOMBRE = '¡Perfecto! ¿Me puedes dar tu nombre completo?'
 
-// ─── Service ─────────────────────────────────────────────────────────────────
+const MSG_COMPLETADO = 'Ya tenemos tus datos. Un asesor te contactará pronto 🎯'
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class WhatsappBotService {
@@ -61,7 +45,6 @@ export class WhatsappBotService {
 
   async processMessage(phone: string, text: string): Promise<void> {
     const session = await this.getSession(phone)
-    const lower = text.toLowerCase()
 
     if (!session) {
       await this.handleInicio(phone)
@@ -69,94 +52,78 @@ export class WhatsappBotService {
     }
 
     switch (session.step) {
+      case 'sport':
+        await this.handleSport(phone, session, text)
+        break
+      case 'insured':
+        await this.handleInsured(phone, session, text)
+        break
       case 'nombre':
-        await this.handleNombre(phone, session, text, lower)
-        break
-      case 'tipo':
-        await this.handleTipo(phone, session, lower)
-        break
-      case 'ciudad':
-        await this.handleCiudad(phone, session, text)
+        await this.handleNombre(phone, session, text)
         break
       case 'completado':
-        await this.handleCompletado(phone, lower)
+        await this.sendMessage(phone, MSG_COMPLETADO)
         break
     }
   }
 
-  // ─── Steps ──────────────────────────────────────────────────────────────────
+  // ─── Steps ────────────────────────────────────────────────────────────────────
 
   private async handleInicio(phone: string): Promise<void> {
-    await this.saveSession(phone, { step: 'nombre' })
-    await this.sendMessage(
-      phone,
-      'Hola! Soy el asistente de Priority Health 👋 Te ayudo con información sobre SALUDSA Vitality.\n\nPara darte la mejor atención, ¿me puedes decir tu nombre completo?',
-    )
+    await this.saveSession(phone, { step: 'sport' })
+    await this.sendMessage(phone, MSG_BIENVENIDA)
+    await this.sendMessage(phone, MSG_SPORT)
   }
 
-  private async handleNombre(
-    phone: string,
-    session: BotSession,
-    text: string,
-    lower: string,
-  ): Promise<void> {
-    // If input looks like a question, answer FAQ and re-ask for name
-    const faq = this.matchFAQ(lower)
-    if (faq && lower.includes('?')) {
-      await this.sendMessage(phone, faq + '\n\n¿Me podrías decir tu nombre completo para darte una mejor atención?')
+  private async handleSport(phone: string, session: BotSession, text: string): Promise<void> {
+    const answer = this.parseYesNo(text)
+    if (answer === null) {
+      await this.sendMessage(phone, MSG_SPORT)
       return
     }
 
+    session.sport = answer
+    session.step = 'insured'
+    await this.saveSession(phone, session)
+    await this.sendMessage(phone, MSG_INSURED)
+  }
+
+  private async handleInsured(phone: string, session: BotSession, text: string): Promise<void> {
+    const answer = this.parseYesNo(text)
+    if (answer === null) {
+      await this.sendMessage(phone, MSG_INSURED)
+      return
+    }
+
+    session.insured = answer
+    session.step = 'nombre'
+    await this.saveSession(phone, session)
+    await this.sendMessage(phone, MSG_NOMBRE)
+  }
+
+  private async handleNombre(phone: string, session: BotSession, text: string): Promise<void> {
     const { firstName, lastName } = this.parseName(text)
     session.firstName = firstName
     session.lastName = lastName
-    session.step = 'tipo'
-    await this.saveSession(phone, session)
-
-    await this.sendMessage(
-      phone,
-      `Mucho gusto ${firstName}! ¿Te interesa un seguro de SALUD o tienes otra consulta?`,
-    )
-  }
-
-  private async handleTipo(phone: string, session: BotSession, lower: string): Promise<void> {
-    if (this.containsAny(lower, SALUD_KEYWORDS)) {
-      session.step = 'ciudad'
-      await this.saveSession(phone, session)
-      await this.sendMessage(
-        phone,
-        '¡Perfecto! SALUDSA Vitality es el seguro que te premia por estar sano 💚\n\nTiene 4 niveles:\n• Bronze — 5% devolución\n• Silver — 10%\n• Gold — 15%\n• Platinum — 20%\n\n¿En qué ciudad estás?',
-      )
-      return
-    }
-
-    const faq = this.matchFAQ(lower)
-    await this.sendMessage(phone, faq ?? DEFAULT_RESPONSE)
-    // Stay in 'tipo' step waiting for a clearer intent
-  }
-
-  private async handleCiudad(phone: string, session: BotSession, text: string): Promise<void> {
-    session.city = text.trim()
     session.step = 'completado'
     await this.saveSession(phone, session)
 
-    await this.sendMessage(
-      phone,
-      `¡Listo! Un asesor de Priority Health en ${session.city} te contactará pronto con una cotización personalizada 🎯`,
-    )
-
     await this.createLead(phone, session)
-  }
-
-  private async handleCompletado(phone: string, lower: string): Promise<void> {
-    const faq = this.matchFAQ(lower)
     await this.sendMessage(
       phone,
-      faq ?? '¡Ya tenemos tus datos! Un asesor de Priority Health te contactará pronto. 🎯',
+      `¡Gracias ${firstName}! Un asesor de Priority Health se pondrá en contacto contigo lo más pronto posible 🎯`,
     )
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  // Returns true for "1/sí/si", false for "2/no", null if unrecognized
+  private parseYesNo(text: string): boolean | null {
+    const t = text.trim().toLowerCase()
+    if (t === '1' || t === 'sí' || t === 'si' || t === 'yes' || t === '1️⃣') return true
+    if (t === '2' || t === 'no' || t === '2️⃣') return false
+    return null
+  }
 
   private parseName(text: string): { firstName: string; lastName?: string } {
     const parts = text.trim().split(/\s+/)
@@ -165,19 +132,20 @@ export class WhatsappBotService {
     return { firstName, lastName }
   }
 
-  private containsAny(lower: string, keywords: string[]): boolean {
-    return keywords.some((kw) => lower.includes(kw))
-  }
-
-  private matchFAQ(lower: string): string | null {
-    const match = FAQ.find((entry) => this.containsAny(lower, entry.keywords))
-    return match?.response ?? null
+  private calcProfileType(sport: boolean, insured: boolean): string {
+    if (sport && insured) return 'A'
+    if (sport && !insured) return 'B'
+    if (!sport && insured) return 'C'
+    return 'D'
   }
 
   // ─── Lead creation ────────────────────────────────────────────────────────────
 
   private async createLead(phone: string, session: BotSession): Promise<void> {
     if (!session.firstName) return
+
+    const sport = session.sport ?? false
+    const insured = session.insured ?? false
 
     try {
       await this.leadsService.ingestLead({
@@ -186,8 +154,11 @@ export class WhatsappBotService {
         phone,
         insuranceType: InsuranceType.SALUD,
         source: LeadSource.WHATSAPP,
+        sport,
+        insured,
+        profileType: this.calcProfileType(sport, insured),
       })
-      this.logger.log(`Lead created via WhatsApp bot for ${phone}`)
+      this.logger.log(`Lead created via WhatsApp bot for ${phone} — profile ${this.calcProfileType(sport, insured)}`)
     } catch (err) {
       this.logger.error(`Failed to create lead for ${phone}`, err)
     }

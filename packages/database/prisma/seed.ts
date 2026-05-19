@@ -22,11 +22,11 @@ async function main() {
   })
 
   const stages = await Promise.all([
-    prisma.pipelineStage.create({ data: { name: 'Lead',       position: 1, probability: 10, color: '#6366f1', organizationId: org.id } }),
-    prisma.pipelineStage.create({ data: { name: 'Qualified',  position: 2, probability: 30, color: '#8b5cf6', organizationId: org.id } }),
-    prisma.pipelineStage.create({ data: { name: 'Proposal',   position: 3, probability: 50, color: '#a855f7', organizationId: org.id } }),
-    prisma.pipelineStage.create({ data: { name: 'Negotiation',position: 4, probability: 70, color: '#d946ef', organizationId: org.id } }),
-    prisma.pipelineStage.create({ data: { name: 'Closed Won', position: 5, probability: 100, color: '#22c55e', organizationId: org.id } }),
+    prisma.pipelineStage.create({ data: { name: 'Lead',        position: 1, probability: 10,  color: '#6366f1', organizationId: org.id } }),
+    prisma.pipelineStage.create({ data: { name: 'Calificado',  position: 2, probability: 30,  color: '#8b5cf6', organizationId: org.id } }),
+    prisma.pipelineStage.create({ data: { name: 'Propuesta',   position: 3, probability: 50,  color: '#a855f7', organizationId: org.id } }),
+    prisma.pipelineStage.create({ data: { name: 'Negociación', position: 4, probability: 70,  color: '#d946ef', organizationId: org.id } }),
+    prisma.pipelineStage.create({ data: { name: 'Ganado',      position: 5, probability: 100, color: '#22c55e', organizationId: org.id } }),
   ])
 
   const contacts = await Promise.all([

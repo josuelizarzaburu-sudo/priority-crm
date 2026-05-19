@@ -29,7 +29,7 @@ const MSG_INSURED =
 
 const MSG_NOMBRE = '¡Perfecto! ¿Me puedes dar tu nombre completo?'
 
-const MSG_COMPLETADO = 'Ya tenemos tus datos. Un asesor te contactará pronto 🎯'
+const MSG_COMPLETADO = '¡Con gusto! 😊 Recuerda que un asesor de Priority Health se pondrá en contacto contigo muy pronto. ¡Que tengas un excelente día!'
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 

@@ -148,14 +148,29 @@ export class PipelineService {
 
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
+
+    // Belt-and-suspenders: if value is missing but prima is set, sync it now
+    const prima = (deal.customFields as any)?.prima
+    const valuePatch =
+      dto.status === 'WON' && typeof prima === 'number' && prima > 0 && !deal.value
+        ? { value: prima }
+        : {}
+
     const updated = await this.prisma.deal.update({
       where: { id },
       data: {
         status: dto.status as any,
         closedAt: new Date(),
+        ...valuePatch,
         ...(dto.closingReason ? { notes: dto.closingReason } : {}),
       },
+      include: {
+        stage: true,
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
     })
+
     await this.prisma.activity.create({
       data: {
         type: 'NOTE',
@@ -169,6 +184,7 @@ export class PipelineService {
         userId,
       },
     })
+
     this.gateway.broadcastDealUpdated(organizationId, updated)
     return updated
   }
@@ -188,7 +204,27 @@ export class PipelineService {
 
   async updateDeal(id: string, dto: UpdateDealDto, organizationId: string, userId?: string, role?: string) {
     await this.getDeal(id, organizationId, userId, role)
-    return this.prisma.deal.update({ where: { id }, data: dto as any })
+
+    const data: any = { ...dto }
+
+    // Sync prima → value so reports always see the right revenue figure
+    const prima = (dto.customFields as any)?.prima
+    if (typeof prima === 'number' && prima >= 0) {
+      data.value = prima
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data,
+      include: {
+        stage: true,
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
+    })
+
+    this.gateway.broadcastDealUpdated(organizationId, updated)
+    return updated
   }
 
   async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string, role?: string) {

@@ -1,7 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMemo, useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSession } from 'next-auth/react'
+import { io } from 'socket.io-client'
 import {
   ComposedChart,
   Bar,
@@ -328,6 +330,8 @@ function PeriodSelector({
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function ReportsPage() {
   const now = new Date()
+  const qc = useQueryClient()
+  const { data: session } = useSession()
 
   const [period, setPeriod] = useState<Period>('month')
   const [customStart, setCustomStart] = useState('')
@@ -338,10 +342,34 @@ export function ReportsPage() {
     [period, customStart, customEnd], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
+  // Real-time: invalidate deals query whenever the pipeline emits deal events
+  useEffect(() => {
+    const orgId = session?.user?.organizationId
+    if (!orgId) return
+
+    const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/pipeline`, {
+      transports: ['websocket'],
+    })
+
+    socket.on('connect', () => {
+      socket.emit('join-organization', orgId)
+    })
+
+    function refresh() {
+      qc.invalidateQueries({ queryKey: ['pipeline', 'deals-all'] })
+    }
+
+    socket.on('deal:updated', refresh)
+    socket.on('deal:moved', refresh)
+
+    return () => { socket.disconnect() }
+  }, [session?.user?.organizationId, qc])
+
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ['pipeline', 'deals-all'],
     queryFn: () => api.get('/pipeline/deals').then(r => r.data),
-    staleTime: 60_000,
+    staleTime: 0,               // always treat cached data as stale
+    refetchOnWindowFocus: true,  // refetch when user returns to the tab
   })
 
   const { data: users = [] } = useQuery<User[]>({

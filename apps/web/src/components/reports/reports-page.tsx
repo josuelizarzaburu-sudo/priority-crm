@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ComposedChart,
@@ -17,10 +17,22 @@ import {
   Legend,
   Label,
 } from 'recharts'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  subMonths,
+  eachDayOfInterval,
+  isSameDay,
+} from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Download, Calendar } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { api } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 const NAVY   = '#25324b'
@@ -31,18 +43,33 @@ const GOLD12 = 'rgba(211,172,118,0.12)'
 const SOURCE_COLORS = [NAVY, GOLD, '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6']
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type ProfileType = 'A' | 'B' | 'C' | 'D'
+
+const PROFILES: Record<ProfileType, string> = {
+  A: 'Deportista con seguro',
+  B: 'Deportista sin seguro',
+  C: 'Sin deporte con seguro',
+  D: 'Sin deporte sin seguro',
+}
+
 interface Deal {
   id: string
+  title?: string
   value?: number
   status: string
   stageId: string
   assignedToId?: string
   closedAt?: string
   createdAt: string
+  customFields?: Record<string, unknown>
   stage?: { id: string; name: string; color?: string; position: number }
+  contact?: { firstName: string; lastName?: string; phone?: string; email?: string }
+  assignedTo?: { id: string; name: string }
 }
 interface User    { id: string; name: string; role: string }
 interface Contact { id: string; source?: string }
+
+type Period = 'month' | 'semester' | 'year' | 'custom'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function normalizeSource(src?: string): string {
@@ -59,6 +86,29 @@ function normalizeSource(src?: string): string {
 
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function getPeriodRange(period: Period, customStart: string, customEnd: string, now: Date) {
+  if (period === 'month') {
+    return { start: startOfMonth(now), end: endOfMonth(now) }
+  }
+  if (period === 'semester') {
+    return { start: startOfMonth(subMonths(now, 5)), end: endOfMonth(now) }
+  }
+  if (period === 'year') {
+    return { start: startOfYear(now), end: endOfYear(now) }
+  }
+  return {
+    start: customStart ? new Date(customStart + 'T00:00:00') : startOfMonth(now),
+    end:   customEnd   ? new Date(customEnd   + 'T23:59:59') : endOfMonth(now),
+  }
+}
+
+function periodLabel(period: Period, start: Date, end: Date) {
+  if (period === 'month')    return format(start, "MMMM yyyy", { locale: es })
+  if (period === 'semester') return `${format(start, "MMM yyyy", { locale: es })} – ${format(end, "MMM yyyy", { locale: es })}`
+  if (period === 'year')     return format(start, "yyyy")
+  return `${format(start, "d MMM yyyy", { locale: es })} – ${format(end, "d MMM yyyy", { locale: es })}`
 }
 
 // ─── Primitive building blocks ────────────────────────────────────────────────
@@ -129,7 +179,6 @@ function FunnelBars({ data }: { data: Array<{ name: string; count: number }> }) 
 
         return (
           <div key={item.name}>
-            {/* Bar row */}
             <div className="flex items-center gap-3 py-0.5">
               <span
                 className="w-[7.5rem] shrink-0 truncate text-right text-[12px]"
@@ -147,7 +196,6 @@ function FunnelBars({ data }: { data: Array<{ name: string; count: number }> }) 
                     transition: 'width 0.6s cubic-bezier(.4,0,.2,1)',
                   }}
                 />
-                {/* Count label — white inside bar if wide enough, else dark outside */}
                 {width >= 20 ? (
                   <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] font-bold text-white">
                     {item.count}
@@ -163,12 +211,10 @@ function FunnelBars({ data }: { data: Array<{ name: string; count: number }> }) 
               </div>
             </div>
 
-            {/* Conversion arrow between stages */}
             {conv !== null && (
               <div className="flex items-center gap-3 py-0.5">
                 <span className="w-[7.5rem] shrink-0" />
                 <div className="flex items-center gap-1.5">
-                  {/* SVG downward arrow */}
                   <svg width="9" height="11" viewBox="0 0 9 11" fill="none">
                     <path
                       d="M4.5 0v8M1.5 6l3 4.5 3-4.5"
@@ -178,10 +224,7 @@ function FunnelBars({ data }: { data: Array<{ name: string; count: number }> }) 
                       strokeLinejoin="round"
                     />
                   </svg>
-                  <span
-                    className="text-[11px] font-semibold"
-                    style={{ color: GOLD }}
-                  >
+                  <span className="text-[11px] font-semibold" style={{ color: GOLD }}>
                     {conv}% avanzó a la siguiente etapa
                   </span>
                 </div>
@@ -219,11 +262,81 @@ function SalesTooltip({ active, payload, label }: any) {
   )
 }
 
+// ─── Period Selector ──────────────────────────────────────────────────────────
+function PeriodSelector({
+  period,
+  customStart,
+  customEnd,
+  onChange,
+  onCustomStartChange,
+  onCustomEndChange,
+}: {
+  period: Period
+  customStart: string
+  customEnd: string
+  onChange: (p: Period) => void
+  onCustomStartChange: (v: string) => void
+  onCustomEndChange: (v: string) => void
+}) {
+  const options: { value: Period; label: string }[] = [
+    { value: 'month',    label: 'Este mes' },
+    { value: 'semester', label: 'Últimos 6 meses' },
+    { value: 'year',     label: 'Este año' },
+    { value: 'custom',   label: 'Personalizado' },
+  ]
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Calendar className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
+      <div className="flex flex-wrap gap-1">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className="rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-all"
+            style={
+              period === opt.value
+                ? { background: NAVY, color: '#fff' }
+                : { background: '#eef0f4', color: '#6b7585' }
+            }
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {period === 'custom' && (
+        <div className="flex items-center gap-2 ml-1">
+          <input
+            type="date"
+            value={customStart}
+            onChange={e => onCustomStartChange(e.target.value)}
+            className="rounded-md border bg-white px-2 py-1 text-sm text-[#25324b] outline-none focus:ring-2 focus:ring-[#d3ac76]/40"
+          />
+          <span className="text-xs text-muted-foreground">al</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={e => onCustomEndChange(e.target.value)}
+            className="rounded-md border bg-white px-2 py-1 text-sm text-[#25324b] outline-none focus:ring-2 focus:ring-[#d3ac76]/40"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function ReportsPage() {
-  const now        = new Date()
-  const monthStart = startOfMonth(now)
-  const monthEnd   = endOfMonth(now)
+  const now = new Date()
+
+  const [period, setPeriod] = useState<Period>('month')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  const { start: periodStart, end: periodEnd } = useMemo(
+    () => getPeriodRange(period, customStart, customEnd, now),
+    [period, customStart, customEnd], // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ['pipeline', 'deals-all'],
@@ -248,22 +361,26 @@ export function ReportsPage() {
 
   // ── KPIs ────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const wonMonth = deals.filter(d => {
+    const wonPeriod = deals.filter(d => {
       if (d.status !== 'WON') return false
       const c = d.closedAt ? new Date(d.closedAt) : null
-      return c && c >= monthStart && c <= monthEnd
+      return c && c >= periodStart && c <= periodEnd
     })
-    const newMonth   = deals.filter(d => {
+    const newPeriod = deals.filter(d => {
       const c = new Date(d.createdAt)
-      return c >= monthStart && c <= monthEnd
+      return c >= periodStart && c <= periodEnd
     })
-    const closedAll  = deals.filter(d => d.status === 'WON' || d.status === 'LOST').length
-    const wonAll     = deals.filter(d => d.status === 'WON').length
-    const conv       = closedAll > 0 ? Math.round((wonAll / closedAll) * 100) : 0
-    const openDeals  = deals.filter(d => d.status === 'OPEN').length
-    const closedVal  = wonMonth.reduce((s, d) => s + (d.value ?? 0), 0)
-    return { wonMonth: wonMonth.length, newMonth: newMonth.length, closedVal, conv, openDeals }
-  }, [deals, monthStart, monthEnd])
+    const closedAll = deals.filter(d => {
+      const c = d.closedAt ? new Date(d.closedAt) : null
+      return (d.status === 'WON' || d.status === 'LOST') && c && c >= periodStart && c <= periodEnd
+    }).length
+    const wonAll    = wonPeriod.length
+    const conv      = closedAll > 0 ? Math.round((wonAll / closedAll) * 100) : 0
+    const openDeals = deals.filter(d => d.status === 'OPEN').length
+    // Task 2: valor total = solo deals ganados (WON) en el período
+    const closedVal = wonPeriod.reduce((s, d) => s + (d.value ?? 0), 0)
+    return { wonMonth: wonPeriod.length, newMonth: newPeriod.length, closedVal, conv, openDeals }
+  }, [deals, periodStart, periodEnd])
 
   // ── Funnel ──────────────────────────────────────────────────────────────
   const funnelData = useMemo(() => {
@@ -276,10 +393,11 @@ export function ReportsPage() {
     return [...map.values()].sort((a, b) => a.position - b.position)
   }, [deals])
 
-  // ── Sales daily ─────────────────────────────────────────────────────────
+  // ── Sales daily (within period, capped at today) ─────────────────────
   const salesData = useMemo(() => {
-    const cap  = now < monthEnd ? now : monthEnd
-    const days = eachDayOfInterval({ start: monthStart, end: cap })
+    const capEnd = periodEnd < now ? periodEnd : now
+    if (capEnd < periodStart) return []
+    const days = eachDayOfInterval({ start: periodStart, end: capEnd })
     let cum = 0
     return days.map(day => {
       const won    = deals.filter(d => {
@@ -291,7 +409,7 @@ export function ReportsPage() {
       cum += dayVal
       return { day: format(day, 'd'), count: won.length, cumulative: cum }
     })
-  }, [deals, monthStart, monthEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deals, periodStart, periodEnd]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cumulativeVal = salesData[salesData.length - 1]?.cumulative ?? 0
 
@@ -300,26 +418,30 @@ export function ReportsPage() {
     const members = users.filter(u => u.role === 'MEMBER')
     return members
       .map(u => {
-        const mine     = deals.filter(d => d.assignedToId === u.id)
-        const won      = mine.filter(d => d.status === 'WON')
-        const wonMonth = won.filter(d => {
+        const mine    = deals.filter(d => d.assignedToId === u.id)
+        const allWon  = mine.filter(d => d.status === 'WON')
+        // Task 2: valor ganado = solo WON deals (filtrado por período)
+        const wonPeriod = allWon.filter(d => {
           const c = d.closedAt ? new Date(d.closedAt) : null
-          return c && c >= monthStart && c <= monthEnd
+          return c && c >= periodStart && c <= periodEnd
         })
-        const closed   = mine.filter(d => d.status === 'WON' || d.status === 'LOST')
-        const conv     = closed.length > 0 ? Math.round((won.length / closed.length) * 100) : 0
-        const totalVal = won.reduce((s, d) => s + (d.value ?? 0), 0)
+        const closedPeriod = mine.filter(d => {
+          const c = d.closedAt ? new Date(d.closedAt) : null
+          return (d.status === 'WON' || d.status === 'LOST') && c && c >= periodStart && c <= periodEnd
+        })
+        const conv     = closedPeriod.length > 0 ? Math.round((wonPeriod.length / closedPeriod.length) * 100) : 0
+        const totalVal = wonPeriod.reduce((s, d) => s + (d.value ?? 0), 0)
         return {
           name: u.name,
           asignados: mine.length,
           abiertos:  mine.filter(d => d.status === 'OPEN').length,
-          wonMonth:  wonMonth.length,
+          wonMonth:  wonPeriod.length,
           conv,
           totalVal,
         }
       })
       .sort((a, b) => b.totalVal - a.totalVal)
-  }, [users, deals, monthStart, monthEnd])
+  }, [users, deals, periodStart, periodEnd])
 
   const maxVendorVal = Math.max(...vendorData.map(v => v.totalVal), 1)
   const avgConv      = vendorData.length
@@ -338,26 +460,100 @@ export function ReportsPage() {
 
   const totalContacts = contacts.length
 
+  // ── Excel export ─────────────────────────────────────────────────────────
+  function downloadExcel() {
+    // Sheet 1: all deals
+    const ws1Data = deals.map(d => ({
+      'Nombre': d.title ?? '',
+      'Contacto': d.contact ? `${d.contact.firstName} ${d.contact.lastName ?? ''}`.trim() : '',
+      'Teléfono': d.contact?.phone ?? '',
+      'Etapa': d.stage?.name ?? '',
+      'Valor': d.value ?? 0,
+      'Vendedor': d.assignedTo?.name ?? '',
+      'Fecha creación': format(new Date(d.createdAt), 'dd/MM/yyyy'),
+      'Fecha cierre': d.closedAt ? format(new Date(d.closedAt), 'dd/MM/yyyy') : '',
+      'Estado': d.status === 'WON' ? 'Ganado' : d.status === 'LOST' ? 'Perdido' : 'Abierto',
+      'Perfil del cliente': d.customFields?.profileType
+        ? PROFILES[d.customFields.profileType as ProfileType] ?? ''
+        : '',
+      'Prima (USD)': d.customFields?.prima ?? '',
+      'Compañía': d.customFields?.compania ?? '',
+      'Plan': d.customFields?.plan ?? '',
+    }))
+
+    // Sheet 2: vendor performance (period)
+    const ws2Data = vendorData.map(v => ({
+      'Vendedor': v.name,
+      'Deals asignados': v.asignados,
+      'Deals abiertos': v.abiertos,
+      'Ganados (período)': v.wonMonth,
+      'Conversión %': v.conv,
+      'Valor ganado (USD)': v.totalVal,
+    }))
+
+    // Sheet 3: general summary
+    const ws3Data = [
+      { 'Métrica': 'Período', 'Valor': periodLabel(period, periodStart, periodEnd) },
+      { 'Métrica': 'Deals nuevos en período', 'Valor': kpis.newMonth },
+      { 'Métrica': 'Deals ganados en período', 'Valor': kpis.wonMonth },
+      { 'Métrica': 'Valor ganado (USD)', 'Valor': kpis.closedVal },
+      { 'Métrica': 'Tasa de conversión %', 'Valor': kpis.conv },
+      { 'Métrica': 'Deals abiertos (total)', 'Valor': kpis.openDeals },
+      { 'Métrica': 'Total contactos', 'Valor': totalContacts },
+      { 'Métrica': 'Conversión promedio equipo %', 'Valor': avgConv },
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ws1Data), 'Deals')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ws2Data), 'Rendimiento')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ws3Data), 'Resumen')
+    XLSX.writeFile(wb, `reporte-priority-crm-${format(now, 'yyyy-MM-dd')}.xlsx`)
+  }
+
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8" style={{ background: '#f4f5f7' }}>
 
       {/* Page header */}
-      <div className="mb-8">
-        <p
-          className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em]"
-          style={{ color: GOLD }}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p
+            className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em]"
+            style={{ color: GOLD }}
+          >
+            Priority CRM
+          </p>
+          <h1 className="text-[1.85rem] font-extrabold tracking-tight" style={{ color: NAVY }}>
+            Reportes
+          </h1>
+          <p className="mt-1 text-sm capitalize" style={{ color: '#8a96a8' }}>
+            {periodLabel(period, periodStart, periodEnd)}
+            {' · '}actualizado hoy {format(now, "HH:mm")}
+          </p>
+        </div>
+
+        {/* Download button */}
+        <Button
+          onClick={downloadExcel}
+          className="gap-2 shrink-0"
+          style={{ background: NAVY, color: '#fff' }}
         >
-          Priority CRM
-        </p>
-        <h1 className="text-[1.85rem] font-extrabold tracking-tight" style={{ color: NAVY }}>
-          Reportes
-        </h1>
-        <p className="mt-1 text-sm capitalize" style={{ color: '#8a96a8' }}>
-          {format(monthStart, "MMMM yyyy", { locale: es })}
-          {' · '}actualizado hoy {format(now, "HH:mm")}
-        </p>
+          <Download className="h-4 w-4" />
+          Descargar Excel
+        </Button>
       </div>
+
+      {/* Period selector */}
+      <Panel className="mb-6 p-4">
+        <PeriodSelector
+          period={period}
+          customStart={customStart}
+          customEnd={customEnd}
+          onChange={setPeriod}
+          onCustomStartChange={setCustomStart}
+          onCustomEndChange={setCustomEnd}
+        />
+      </Panel>
 
       {/* ── KPI strip ───────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
@@ -365,19 +561,19 @@ export function ReportsPage() {
           {
             label:  'Deals nuevos',
             value:  kpis.newMonth,
-            sub:    'creados este mes',
+            sub:    'creados en el período',
             accent: NAVY,
           },
           {
             label:  'Deals ganados',
             value:  kpis.wonMonth,
-            sub:    'cerrados este mes',
+            sub:    'cerrados en el período',
             accent: '#22c55e',
           },
           {
-            label:  'Valor cerrado',
+            label:  'Valor ganado',
             value:  formatCurrency(kpis.closedVal),
-            sub:    'revenue este mes',
+            sub:    'solo deals ganados',
             accent: GOLD,
           },
           {
@@ -388,7 +584,6 @@ export function ReportsPage() {
           },
         ] as const).map(({ label, value, sub, accent }) => (
           <Panel key={label} className="p-5">
-            {/* Brand accent line */}
             <div className="mb-4 h-[3px] w-8 rounded-full" style={{ background: accent }} />
             <p
               className="text-[10px] font-bold uppercase tracking-[0.14em]"
@@ -491,71 +686,77 @@ export function ReportsPage() {
         </Panel>
       </div>
 
-      {/* ── Ventas del mes ──────────────────────────────────────────────── */}
+      {/* ── Ventas del período ──────────────────────────────────────────── */}
       <Panel className="mb-6 p-6">
         <BigKpi
-          label="Ventas del Mes"
+          label="Ventas del Período"
           value={formatCurrency(cumulativeVal)}
           sub={`valor acumulado · ${kpis.wonMonth} deals ganados`}
         />
-        <ResponsiveContainer width="100%" height={210}>
-          <ComposedChart data={salesData} margin={{ top: 4, right: 20, left: 4, bottom: 0 }}>
-            <defs>
-              <linearGradient id="goldAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor={GOLD} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
-              </linearGradient>
-              <linearGradient id="navyBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor={NAVY} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={NAVY} stopOpacity={0.06} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eaecf0" vertical={false} />
-            <XAxis
-              dataKey="day"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              yAxisId="bars"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-              allowDecimals={false}
-              width={24}
-            />
-            <YAxis
-              yAxisId="line"
-              orientation="right"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
-              width={40}
-            />
-            <Tooltip content={<SalesTooltip />} />
-            <Bar
-              yAxisId="bars"
-              dataKey="count"
-              name="Deals ganados"
-              fill="url(#navyBarGrad)"
-              radius={[4, 4, 0, 0]}
-              barSize={12}
-            />
-            <Area
-              yAxisId="line"
-              type="monotone"
-              dataKey="cumulative"
-              name="Valor acumulado"
-              stroke={GOLD}
-              strokeWidth={2.5}
-              fill="url(#goldAreaGrad)"
-              dot={false}
-              activeDot={{ r: 5, fill: GOLD, stroke: '#fff', strokeWidth: 2.5 }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        {salesData.length === 0 ? (
+          <div className="flex h-48 items-center justify-center text-sm" style={{ color: '#c5cad4' }}>
+            Sin datos para el período seleccionado
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={210}>
+            <ComposedChart data={salesData} margin={{ top: 4, right: 20, left: 4, bottom: 0 }}>
+              <defs>
+                <linearGradient id="goldAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={GOLD} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
+                </linearGradient>
+                <linearGradient id="navyBarGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={NAVY} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={NAVY} stopOpacity={0.06} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eaecf0" vertical={false} />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="bars"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+                width={24}
+              />
+              <YAxis
+                yAxisId="line"
+                orientation="right"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+                width={40}
+              />
+              <Tooltip content={<SalesTooltip />} />
+              <Bar
+                yAxisId="bars"
+                dataKey="count"
+                name="Deals ganados"
+                fill="url(#navyBarGrad)"
+                radius={[4, 4, 0, 0]}
+                barSize={12}
+              />
+              <Area
+                yAxisId="line"
+                type="monotone"
+                dataKey="cumulative"
+                name="Valor acumulado"
+                stroke={GOLD}
+                strokeWidth={2.5}
+                fill="url(#goldAreaGrad)"
+                dot={false}
+                activeDot={{ r: 5, fill: GOLD, stroke: '#fff', strokeWidth: 2.5 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
       </Panel>
 
       {/* ── Rendimiento por vendedor ─────────────────────────────────────── */}
@@ -575,7 +776,7 @@ export function ReportsPage() {
             <table className="w-full min-w-[560px]">
               <thead>
                 <tr style={{ borderBottom: `2px solid ${NAVY15}` }}>
-                  {['Vendedor', 'Asignados', 'Abiertos', 'Ganados (mes)', 'Conversión', 'Valor ganado'].map(h => (
+                  {['Vendedor', 'Asignados', 'Abiertos', 'Ganados (período)', 'Conversión', 'Valor ganado'].map(h => (
                     <th
                       key={h}
                       className="pb-3 pr-5 text-left text-[10px] font-bold uppercase tracking-[0.12em] last:pr-0"
@@ -593,7 +794,6 @@ export function ReportsPage() {
                     className="group transition-colors"
                     style={{ borderBottom: `1px solid ${NAVY15}` }}
                   >
-                    {/* Vendedor */}
                     <td className="py-3.5 pr-5">
                       <div className="flex items-center gap-2.5">
                         <div
@@ -602,26 +802,20 @@ export function ReportsPage() {
                         >
                           {initials(v.name)}
                         </div>
-                        <span
-                          className="text-[13px] font-semibold"
-                          style={{ color: NAVY }}
-                        >
+                        <span className="text-[13px] font-semibold" style={{ color: NAVY }}>
                           {v.name}
                         </span>
                       </div>
                     </td>
 
-                    {/* Asignados */}
                     <td className="py-3.5 pr-5 text-[13px]" style={{ color: '#6b7585' }}>
                       {v.asignados}
                     </td>
 
-                    {/* Abiertos */}
                     <td className="py-3.5 pr-5 text-[13px]" style={{ color: '#6b7585' }}>
                       {v.abiertos}
                     </td>
 
-                    {/* Ganados mes */}
                     <td className="py-3.5 pr-5">
                       <span
                         className="text-[13px] font-bold"
@@ -631,18 +825,13 @@ export function ReportsPage() {
                       </span>
                     </td>
 
-                    {/* Conversión */}
                     <td className="py-3.5 pr-5">
                       <ConvPill pct={v.conv} />
                     </td>
 
-                    {/* Valor + mini bar */}
                     <td className="py-3.5">
                       <div className="flex flex-col gap-1.5">
-                        <span
-                          className="text-[13px] font-bold"
-                          style={{ color: NAVY }}
-                        >
+                        <span className="text-[13px] font-bold" style={{ color: NAVY }}>
                           {formatCurrency(v.totalVal)}
                         </span>
                         <div

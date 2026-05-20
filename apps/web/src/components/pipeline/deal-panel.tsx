@@ -120,6 +120,10 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [editingContact, setEditingContact] = useState(false)
   const [editPhone, setEditPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editingInsurance, setEditingInsurance] = useState(false)
+  const [editPrima, setEditPrima] = useState('')
+  const [editCompania, setEditCompania] = useState('')
+  const [editPlan, setEditPlan] = useState('')
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -191,6 +195,20 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       invalidate()
       setEditingContact(false)
       toast({ title: 'Contacto actualizado' })
+    },
+  })
+
+  const saveInsurance = useMutation({
+    mutationFn: (fields: { prima?: number | null; compania?: string; plan?: string }) =>
+      api
+        .put(`/pipeline/deals/${dealId}`, {
+          customFields: { ...deal?.customFields, ...fields },
+        })
+        .then((r) => r.data),
+    onSuccess: () => {
+      invalidate()
+      setEditingInsurance(false)
+      toast({ title: 'Datos del seguro guardados' })
     },
   })
 
@@ -464,6 +482,108 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   )}
                 </div>
               </div>
+
+              {/* Insurance / policy fields */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Datos del seguro
+                  </p>
+                  {!isClosed && !editingInsurance && (
+                    <button
+                      className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                      onClick={() => {
+                        setEditPrima(String(deal?.customFields?.prima ?? ''))
+                        setEditCompania(String(deal?.customFields?.compania ?? ''))
+                        setEditPlan(String(deal?.customFields?.plan ?? ''))
+                        setEditingInsurance(true)
+                      }}
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+
+                {editingInsurance ? (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Valor de la prima (USD)</label>
+                      <Input
+                        type="number"
+                        value={editPrima}
+                        onChange={(e) => setEditPrima(e.target.value)}
+                        placeholder="0.00"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Compañía que emitió</label>
+                      <Input
+                        value={editCompania}
+                        onChange={(e) => setEditCompania(e.target.value)}
+                        placeholder="Ej: SALUDSA"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Plan elegido</label>
+                      <Input
+                        value={editPlan}
+                        onChange={(e) => setEditPlan(e.target.value)}
+                        placeholder="Ej: Sky, Star, Pro"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() =>
+                          saveInsurance.mutate({
+                            prima: editPrima ? parseFloat(editPrima) : null,
+                            compania: editCompania || undefined,
+                            plan: editPlan || undefined,
+                          })
+                        }
+                        disabled={saveInsurance.isPending}
+                      >
+                        <Check className="h-3 w-3" /> Guardar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setEditingInsurance(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y rounded-md border text-sm">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <DollarSign className="h-3.5 w-3.5" /> Valor de la prima
+                      </span>
+                      <span className="font-medium">
+                        {deal?.customFields?.prima != null
+                          ? formatCurrency(deal.customFields.prima as number)
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">Compañía</span>
+                      <span className="font-medium">{(deal?.customFields?.compania as string) || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium">{(deal?.customFields?.plan as string) || '—'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
 
               {/* Owner */}
               {isAdminOrManager && (

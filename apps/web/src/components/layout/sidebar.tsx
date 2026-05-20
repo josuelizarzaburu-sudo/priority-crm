@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ['ADMIN', 'MANAGER'] },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ['ADMIN', 'MANAGER'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
+  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['MEMBER'] },
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['MEMBER'] },
   { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ['ADMIN', 'MANAGER'] },
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ['ADMIN', 'MANAGER', 'MEMBER'] },

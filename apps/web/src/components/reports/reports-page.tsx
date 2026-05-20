@@ -398,15 +398,14 @@ export function ReportsPage() {
       const c = new Date(d.createdAt)
       return c >= periodStart && c <= periodEnd
     })
-    const closedAll = deals.filter(d => {
-      const c = d.closedAt ? new Date(d.closedAt) : null
-      return (d.status === 'WON' || d.status === 'LOST') && c && c >= periodStart && c <= periodEnd
-    }).length
-    const wonAll    = wonPeriod.length
-    const conv      = closedAll > 0 ? Math.round((wonAll / closedAll) * 100) : 0
     const openDeals = deals.filter(d => d.status === 'OPEN').length
-    // Task 2: valor total = solo deals ganados (WON) en el período
-    const closedVal = wonPeriod.reduce((s, d) => s + (d.value ?? 0), 0)
+    // Conversión: ganados del período / total deals. Con 0 ganados → 0%.
+    const conv = deals.length > 0 ? Math.round((wonPeriod.length / deals.length) * 100) : 0
+    // Valor: fallback a customFields.prima si deal.value aún no fue sincronizado
+    const closedVal = wonPeriod.reduce((s, d) => {
+      const prima = d.customFields?.prima as number | undefined
+      return s + (d.value ?? prima ?? 0)
+    }, 0)
     return { wonMonth: wonPeriod.length, newMonth: newPeriod.length, closedVal, conv, openDeals }
   }, [deals, periodStart, periodEnd])
 
@@ -433,7 +432,10 @@ export function ReportsPage() {
         const c = d.closedAt ? new Date(d.closedAt) : null
         return c && isSameDay(c, day)
       })
-      const dayVal = won.reduce((s, d) => s + (d.value ?? 0), 0)
+      const dayVal = won.reduce((s, d) => {
+        const prima = d.customFields?.prima as number | undefined
+        return s + (d.value ?? prima ?? 0)
+      }, 0)
       cum += dayVal
       return { day: format(day, 'd'), count: won.length, cumulative: cum }
     })
@@ -453,12 +455,13 @@ export function ReportsPage() {
           const c = d.closedAt ? new Date(d.closedAt) : null
           return c && c >= periodStart && c <= periodEnd
         })
-        const closedPeriod = mine.filter(d => {
-          const c = d.closedAt ? new Date(d.closedAt) : null
-          return (d.status === 'WON' || d.status === 'LOST') && c && c >= periodStart && c <= periodEnd
-        })
-        const conv     = closedPeriod.length > 0 ? Math.round((wonPeriod.length / closedPeriod.length) * 100) : 0
-        const totalVal = wonPeriod.reduce((s, d) => s + (d.value ?? 0), 0)
+        // Conversión: ganados del período / total asignados al vendedor. Con 0 ganados → 0%.
+        const conv     = mine.length > 0 ? Math.round((wonPeriod.length / mine.length) * 100) : 0
+        // Valor: fallback a customFields.prima si deal.value aún no fue sincronizado
+        const totalVal = wonPeriod.reduce((s, d) => {
+          const prima = d.customFields?.prima as number | undefined
+          return s + (d.value ?? prima ?? 0)
+        }, 0)
         return {
           name: u.name,
           asignados: mine.length,

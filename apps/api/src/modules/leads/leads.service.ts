@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
 import { IngestLeadDto, LeadSource } from './dto/ingest-lead.dto'
+import { NotificationsService } from '../notifications/notifications.service'
 
 @Injectable()
 export class LeadsService {
@@ -10,6 +11,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async ingestLead(dto: IngestLeadDto) {
@@ -108,6 +110,22 @@ export class LeadsService {
     })
 
     this.logger.log(`Lead ingested: deal ${deal.id} for contact ${contact.id}`)
+
+    const cf = deal.customFields as any
+    const contactName = `${deal.contact.firstName}${deal.contact.lastName ? ` ${deal.contact.lastName}` : ''}`
+    this.notifications
+      .notifyNewLead({
+        dealId: deal.id,
+        orgId: org.id,
+        contactName,
+        phone: deal.contact.phone ?? dto.phone,
+        email: deal.contact.email ?? undefined,
+        profileType: cf?.profileType ?? profileType,
+        source: String(cf?.source ?? dto.source ?? LeadSource.WEB),
+        arrivalTime: new Date(),
+      })
+      .catch(err => this.logger.error(`Notification error: ${err}`))
+
     return { status: 'ok', contactId: contact.id, dealId: deal.id }
   }
 }

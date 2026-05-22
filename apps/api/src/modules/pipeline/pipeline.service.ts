@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
@@ -7,12 +7,16 @@ import { AssignDealDto } from './dto/assign-deal.dto'
 import { LogActivityDto } from './dto/log-activity.dto'
 import { CloseDealDto } from './dto/close-deal.dto'
 import { PipelineGateway } from './pipeline.gateway'
+import { NotificationsService } from '../notifications/notifications.service'
 
 @Injectable()
 export class PipelineService {
+  private readonly logger = new Logger(PipelineService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: PipelineGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async getStagesWithDeals(organizationId: string) {
@@ -107,6 +111,25 @@ export class PipelineService {
 
     this.gateway.broadcastLeadAssigned(dto.agentId, updated)
     this.gateway.broadcastDealUpdated(organizationId, updated)
+
+    if (updated.assignedTo?.email && updated.contact) {
+      const cf = updated.customFields as any
+      const c = updated.contact as any
+      const contactName = `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}`
+      this.notifications
+        .notifyDealAssigned(updated.assignedTo.email, {
+          dealId: updated.id,
+          orgId: organizationId,
+          contactName,
+          phone: c.phone ?? '',
+          email: c.email ?? undefined,
+          profileType: cf?.profileType ?? 'D',
+          source: String(cf?.source ?? 'WEB'),
+          arrivalTime: cf?.leadCreatedAt ? new Date(cf.leadCreatedAt) : new Date(),
+        })
+        .catch(err => this.logger.error(`Notification error: ${err}`))
+    }
+
     return updated
   }
 

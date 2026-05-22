@@ -112,6 +112,8 @@ export class LeadsService {
     this.logger.log(`Lead ingested: deal ${deal.id} for contact ${contact.id}`)
 
     const cf = deal.customFields as any
+    if (!deal.contact) return { status: 'ok', contactId: contact.id, dealId: deal.id }
+
     const contactName = `${deal.contact.firstName}${deal.contact.lastName ? ` ${deal.contact.lastName}` : ''}`
     this.notifications
       .notifyNewLead({

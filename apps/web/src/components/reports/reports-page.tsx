@@ -63,6 +63,7 @@ interface Deal {
   assignedToId?: string
   closedAt?: string
   createdAt: string
+  updatedAt: string
   customFields?: Record<string, unknown>
   stage?: { id: string; name: string; color?: string; position: number }
   contact?: { firstName: string; lastName?: string; phone?: string; email?: string }
@@ -88,6 +89,17 @@ function normalizeSource(src?: string): string {
 
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+// Un deal es "ganado" si su stageId coincide con el stage 'Ganado' O si tiene status WON
+function isGanado(d: Deal, wonStageId: string | null): boolean {
+  if (wonStageId) return d.stageId === wonStageId || d.status === 'WON'
+  return d.stage?.name === 'Ganado' || d.status === 'WON'
+}
+
+// Fecha representativa del cierre: closedAt (botón Ganado) o updatedAt (mover al stage)
+function dealWonDate(d: Deal): Date {
+  return d.closedAt ? new Date(d.closedAt) : new Date(d.updatedAt)
 }
 
 function getPeriodRange(period: Period, customStart: string, customEnd: string, now: Date) {
@@ -368,9 +380,21 @@ export function ReportsPage() {
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ['pipeline', 'deals-all'],
     queryFn: () => api.get('/pipeline/deals').then(r => r.data),
-    staleTime: 0,               // always treat cached data as stale
-    refetchOnWindowFocus: true,  // refetch when user returns to the tab
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
+
+  const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['pipeline', 'stages-meta'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    staleTime: 300_000,
+    select: (data) => data.map((s: any) => ({ id: s.id, name: s.name })),
+  })
+
+  const ganadorStageId = useMemo(
+    () => stages.find(s => s.name === 'Ganado')?.id ?? null,
+    [stages],
+  )
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['users'],
@@ -390,16 +414,17 @@ export function ReportsPage() {
   // ── KPIs ────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const wonPeriod = deals.filter(d => {
-      if (d.status !== 'WON') return false
-      const c = d.closedAt ? new Date(d.closedAt) : null
-      return c && c >= periodStart && c <= periodEnd
+      if (!isGanado(d, ganadorStageId)) return false
+      const date = dealWonDate(d)
+      return date >= periodStart && date <= periodEnd
     })
     const newPeriod = deals.filter(d => {
       const c = new Date(d.createdAt)
       return c >= periodStart && c <= periodEnd
     })
-    const openDeals = deals.filter(d => d.status === 'OPEN').length
-    // Conversión: ganados del período / total deals. Con 0 ganados → 0%.
+    // Activos = no ganados y no perdidos
+    const openDeals = deals.filter(d => !isGanado(d, ganadorStageId) && d.status !== 'LOST').length
+    // Conversión: ganados del período / total deals. Con 0 ganados → 0%
     const conv = deals.length > 0 ? Math.round((wonPeriod.length / deals.length) * 100) : 0
     // Valor: fallback a customFields.prima si deal.value aún no fue sincronizado
     const closedVal = wonPeriod.reduce((s, d) => {
@@ -407,7 +432,7 @@ export function ReportsPage() {
       return s + (d.value ?? prima ?? 0)
     }, 0)
     return { wonMonth: wonPeriod.length, newMonth: newPeriod.length, closedVal, conv, openDeals }
-  }, [deals, periodStart, periodEnd])
+  }, [deals, periodStart, periodEnd, ganadorStageId])
 
   // ── Funnel ──────────────────────────────────────────────────────────────
   const funnelData = useMemo(() => {
@@ -428,9 +453,8 @@ export function ReportsPage() {
     let cum = 0
     return days.map(day => {
       const won    = deals.filter(d => {
-        if (d.status !== 'WON') return false
-        const c = d.closedAt ? new Date(d.closedAt) : null
-        return c && isSameDay(c, day)
+        if (!isGanado(d, ganadorStageId)) return false
+        return isSameDay(dealWonDate(d), day)
       })
       const dayVal = won.reduce((s, d) => {
         const prima = d.customFields?.prima as number | undefined
@@ -439,7 +463,7 @@ export function ReportsPage() {
       cum += dayVal
       return { day: format(day, 'd'), count: won.length, cumulative: cum }
     })
-  }, [deals, periodStart, periodEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deals, periodStart, periodEnd, ganadorStageId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cumulativeVal = salesData[salesData.length - 1]?.cumulative ?? 0
 
@@ -449,13 +473,12 @@ export function ReportsPage() {
     return members
       .map(u => {
         const mine    = deals.filter(d => d.assignedToId === u.id)
-        const allWon  = mine.filter(d => d.status === 'WON')
-        // Task 2: valor ganado = solo WON deals (filtrado por período)
-        const wonPeriod = allWon.filter(d => {
-          const c = d.closedAt ? new Date(d.closedAt) : null
-          return c && c >= periodStart && c <= periodEnd
+        const wonPeriod = mine.filter(d => {
+          if (!isGanado(d, ganadorStageId)) return false
+          const date = dealWonDate(d)
+          return date >= periodStart && date <= periodEnd
         })
-        // Conversión: ganados del período / total asignados al vendedor. Con 0 ganados → 0%.
+        // Conversión: ganados del período / total asignados al vendedor. Con 0 ganados → 0%
         const conv     = mine.length > 0 ? Math.round((wonPeriod.length / mine.length) * 100) : 0
         // Valor: fallback a customFields.prima si deal.value aún no fue sincronizado
         const totalVal = wonPeriod.reduce((s, d) => {
@@ -465,14 +488,14 @@ export function ReportsPage() {
         return {
           name: u.name,
           asignados: mine.length,
-          abiertos:  mine.filter(d => d.status === 'OPEN').length,
+          abiertos:  mine.filter(d => !isGanado(d, ganadorStageId) && d.status !== 'LOST').length,
           wonMonth:  wonPeriod.length,
           conv,
           totalVal,
         }
       })
       .sort((a, b) => b.totalVal - a.totalVal)
-  }, [users, deals, periodStart, periodEnd])
+  }, [users, deals, periodStart, periodEnd, ganadorStageId])
 
   const maxVendorVal = Math.max(...vendorData.map(v => v.totalVal), 1)
   const avgConv      = vendorData.length

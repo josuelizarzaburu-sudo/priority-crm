@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
-import * as nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { UserRole } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
+
+const FROM = 'Priority CRM <leads@priorityhealth.ec>'
 
 const PROFILE_INFO: Record<string, { label: string; pitch: string }> = {
   A: {
@@ -39,41 +41,39 @@ export interface LeadNotificationData {
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name)
-  private transporter: nodemailer.Transporter | null = null
+  private resend: Resend | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     @InjectQueue('notifications') private readonly queue: Queue,
   ) {
-    const user = config.get<string>('SMTP_USER')
-    const pass = config.get<string>('SMTP_PASS')
-    if (user && pass) {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user, pass },
-      })
-      this.logger.log(`SMTP configured via Gmail service for ${user}`)
+    const apiKey = config.get<string>('RESEND_API_KEY')
+    if (apiKey) {
+      this.resend = new Resend(apiKey)
+      this.logger.log('Resend configured')
     } else {
-      this.logger.warn('SMTP_USER/SMTP_PASS not set — emails will be logged to console')
+      this.logger.warn('RESEND_API_KEY not set — emails will be logged to console')
     }
   }
 
   private async sendEmail(to: string, subject: string, html: string): Promise<void> {
-    if (!this.transporter) {
-      this.logger.log(
-        `[EMAIL] To: ${to}\nSubject: ${subject}\n--- (set SMTP_HOST to send real emails)`,
-      )
+    if (!this.resend) {
+      this.logger.log(`[EMAIL] To: ${to} | Subject: ${subject}\n--- (set RESEND_API_KEY to send real emails)`)
       return
     }
     try {
-      const from = this.config.get('SMTP_FROM', 'Priority CRM <noreply@priority.com>')
-      await this.transporter.sendMail({ from, to, subject, html })
-      this.logger.log(`Email sent → ${to} | ${subject}`)
-      console.log('sendMail OK →', to)
+      const { data, error } = await this.resend.emails.send({ from: FROM, to: [to], subject, html })
+      if (error) {
+        console.log('Resend error →', to, error)
+        this.logger.error(`Email failed → ${to}: ${JSON.stringify(error)}`)
+      } else {
+        console.log('Resend OK →', to, data?.id)
+        this.logger.log(`Email sent → ${to} | ${subject}`)
+      }
     } catch (err) {
-      console.log('sendMail ERROR →', to, err)
-      this.logger.error(`Email failed → ${to}: ${err}`)
+      console.log('Resend exception →', to, err)
+      this.logger.error(`Email exception → ${to}: ${err}`)
     }
   }
 
@@ -92,24 +92,16 @@ export class NotificationsService {
   }
 
   private buildHtml(data: LeadNotificationData, withPitch: boolean): string {
-    const profile = PROFILE_INFO[data.profileType] ?? {
-      label: data.profileType,
-      pitch: '',
-    }
+    const profile = PROFILE_INFO[data.profileType] ?? { label: data.profileType, pitch: '' }
     const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
-    const name = this.escape(data.contactName)
-    const phone = this.escape(data.phone)
-    const email = this.escape(data.email ?? '—')
-    const source = this.escape(data.source)
-    const time = this.formatTime(data.arrivalTime)
 
     const rows: [string, string][] = [
-      ['Nombre', name],
-      ['Teléfono', phone],
-      ['Email', email],
+      ['Nombre', this.escape(data.contactName)],
+      ['Teléfono', this.escape(data.phone)],
+      ['Email', this.escape(data.email ?? '—')],
       ['Perfil', `${data.profileType} — ${profile.label}`],
-      ['Fuente', source],
-      ['Hora de llegada', time],
+      ['Fuente', this.escape(data.source)],
+      ['Hora de llegada', this.formatTime(data.arrivalTime)],
     ]
 
     const rowsHtml = rows
@@ -154,11 +146,7 @@ export class NotificationsService {
 
   async notifyNewLead(data: LeadNotificationData): Promise<void> {
     console.log('NotificationsService.notifyNewLead called', { dealId: data.dealId, contact: data.contactName })
-    console.log('SMTP config:', {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      user: process.env.SMTP_USER,
-    })
+    console.log('Resend configured:', !!this.resend)
 
     const recipients = await this.prisma.user.findMany({
       where: {
@@ -185,10 +173,7 @@ export class NotificationsService {
     this.logger.log(`Unassigned-reminder queued for deal ${data.dealId} (+2 min)`)
   }
 
-  async notifyDealAssigned(
-    agentEmail: string,
-    data: LeadNotificationData,
-  ): Promise<void> {
+  async notifyDealAssigned(agentEmail: string, data: LeadNotificationData): Promise<void> {
     const subject = `🎯 Nuevo lead asignado — ${data.contactName}`
     const html = this.buildHtml(data, true)
     await this.sendEmail(agentEmail, subject, html)

@@ -46,19 +46,16 @@ export class NotificationsService {
     private readonly config: ConfigService,
     @InjectQueue('notifications') private readonly queue: Queue,
   ) {
-    const host = config.get<string>('SMTP_HOST')
-    if (host) {
+    const user = config.get<string>('SMTP_USER')
+    const pass = config.get<string>('SMTP_PASS')
+    if (user && pass) {
       this.transporter = nodemailer.createTransport({
-        host,
-        port: config.get<number>('SMTP_PORT', 587),
-        secure: false,
-        auth: {
-          user: config.get('SMTP_USER'),
-          pass: config.get('SMTP_PASS'),
-        },
+        service: 'gmail',
+        auth: { user, pass },
       })
+      this.logger.log(`SMTP configured via Gmail service for ${user}`)
     } else {
-      this.logger.warn('SMTP_HOST not set — emails will be logged to console')
+      this.logger.warn('SMTP_USER/SMTP_PASS not set — emails will be logged to console')
     }
   }
 

@@ -73,7 +73,9 @@ export class NotificationsService {
       const from = this.config.get('SMTP_FROM', 'Priority CRM <noreply@priority.com>')
       await this.transporter.sendMail({ from, to, subject, html })
       this.logger.log(`Email sent → ${to} | ${subject}`)
+      console.log('sendMail OK →', to)
     } catch (err) {
+      console.log('sendMail ERROR →', to, err)
       this.logger.error(`Email failed → ${to}: ${err}`)
     }
   }
@@ -154,6 +156,13 @@ export class NotificationsService {
   }
 
   async notifyNewLead(data: LeadNotificationData): Promise<void> {
+    console.log('NotificationsService.notifyNewLead called', { dealId: data.dealId, contact: data.contactName })
+    console.log('SMTP config:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER,
+    })
+
     const recipients = await this.prisma.user.findMany({
       where: {
         organizationId: data.orgId,
@@ -162,9 +171,12 @@ export class NotificationsService {
       select: { email: true },
     })
 
+    console.log(`Recipients (${recipients.length}):`, recipients.map(r => r.email))
+
     const subject = `🎯 Nuevo lead — ${data.contactName}`
     const html = this.buildHtml(data, false)
     for (const r of recipients) {
+      console.log('Sending email to:', r.email)
       await this.sendEmail(r.email, subject, html)
     }
 

@@ -104,17 +104,21 @@ export class LeadsService {
         },
       },
       include: {
+        contact: true,
         stage: true,
-        contact: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+        assignedTo: true,
       },
     })
 
     this.logger.log(`Lead ingested: deal ${deal.id} for contact ${contact.id}`)
+    console.log('Deal contact:', deal.contact)
+    console.log('Calling notifyNewLead...')
 
     const cf = deal.customFields as any
     if (!deal.contact) return { status: 'ok', contactId: contact.id, dealId: deal.id }
 
     const contactName = `${deal.contact.firstName}${deal.contact.lastName ? ` ${deal.contact.lastName}` : ''}`
+    console.log(`[LeadsService] Enviando notificación para deal ${deal.id} — contacto: ${contactName}`)
     this.notifications
       .notifyNewLead({
         dealId: deal.id,

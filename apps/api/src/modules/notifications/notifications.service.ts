@@ -78,7 +78,8 @@ export class NotificationsService {
   }
 
   private formatTime(date: Date): string {
-    return date.toLocaleString('es-MX', {
+    return date.toLocaleString('es-EC', {
+      timeZone: 'America/Guayaquil',
       day: '2-digit',
       month: 'short',
       year: 'numeric',

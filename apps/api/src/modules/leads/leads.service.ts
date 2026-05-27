@@ -114,20 +114,18 @@ export class LeadsService {
     console.log('Deal contact:', deal.contact)
     console.log('Calling notifyNewLead...')
 
-    const cf = deal.customFields as any
-    if (!deal.contact) return { status: 'ok', contactId: contact.id, dealId: deal.id }
-
-    const contactName = `${deal.contact.firstName}${deal.contact.lastName ? ` ${deal.contact.lastName}` : ''}`
+    // Usar datos del DTO directamente para evitar mostrar datos del contacto anterior en DB
+    const contactName = `${dto.firstName}${dto.lastName ? ` ${dto.lastName}` : ''}`
     console.log(`[LeadsService] Enviando notificación para deal ${deal.id} — contacto: ${contactName}`)
     this.notifications
       .notifyNewLead({
         dealId: deal.id,
         orgId: org.id,
         contactName,
-        phone: deal.contact.phone ?? dto.phone,
-        email: deal.contact.email ?? undefined,
-        profileType: cf?.profileType ?? profileType,
-        source: String(cf?.source ?? dto.source ?? LeadSource.WEB),
+        phone: dto.phone,
+        email: dto.email ?? undefined,
+        profileType,
+        source: String(dto.source ?? LeadSource.WEB),
         arrivalTime: new Date(),
       })
       .catch(err => this.logger.error(`Notification error: ${err}`))

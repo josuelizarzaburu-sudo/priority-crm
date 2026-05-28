@@ -192,7 +192,7 @@ function AgentCard({ stats }: { stats: AgentStats }) {
           <div className="min-w-0">
             <CardTitle className="truncate text-sm">{agent.name}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {agent.role === 'MEMBER' ? 'Agente' : agent.role === 'MANAGER' ? 'Manager' : 'Admin'}
+              {agent.role === 'SALES_REP' ? 'Vendedor' : agent.role === 'MANAGER' ? 'Manager' : agent.role === 'OWNER' ? 'Owner' : 'Super Admin'}
             </p>
           </div>
         </div>
@@ -280,7 +280,7 @@ export function ManagerOverview() {
   const stages: Stage[] = results[2].data ?? []
   const isLoading = results.some((r) => r.isLoading)
 
-  const memberAgents = agents.filter((a) => a.role === 'MEMBER')
+  const memberAgents = agents.filter((a) => a.role === 'SALES_REP')
   const allAgentStats = useMemo(() => memberAgents.map((a) => buildAgentStats(a, deals)), [memberAgents, deals])
   const unassigned = useMemo(() => deals.filter((d) => !d.assignedToId && d.status === 'OPEN'), [deals])
   const totalPipeline = deals.filter((d) => d.status === 'OPEN').reduce((s, d) => s + (d.value ?? 0), 0)

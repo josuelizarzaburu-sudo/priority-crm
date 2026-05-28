@@ -112,7 +112,7 @@ const ACTIVITY_ICON: Record<string, React.ReactNode> = {
 
 export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) {
   const isOpen = !!dealId
-  const isAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER'
+  const isAdminOrManager = ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole)
   const [showLostInput, setShowLostInput] = useState(false)
   const [closingReason, setClosingReason] = useState('')
   const [noteText, setNoteText] = useState('')

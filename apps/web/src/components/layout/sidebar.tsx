@@ -24,24 +24,27 @@ import {
   LogOut,
 } from 'lucide-react'
 
+const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
+
 const NAV_ITEMS = [
-  { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ['ADMIN', 'MANAGER'] },
-  { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ['ADMIN', 'MANAGER'] },
-  { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['MEMBER'] },
-  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['MEMBER'] },
-  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ['ADMIN', 'MANAGER'] },
-  { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ['ADMIN', 'MANAGER', 'MEMBER'] },
-  { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ['ADMIN', 'MANAGER'] },
-{ href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ['ADMIN', 'MANAGER'] },
+  { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
+  { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
+  { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
+  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SALES_REP'] },
+  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP'] },
+  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ELEVATED },
+  { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ALL_ROLES },
+  { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ALL_ROLES },
+  { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
+  { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useUIStore()
   const { data: session } = useSession()
-  const role = (session?.user as any)?.role ?? 'MEMBER'
+  const role = (session?.user as any)?.role ?? 'SALES_REP'
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
 

@@ -37,7 +37,7 @@ export class PipelineService {
 
   async getDeals(organizationId: string, userId: string, role: string) {
     const where: any = { organizationId }
-    if (role === 'MEMBER') where.assignedToId = userId
+    if (role === 'SALES_REP') where.assignedToId = userId
     return this.prisma.deal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -66,7 +66,7 @@ export class PipelineService {
   }
 
   async getUnassignedDeals(organizationId: string, role: string) {
-    if (role === 'MEMBER') throw new ForbiddenException('Agents cannot view unassigned deals')
+    if (role === 'SALES_REP') throw new ForbiddenException('Agents cannot view unassigned deals')
     return this.prisma.deal.findMany({
       where: { organizationId, assignedToId: null, status: 'OPEN' },
       orderBy: { createdAt: 'desc' },
@@ -80,7 +80,7 @@ export class PipelineService {
   }
 
   async assignDeal(id: string, dto: AssignDealDto, organizationId: string, assignedById: string, role: string) {
-    if (role === 'MEMBER') throw new ForbiddenException('Agents cannot assign deals')
+    if (role === 'SALES_REP') throw new ForbiddenException('Agents cannot assign deals')
     const deal = await this.getDeal(id, organizationId)
 
     const agent = await this.prisma.user.findFirst({
@@ -148,7 +148,7 @@ export class PipelineService {
       },
     })
     if (!deal) throw new NotFoundException('Deal not found')
-    if (role === 'MEMBER' && userId && deal.assignedToId !== userId) {
+    if (role === 'SALES_REP' && userId && deal.assignedToId !== userId) {
       throw new ForbiddenException('No tienes acceso a este deal')
     }
     return deal

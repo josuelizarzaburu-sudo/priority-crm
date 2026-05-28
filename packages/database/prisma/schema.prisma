@@ -41,7 +41,7 @@ model User {
   email          String   @unique
   password       String
   avatar         String?
-  role           UserRole @default(MEMBER)
+  role           UserRole @default(SALES_REP)
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -59,9 +59,10 @@ model User {
 }
 
 enum UserRole {
-  ADMIN
+  SUPER_ADMIN
+  OWNER
   MANAGER
-  MEMBER
+  SALES_REP
 }
 
 // ─── Contacts ────────────────────────────────────────────────────────────────

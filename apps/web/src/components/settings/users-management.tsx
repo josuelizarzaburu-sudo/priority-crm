@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog } from 'lucide-react'
+import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog, Crown } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SystemRole = 'ADMIN' | 'MANAGER' | 'MEMBER'
+type SystemRole = 'SUPER_ADMIN' | 'OWNER' | 'MANAGER' | 'SALES_REP'
 
 interface TeamMember {
   id: string
@@ -44,24 +44,38 @@ interface TeamMember {
 // ─── Role metadata ────────────────────────────────────────────────────────────
 
 const ROLE_CONFIG: Record<SystemRole, { label: string; description: string; icon: React.ElementType; variant: 'default' | 'secondary' | 'outline' }> = {
-  ADMIN: {
-    label: 'Administrador',
-    description: 'Acceso total al sistema',
+  SUPER_ADMIN: {
+    label: 'Super Admin',
+    description: 'Acceso total al sistema y configuración técnica',
     icon: ShieldCheck,
     variant: 'default',
   },
+  OWNER: {
+    label: 'Owner',
+    description: 'Dueño del negocio — acceso completo excepto config técnica',
+    icon: Crown,
+    variant: 'default',
+  },
   MANAGER: {
-    label: 'Jefe de operaciones',
-    description: 'Gestión de equipo y asignación de leads',
+    label: 'Jefa de operaciones',
+    description: 'Gestión de equipo, asignación de leads y reportes',
     icon: UserCog,
     variant: 'secondary',
   },
-  MEMBER: {
-    label: 'Agente / Vendedor',
-    description: 'Solo ve sus propios deals',
+  SALES_REP: {
+    label: 'Vendedor',
+    description: 'Solo ve y gestiona sus propios deals',
     icon: Users,
     variant: 'outline',
   },
+}
+
+// Roles que cada nivel puede crear
+const CREATABLE_BY: Record<SystemRole, SystemRole[]> = {
+  SUPER_ADMIN: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'],
+  OWNER:       ['MANAGER', 'SALES_REP'],
+  MANAGER:     ['SALES_REP'],
+  SALES_REP:   [],
 }
 
 // ─── Form schema ──────────────────────────────────────────────────────────────
@@ -70,7 +84,7 @@ const schema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Ingresa un email válido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
-  role: z.enum(['ADMIN', 'MANAGER', 'MEMBER'], { required_error: 'Selecciona un rol' }),
+  role: z.enum(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'], { required_error: 'Selecciona un rol' }),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -89,8 +103,8 @@ export function UsersManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Create form — visible to ADMIN and MANAGER */}
-      {(callerRole === 'ADMIN' || callerRole === 'MANAGER') && (
+      {/* Create form — visible to roles that can create at least one other role */}
+      {callerRole && (CREATABLE_BY[callerRole]?.length ?? 0) > 0 && (
         <CreateMemberForm callerRole={callerRole} />
       )}
 
@@ -157,10 +171,7 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
     },
   })
 
-  // Managers cannot create admins
-  const availableRoles = (Object.keys(ROLE_CONFIG) as SystemRole[]).filter(
-    (r) => !(r === 'ADMIN' && callerRole !== 'ADMIN'),
-  )
+  const availableRoles = CREATABLE_BY[callerRole] ?? []
 
   return (
     <Card>
@@ -287,8 +298,8 @@ function MemberRow({
         {label}
       </Badge>
 
-      {/* Delete — only ADMIN, cannot delete self */}
-      {callerRole === 'ADMIN' && !isSelf && (
+      {/* Delete — only SUPER_ADMIN and OWNER, cannot delete self */}
+      {(callerRole === 'SUPER_ADMIN' || callerRole === 'OWNER') && !isSelf && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button

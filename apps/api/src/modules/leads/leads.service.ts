@@ -25,7 +25,7 @@ export class LeadsService {
 
     // Use the ADMIN user as system creator for externally-sourced leads
     const systemUser = await this.prisma.user.findFirst({
-      where: { organizationId: org.id, role: 'ADMIN' },
+      where: { organizationId: org.id, role: 'SUPER_ADMIN' },
     })
     if (!systemUser) {
       this.logger.error(`No ADMIN user found for org ${org.id}`)

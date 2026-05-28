@@ -39,7 +39,7 @@ export function UnassignedLeads() {
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ['users'],
     queryFn: () => api.get('/users').then((r) => r.data),
-    select: (users) => users.filter((u: Agent) => u.role === 'MEMBER'),
+    select: (users) => users.filter((u: Agent) => u.role === 'SALES_REP'),
   })
 
   const assignMutation = useMutation({

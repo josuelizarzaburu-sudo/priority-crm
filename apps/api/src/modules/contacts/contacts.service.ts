@@ -20,7 +20,7 @@ export class ContactsService {
     const skip = (page - 1) * limit
 
     const where: any = { organizationId }
-    if (role === 'MEMBER') where.assignedToId = userId
+    if (role === 'SALES_REP') where.assignedToId = userId
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -31,7 +31,7 @@ export class ContactsService {
       ]
     }
     if (status) where.status = status
-    if (assignedTo && role !== 'MEMBER') where.assignedToId = assignedTo
+    if (assignedTo && role !== 'SALES_REP') where.assignedToId = assignedTo
 
     const [data, total] = await Promise.all([
       this.prisma.contact.findMany({
@@ -57,7 +57,7 @@ export class ContactsService {
       },
     })
     if (!contact) throw new NotFoundException('Contact not found')
-    if (role === 'MEMBER' && contact.assignedToId !== userId) {
+    if (role === 'SALES_REP' && contact.assignedToId !== userId) {
       throw new ForbiddenException('Access denied')
     }
     return contact
@@ -111,7 +111,7 @@ export class ContactsService {
       this.prisma.contact.findMany({
         where: {
           organizationId,
-          ...(role === 'MEMBER' ? { assignedToId: userId } : {}),
+          ...(role === 'SALES_REP' ? { assignedToId: userId } : {}),
           OR: [
             { firstName: { contains: term, mode: 'insensitive' } },
             { lastName: { contains: term, mode: 'insensitive' } },
@@ -127,7 +127,7 @@ export class ContactsService {
         where: {
           organizationId,
           status: 'OPEN',
-          ...(role === 'MEMBER' ? { assignedToId: userId } : {}),
+          ...(role === 'SALES_REP' ? { assignedToId: userId } : {}),
           OR: [
             { title: { contains: term, mode: 'insensitive' } },
             { contact: { firstName: { contains: term, mode: 'insensitive' } } },

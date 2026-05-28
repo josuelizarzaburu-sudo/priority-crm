@@ -152,7 +152,7 @@ export class NotificationsService {
     const recipients = await this.prisma.user.findMany({
       where: {
         organizationId: data.orgId,
-        role: { in: [UserRole.ADMIN, UserRole.MANAGER] },
+        role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
       },
       select: { email: true },
     })
@@ -190,7 +190,7 @@ export class NotificationsService {
     const recipients = await this.prisma.user.findMany({
       where: {
         organizationId: data.orgId,
-        role: { in: [UserRole.ADMIN, UserRole.MANAGER] },
+        role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
       },
       select: { email: true },
     })

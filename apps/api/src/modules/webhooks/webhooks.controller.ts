@@ -42,15 +42,23 @@ export class WebhooksController {
   }
 
   private async processWhatsappAsync(body: any): Promise<void> {
+    console.log('Webhook received:', JSON.stringify(body))
+
     const entry = body?.entry?.[0]?.changes?.[0]?.value
-    if (!entry?.messages?.length) return
+    if (!entry?.messages?.length) {
+      console.log('No messages in payload — entry:', JSON.stringify(entry))
+      return
+    }
 
     const msg = entry.messages[0]
-    // Only process inbound text messages; ignore status updates and reactions
-    if (msg.type !== 'text') return
+    if (msg.type !== 'text') {
+      console.log('Ignoring non-text message, type:', msg.type)
+      return
+    }
 
     const phone: string = msg.from
     const text: string = msg.text?.body ?? ''
+    console.log('Processing message from:', phone, '| text:', text)
 
     await this.whatsappBot.processMessage(phone, text)
   }

@@ -49,19 +49,25 @@ export class WhatsappBotService {
   }
 
   async processMessage(phone: string, text: string): Promise<void> {
+    console.log('Processing message from:', phone)
+
     if (this.isRestart(text)) {
+      console.log('Restart keyword detected — clearing session for', phone)
       await this.redis.del(this.sessionKey(phone))
       await this.handleInicio(phone)
       return
     }
 
     const session = await this.getSession(phone)
+    console.log('Bot state:', JSON.stringify(session))
 
     if (!session) {
+      console.log('No session found — starting flow for', phone)
       await this.handleInicio(phone)
       return
     }
 
+    console.log('Sending response for step:', session.step)
     switch (session.step) {
       case 'sport':
         await this.handleSport(phone, session, text)
@@ -76,6 +82,7 @@ export class WhatsappBotService {
         await this.sendMessage(phone, MSG_COMPLETADO)
         break
     }
+    console.log('Response sent for step:', session.step)
   }
 
   // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -205,6 +212,8 @@ export class WhatsappBotService {
     const token = this.config.get('META_WHATSAPP_TOKEN')
     const phoneId = this.config.get('META_WHATSAPP_PHONE_ID')
 
+    console.log('Sending response...', { to, phoneId: !!phoneId, token: !!token, preview: body.slice(0, 60) })
+
     if (!token || !phoneId) {
       this.logger.warn('META_WHATSAPP_TOKEN or META_WHATSAPP_PHONE_ID not set — skipping send')
       return
@@ -226,9 +235,14 @@ export class WhatsappBotService {
       })
 
       if (!response.ok) {
-        this.logger.error(`WhatsApp send failed: ${await response.text()}`)
+        const errText = await response.text()
+        console.log('WhatsApp API error:', response.status, errText)
+        this.logger.error(`WhatsApp send failed: ${errText}`)
+      } else {
+        console.log('WhatsApp API OK — message sent to', to)
       }
     } catch (err) {
+      console.log('WhatsApp send exception:', err)
       this.logger.error('WhatsApp send error', err)
     }
   }

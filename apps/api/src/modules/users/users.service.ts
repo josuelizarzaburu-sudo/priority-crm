@@ -78,11 +78,42 @@ export class UsersService {
     if (existing) throw new ConflictException('Email already in use')
 
     const hashed = await bcrypt.hash(dto.password, 12)
-    const user = await this.prisma.user.create({
-      data: { name: dto.name, email: dto.email, password: hashed, role: dto.role as any, organizationId },
-      select: { id: true, name: true, email: true, role: true, avatar: true, createdAt: true },
+    return this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        password: hashed,
+        role: dto.role as any,
+        organizationId,
+        ...(dto.phone ? { phone: dto.phone } : {}),
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },
     })
-    return user
+  }
+
+  async updateMember(
+    targetId: string,
+    data: { name?: string; phone?: string | null },
+    organizationId: string,
+    callerRole: string,
+  ): Promise<object> {
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede editar usuarios')
+    }
+    if (data.phone && !/^\+\d{7,15}$/.test(data.phone)) {
+      throw new BadRequestException('Formato de teléfono inválido. Usa +593XXXXXXXXX')
+    }
+    const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: {
+        ...(data.name ? { name: data.name } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone ?? null } : {}),
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },
+    })
   }
 
   async removeTeamMember(targetId: string, organizationId: string, callerId: string, callerRole: string) {

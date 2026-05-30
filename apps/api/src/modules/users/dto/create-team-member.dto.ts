@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator'
+import { IsEmail, IsString, IsOptional, MinLength, Matches } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class CreateTeamMemberDto {
@@ -18,4 +18,10 @@ export class CreateTeamMemberDto {
   @ApiProperty()
   @IsString()
   role!: string
+
+  @ApiProperty({ required: false, example: '+593999999999' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\+\d{7,15}$/, { message: 'Formato inválido. Usa +593XXXXXXXXX' })
+  phone?: string
 }

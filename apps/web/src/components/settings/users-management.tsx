@@ -6,13 +6,20 @@ import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog, Crown, Phone, Check, X } from 'lucide-react'
+import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog, Crown, Pencil } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,24 +79,25 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; description: string; icon
   },
 }
 
-// Solo SUPER_ADMIN puede crear usuarios
-const CREATABLE_BY: Record<SystemRole, SystemRole[]> = {
-  SUPER_ADMIN: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'],
-  OWNER:       [],
-  MANAGER:     [],
-  SALES_REP:   [],
-}
+// ─── Form schemas ─────────────────────────────────────────────────────────────
 
-// ─── Form schema ──────────────────────────────────────────────────────────────
+const phoneRegex = /^\+\d{7,15}$/
 
-const schema = z.object({
+const createSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Ingresa un email válido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
   role: z.enum(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'], { required_error: 'Selecciona un rol' }),
+  phone: z.string().regex(phoneRegex, 'Formato inválido. Usa +593XXXXXXXXX').or(z.literal('')).optional(),
 })
 
-type FormValues = z.infer<typeof schema>
+const editSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  phone: z.string().regex(phoneRegex, 'Formato inválido. Usa +593XXXXXXXXX').or(z.literal('')).optional(),
+})
+
+type CreateFormValues = z.infer<typeof createSchema>
+type EditFormValues = z.infer<typeof editSchema>
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -105,12 +113,8 @@ export function UsersManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Create form — visible to roles that can create at least one other role */}
-      {callerRole && (CREATABLE_BY[callerRole]?.length ?? 0) > 0 && (
-        <CreateMemberForm callerRole={callerRole} />
-      )}
+      {callerRole === 'SUPER_ADMIN' && <CreateMemberForm />}
 
-      {/* Team list */}
       <Card>
         <CardHeader>
           <CardTitle>Miembros del equipo</CardTitle>
@@ -145,7 +149,7 @@ export function UsersManagement() {
 
 // ─── Create member form ───────────────────────────────────────────────────────
 
-function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
+function CreateMemberForm() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
@@ -156,12 +160,13 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) })
+  } = useForm<CreateFormValues>({ resolver: zodResolver(createSchema) })
 
   const selectedRole = watch('role')
 
   const createMutation = useMutation({
-    mutationFn: (data: FormValues) => api.post('/users', data),
+    mutationFn: (data: CreateFormValues) =>
+      api.post('/users', { ...data, phone: data.phone || undefined }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: 'Usuario creado', description: `${res.data.name} fue agregado al equipo.` })
@@ -172,8 +177,6 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
       toast({ title: 'Error', description: Array.isArray(msg) ? msg.join(', ') : msg, variant: 'destructive' })
     },
   })
-
-  const availableRoles = CREATABLE_BY[callerRole] ?? []
 
   return (
     <Card>
@@ -186,11 +189,11 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
-          {/* Role picker — first so user sets context before filling details */}
+          {/* Role picker */}
           <div className="space-y-2">
             <Label>Rol *</Label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {availableRoles.map((role) => {
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'] as SystemRole[]).map((role) => {
                 const { label, description, icon: Icon } = ROLE_CONFIG[role]
                 const active = selectedRole === role
                 return (
@@ -230,7 +233,16 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
 
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="phone">Teléfono WhatsApp</Label>
+              <Input id="phone" placeholder="+593999999999" {...register('phone')} />
+              {errors.phone
+                ? <p className="text-xs text-destructive">{errors.phone.message}</p>
+                : <p className="text-[11px] text-muted-foreground">Opcional · formato +593XXXXXXXXX</p>
+              }
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="password">Contraseña temporal *</Label>
               <Input id="password" type="password" placeholder="Mínimo 8 caracteres" {...register('password')} />
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
@@ -249,6 +261,83 @@ function CreateMemberForm({ callerRole }: { callerRole: SystemRole }) {
   )
 }
 
+// ─── Edit member dialog ───────────────────────────────────────────────────────
+
+function EditMemberDialog({
+  member,
+  open,
+  onClose,
+}: {
+  member: TeamMember
+  open: boolean
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<EditFormValues>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { name: member.name, phone: member.phone ?? '' },
+  })
+
+  const editMutation = useMutation({
+    mutationFn: (data: EditFormValues) =>
+      api.patch(`/users/${member.id}`, { name: data.name, phone: data.phone || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast({ title: 'Usuario actualizado' })
+      onClose()
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'No se pudo actualizar el usuario.'
+      toast({ title: 'Error', description: Array.isArray(msg) ? msg.join(', ') : msg, variant: 'destructive' })
+    },
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar usuario</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit((d) => editMutation.mutate(d))} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-name">Nombre completo *</Label>
+            <Input id="edit-name" {...register('name')} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input value={member.email} disabled className="opacity-60" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-phone">Teléfono WhatsApp</Label>
+            <Input id="edit-phone" placeholder="+593999999999" {...register('phone')} />
+            {errors.phone
+              ? <p className="text-xs text-destructive">{errors.phone.message}</p>
+              : <p className="text-[11px] text-muted-foreground">Opcional · formato +593XXXXXXXXX</p>
+            }
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Member row ───────────────────────────────────────────────────────────────
 
 function MemberRow({
@@ -263,24 +352,7 @@ function MemberRow({
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { label, variant } = ROLE_CONFIG[member.role] ?? { label: member.role, variant: 'outline' as const }
-
-  const [editingPhone, setEditingPhone] = useState(false)
-  const [phoneValue, setPhoneValue] = useState(member.phone ?? '')
-
-  const canEditPhone = callerRole === 'SUPER_ADMIN'
-
-  const phoneMutation = useMutation({
-    mutationFn: (phone: string | null) => api.patch(`/users/${member.id}/phone`, { phone }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast({ title: 'Teléfono actualizado' })
-      setEditingPhone(false)
-    },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? 'No se pudo actualizar el teléfono.'
-      toast({ title: 'Error', description: Array.isArray(msg) ? msg.join(', ') : msg, variant: 'destructive' })
-    },
-  })
+  const [editOpen, setEditOpen] = useState(false)
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/users/${member.id}`),
@@ -295,105 +367,86 @@ function MemberRow({
   })
 
   return (
-    <div className="flex items-center gap-4 px-6 py-4">
-      <Avatar className="h-9 w-9 shrink-0">
-        <AvatarFallback className="text-sm">{getInitials(member.name)}</AvatarFallback>
-      </Avatar>
+    <>
+      <div className="flex items-center gap-4 px-6 py-4">
+        <Avatar className="h-9 w-9 shrink-0">
+          <AvatarFallback className="text-sm">{getInitials(member.name)}</AvatarFallback>
+        </Avatar>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm">{member.name}</span>
-          {isSelf && <Badge variant="outline" className="text-xs">Tú</Badge>}
-        </div>
-        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-
-        {/* Phone — inline edit */}
-        {editingPhone ? (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <Input
-              value={phoneValue}
-              onChange={(e) => setPhoneValue(e.target.value)}
-              placeholder="+593XXXXXXXXX"
-              className="h-7 w-40 text-xs"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') phoneMutation.mutate(phoneValue || null)
-                if (e.key === 'Escape') { setEditingPhone(false); setPhoneValue(member.phone ?? '') }
-              }}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-green-600"
-              disabled={phoneMutation.isPending}
-              onClick={() => phoneMutation.mutate(phoneValue || null)}
-            >
-              {phoneMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-muted-foreground"
-              onClick={() => { setEditingPhone(false); setPhoneValue(member.phone ?? '') }}
-            >
-              <X className="h-3 w-3" />
-            </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm">{member.name}</span>
+            {isSelf && <Badge variant="outline" className="text-xs">Tú</Badge>}
           </div>
-        ) : (
-          canEditPhone && (
-            <button
-              className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setEditingPhone(true)}
-            >
-              <Phone className="h-3 w-3" />
-              {member.phone ?? <span className="italic">Agregar teléfono</span>}
-            </button>
-          )
+          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+          {callerRole === 'SUPER_ADMIN' && member.phone && (
+            <p className="text-xs text-muted-foreground">{member.phone}</p>
+          )}
+        </div>
+
+        <div className="hidden sm:block text-xs text-muted-foreground shrink-0">
+          Desde {formatDate(member.createdAt)}
+        </div>
+
+        <Badge variant={variant} className="shrink-0 text-xs">
+          {label}
+        </Badge>
+
+        {/* Edit — SUPER_ADMIN only */}
+        {callerRole === 'SUPER_ADMIN' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Delete — SUPER_ADMIN only, cannot delete self */}
+        {callerRole === 'SUPER_ADMIN' && !isSelf && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Trash2 className="h-4 w-4" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar a {member.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. El usuario perderá acceso inmediatamente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
 
-      <div className="hidden sm:block text-xs text-muted-foreground shrink-0">
-        Desde {formatDate(member.createdAt)}
-      </div>
-
-      <Badge variant={variant} className="shrink-0 text-xs">
-        {label}
-      </Badge>
-
-      {/* Delete — only SUPER_ADMIN, cannot delete self */}
-      {callerRole === 'SUPER_ADMIN' && !isSelf && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Trash2 className="h-4 w-4" />}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar a {member.name}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. El usuario perderá acceso inmediatamente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => deleteMutation.mutate()}
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      {callerRole === 'SUPER_ADMIN' && (
+        <EditMemberDialog
+          member={member}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+        />
       )}
-    </div>
+    </>
   )
 }

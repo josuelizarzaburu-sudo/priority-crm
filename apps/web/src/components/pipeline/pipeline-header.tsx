@@ -85,37 +85,31 @@ export function PipelineHeader({
         <div className="flex items-center gap-2 md:gap-3">
           {/* ── Desktop-only filter controls ────────────────────────── */}
           <div className="hidden items-center gap-3 md:flex">
-            {/* Mine / All toggle — only for admins/managers */}
-            {isAdminOrManager ? (
-              <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15">
-                <button
-                  className={cn(
-                    'px-3.5 py-1.5 text-sm font-medium transition-colors',
-                    viewMode === 'all'
-                      ? 'bg-[#25324b] text-[#d3ac76]'
-                      : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
-                  )}
-                  onClick={() => setViewMode('all')}
-                >
-                  Todos
-                </button>
-                <button
-                  className={cn(
-                    'border-l border-[#25324b]/15 px-3.5 py-1.5 text-sm font-medium transition-colors',
-                    viewMode === 'mine'
-                      ? 'bg-[#25324b] text-[#d3ac76]'
-                      : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
-                  )}
-                  onClick={() => setViewMode('mine')}
-                >
-                  Mis deals
-                </button>
-              </div>
-            ) : (
-              <span className="rounded-lg border border-[#25324b]/15 bg-[#25324b] px-3.5 py-1.5 text-sm font-medium text-[#d3ac76]">
+            {/* Mine / All toggle */}
+            <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15">
+              <button
+                className={cn(
+                  'px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  viewMode === 'all'
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+                )}
+                onClick={() => setViewMode('all')}
+              >
+                Todos
+              </button>
+              <button
+                className={cn(
+                  'border-l border-[#25324b]/15 px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  viewMode === 'mine'
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+                )}
+                onClick={() => setViewMode('mine')}
+              >
                 Mis deals
-              </span>
-            )}
+              </button>
+            </div>
 
             {/* Vendor filter */}
             {isAdminOrManager && (
@@ -158,37 +152,31 @@ export function PipelineHeader({
 
       {/* ── Mobile filter strip ──────────────────────────────────────── */}
       <div className="flex items-center gap-2 md:hidden">
-        {/* Mine / All toggle — only for admins/managers */}
-        {isAdminOrManager ? (
-          <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15 text-xs">
-            <button
-              className={cn(
-                'px-3 py-1.5 font-medium transition-colors',
-                viewMode === 'all'
-                  ? 'bg-[#25324b] text-[#d3ac76]'
-                  : 'text-[#25324b]/60',
-              )}
-              onClick={() => setViewMode('all')}
-            >
-              Todos
-            </button>
-            <button
-              className={cn(
-                'border-l border-[#25324b]/15 px-3 py-1.5 font-medium transition-colors',
-                viewMode === 'mine'
-                  ? 'bg-[#25324b] text-[#d3ac76]'
-                  : 'text-[#25324b]/60',
-              )}
-              onClick={() => setViewMode('mine')}
-            >
-              Mis deals
-            </button>
-          </div>
-        ) : (
-          <span className="rounded-lg border border-[#25324b]/15 bg-[#25324b] px-3 py-1.5 text-xs font-medium text-[#d3ac76]">
+        {/* Mine / All toggle */}
+        <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15 text-xs">
+          <button
+            className={cn(
+              'px-3 py-1.5 font-medium transition-colors',
+              viewMode === 'all'
+                ? 'bg-[#25324b] text-[#d3ac76]'
+                : 'text-[#25324b]/60',
+            )}
+            onClick={() => setViewMode('all')}
+          >
+            Todos
+          </button>
+          <button
+            className={cn(
+              'border-l border-[#25324b]/15 px-3 py-1.5 font-medium transition-colors',
+              viewMode === 'mine'
+                ? 'bg-[#25324b] text-[#d3ac76]'
+                : 'text-[#25324b]/60',
+            )}
+            onClick={() => setViewMode('mine')}
+          >
             Mis deals
-          </span>
-        )}
+          </button>
+        </div>
 
         {/* Compact vendor select */}
         {isAdminOrManager && (

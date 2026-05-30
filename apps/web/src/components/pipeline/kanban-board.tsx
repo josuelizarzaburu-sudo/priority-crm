@@ -96,6 +96,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
   const activeMobileStage = sortedStages[Math.min(mobileStageIndex, sortedStages.length - 1)]
   const activeMobileDeals = activeMobileStage ? getStageDeals(activeMobileStage.id) : []
   const allowDrag = viewMode === 'mine' || userRole === 'SUPER_ADMIN'
+  const allowClick = !(viewMode === 'all' && userRole === 'SALES_REP')
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -157,6 +158,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
             deals={getStageDeals(stage.id)}
             totalValue={getStageValue(stage.id)}
             allowDrag={allowDrag}
+            allowClick={allowClick}
             onDrop={(dealId) => moveDeal(dealId, stage.id, getStageDeals(stage.id).length)}
             onSelectDeal={onSelectDeal}
           />
@@ -171,6 +173,7 @@ function KanbanColumn({
   deals,
   totalValue,
   allowDrag,
+  allowClick,
   onDrop,
   onSelectDeal,
 }: {
@@ -178,6 +181,7 @@ function KanbanColumn({
   deals: Deal[]
   totalValue: number
   allowDrag: boolean
+  allowClick: boolean
   onDrop: (dealId: string) => void
   onSelectDeal: (id: string) => void
 }) {
@@ -219,7 +223,7 @@ function KanbanColumn({
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-2.5 py-0.5">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={stage.color} allowDrag={allowDrag} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={stage.color} allowDrag={allowDrag} allowClick={allowClick} />
           ))}
           {deals.length === 0 && (
             <div className="rounded-lg border-2 border-dashed border-[#25324b]/12 px-3 py-8 text-center text-xs text-[#25324b]/35">
@@ -237,11 +241,13 @@ function DealCard({
   onSelect,
   stageColor,
   allowDrag = true,
+  allowClick = true,
 }: {
   deal: Deal
   onSelect: (id: string) => void
   stageColor?: string | null
   allowDrag?: boolean
+  allowClick?: boolean
 }) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData('dealId', deal.id)
@@ -253,8 +259,13 @@ function DealCard({
     <div
       draggable={allowDrag}
       onDragStart={allowDrag ? handleDragStart : undefined}
-      onClick={() => onSelect(deal.id)}
-      className="cursor-pointer rounded-lg bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:-translate-y-px active:opacity-75"
+      onClick={allowClick ? () => onSelect(deal.id) : undefined}
+      className={cn(
+        'rounded-lg bg-white shadow-sm transition-all duration-150',
+        allowClick
+          ? 'cursor-pointer hover:shadow-md hover:-translate-y-px active:opacity-75'
+          : 'cursor-default select-none opacity-80',
+      )}
       style={{ borderLeft: `4px solid ${borderColor}`, touchAction: 'manipulation' }}
     >
       {/* Card body */}

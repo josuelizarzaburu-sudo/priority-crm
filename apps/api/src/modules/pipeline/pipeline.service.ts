@@ -94,7 +94,7 @@ export class PipelineService {
       include: {
         stage: true,
         contact: { select: { id: true, firstName: true, lastName: true, phone: true, email: true, customFields: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
+        assignedTo: { select: { id: true, name: true, email: true, phone: true } },
       },
     })
 
@@ -117,16 +117,19 @@ export class PipelineService {
       const c = updated.contact as any
       const contactName = `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}`
       this.notifications
-        .notifyDealAssigned(updated.assignedTo.email, {
-          dealId: updated.id,
-          orgId: organizationId,
-          contactName,
-          phone: c.phone ?? '',
-          email: c.email ?? undefined,
-          profileType: cf?.profileType ?? 'D',
-          source: String(cf?.source ?? 'WEB'),
-          arrivalTime: cf?.leadCreatedAt ? new Date(cf.leadCreatedAt) : new Date(),
-        })
+        .notifyDealAssigned(
+          { email: updated.assignedTo.email, phone: (updated.assignedTo as any).phone },
+          {
+            dealId: updated.id,
+            orgId: organizationId,
+            contactName,
+            phone: c.phone ?? '',
+            email: c.email ?? undefined,
+            profileType: cf?.profileType ?? 'D',
+            source: String(cf?.source ?? 'WEB'),
+            arrivalTime: cf?.leadCreatedAt ? new Date(cf.leadCreatedAt) : new Date(),
+          },
+        )
         .catch(err => this.logger.error(`Notification error: ${err}`))
     }
 
@@ -139,7 +142,7 @@ export class PipelineService {
       include: {
         stage: true,
         contact: true,
-        assignedTo: { select: { id: true, name: true, email: true } },
+        assignedTo: { select: { id: true, name: true, email: true, phone: true } },
         activities: {
           orderBy: { createdAt: 'desc' },
           take: 20,
@@ -226,7 +229,7 @@ export class PipelineService {
   }
 
   async updateDeal(id: string, dto: UpdateDealDto, organizationId: string, userId?: string, role?: string) {
-    await this.getDeal(id, organizationId, userId, role)
+    const existing = await this.getDeal(id, organizationId, userId, role)
 
     const data: any = { ...dto }
 
@@ -241,10 +244,30 @@ export class PipelineService {
       data,
       include: {
         stage: true,
-        contact: { select: { id: true, firstName: true, lastName: true } },
-        assignedTo: { select: { id: true, name: true } },
+        contact: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        assignedTo: { select: { id: true, name: true, email: true, phone: true } },
       },
     })
+
+    // Schedule follow-up reminders when followUpAt is set or changed
+    const newFollowUpAt = (dto.customFields as any)?.followUpAt as string | undefined
+    const oldFollowUpAt = (existing.customFields as any)?.followUpAt as string | undefined
+    if (newFollowUpAt && newFollowUpAt !== oldFollowUpAt && updated.assignedTo) {
+      const c = updated.contact as any
+      const contactName = c
+        ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}`
+        : updated.title
+      this.notifications
+        .scheduleFollowUpReminders({
+          dealId: id,
+          orgId: organizationId,
+          contactName,
+          phone: c?.phone ?? '',
+          followUpAt: newFollowUpAt,
+          agentId: updated.assignedTo.id,
+        })
+        .catch(err => this.logger.error(`Follow-up scheduling error: ${err}`))
+    }
 
     this.gateway.broadcastDealUpdated(organizationId, updated)
     return updated

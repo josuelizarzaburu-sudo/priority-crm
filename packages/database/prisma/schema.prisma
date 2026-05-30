@@ -42,6 +42,7 @@ model User {
   password       String
   avatar         String?
   role           UserRole @default(SALES_REP)
+  phone          String?
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

@@ -29,6 +29,7 @@ interface KanbanBoardProps {
   viewMode: 'mine' | 'all'
   filterUserId: string | null
   currentUserId: string
+  userRole: string
   onSelectDeal: (id: string) => void
 }
 
@@ -41,7 +42,7 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDeal }: KanbanBoardProps) {
+export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
 
@@ -94,6 +95,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
   const sortedStages = [...stages].sort((a, b) => a.position - b.position)
   const activeMobileStage = sortedStages[Math.min(mobileStageIndex, sortedStages.length - 1)]
   const activeMobileDeals = activeMobileStage ? getStageDeals(activeMobileStage.id) : []
+  const allowDrag = viewMode === 'mine' || userRole === 'SUPER_ADMIN'
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -154,6 +156,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, onSelectDea
             stage={stage}
             deals={getStageDeals(stage.id)}
             totalValue={getStageValue(stage.id)}
+            allowDrag={allowDrag}
             onDrop={(dealId) => moveDeal(dealId, stage.id, getStageDeals(stage.id).length)}
             onSelectDeal={onSelectDeal}
           />
@@ -167,20 +170,24 @@ function KanbanColumn({
   stage,
   deals,
   totalValue,
+  allowDrag,
   onDrop,
   onSelectDeal,
 }: {
   stage: PipelineStage
   deals: Deal[]
   totalValue: number
+  allowDrag: boolean
   onDrop: (dealId: string) => void
   onSelectDeal: (id: string) => void
 }) {
   function handleDragOver(e: React.DragEvent) {
+    if (!allowDrag) return
     e.preventDefault()
   }
 
   function handleDrop(e: React.DragEvent) {
+    if (!allowDrag) return
     const dealId = e.dataTransfer.getData('dealId')
     if (dealId) onDrop(dealId)
   }
@@ -212,7 +219,7 @@ function KanbanColumn({
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-2.5 py-0.5">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={stage.color} />
+            <DealCard key={deal.id} deal={deal} onSelect={onSelectDeal} stageColor={stage.color} allowDrag={allowDrag} />
           ))}
           {deals.length === 0 && (
             <div className="rounded-lg border-2 border-dashed border-[#25324b]/12 px-3 py-8 text-center text-xs text-[#25324b]/35">
@@ -257,7 +264,7 @@ function DealCard({
           <span className="text-[13.5px] font-semibold leading-snug text-[#25324b]">
             {deal.title}
           </span>
-          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-[#25324b]/25" />
+          {allowDrag && <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-[#25324b]/25" />}
         </div>
 
         {/* Contact */}

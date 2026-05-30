@@ -48,6 +48,7 @@ export function PipelineClient() {
         viewMode={viewMode}
         filterUserId={filterUserId}
         currentUserId={currentUserId}
+        userRole={userRole}
         onSelectDeal={setSelectedDealId}
       />
 

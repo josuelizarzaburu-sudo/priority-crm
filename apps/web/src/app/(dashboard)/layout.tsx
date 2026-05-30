@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { BottomNav } from '@/components/layout/bottom-nav'
+import { PushNotificationBanner } from '@/components/layout/push-notification-banner'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -18,7 +19,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Header />
         {/* pb-24 on mobile reserves space above bottom nav */}
         <main className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6">
-          {children}
+          <div className="flex flex-col gap-4">
+            <PushNotificationBanner />
+            {children}
+          </div>
         </main>
       </div>
 

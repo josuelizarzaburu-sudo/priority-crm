@@ -252,7 +252,12 @@ export class PipelineService {
     // Schedule follow-up reminders when followUpAt is set or changed
     const newFollowUpAt = (dto.customFields as any)?.followUpAt as string | undefined
     const oldFollowUpAt = (existing.customFields as any)?.followUpAt as string | undefined
+    console.log('Saving follow-up for deal:', id)
+    console.log('Follow-up date:', newFollowUpAt ?? '(not set in this update)')
+    console.log('Old follow-up date:', oldFollowUpAt ?? '(none)')
+    console.log('assignedTo:', updated.assignedTo?.id ?? '(unassigned)')
     if (newFollowUpAt && newFollowUpAt !== oldFollowUpAt && updated.assignedTo) {
+      console.log('Scheduling BullMQ jobs...')
       const c = updated.contact as any
       const contactName = c
         ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}`
@@ -267,6 +272,8 @@ export class PipelineService {
           agentId: updated.assignedTo.id,
         })
         .catch(err => this.logger.error(`Follow-up scheduling error: ${err}`))
+    } else {
+      console.log('BullMQ scheduling skipped — no change, no date, or deal unassigned')
     }
 
     this.gateway.broadcastDealUpdated(organizationId, updated)

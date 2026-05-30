@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
+import { DealPanel } from '@/components/pipeline/deal-panel'
 import {
   DndContext,
   DragOverlay,
@@ -81,7 +82,10 @@ const HEAT_META: Record<Heat, { label: string; icon: React.ElementType; classNam
 export function MyPipelineBoard() {
   const { data: session } = useSession()
   const userName = session?.user?.name ?? 'tú'
+  const userRole = session?.user?.role?.toUpperCase() ?? ''
   const queryClient = useQueryClient()
+
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
   const [stagesQuery, dealsQuery] = useQueries({
     queries: [
@@ -270,6 +274,7 @@ export function MyPipelineBoard() {
                   deals={deals}
                   totalValue={deals.reduce((s, d) => s + (d.value ?? 0), 0)}
                   isDragging={activeId !== null}
+                  onSelectDeal={setSelectedDealId}
                 />
               )
             })}
@@ -280,6 +285,13 @@ export function MyPipelineBoard() {
           </DragOverlay>
         </DndContext>
       )}
+
+      <DealPanel
+        dealId={selectedDealId}
+        onClose={() => setSelectedDealId(null)}
+        userRole={userRole}
+        users={[]}
+      />
     </div>
   )
 }
@@ -293,11 +305,13 @@ function KanbanColumn({
   deals,
   totalValue,
   isDragging,
+  onSelectDeal,
 }: {
   stage: PipelineStage
   deals: MyDeal[]
   totalValue: number
   isDragging: boolean
+  onSelectDeal: (id: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
 
@@ -340,7 +354,7 @@ function KanbanColumn({
         ) : (
           <div className="space-y-2">
             {deals.map((deal) => (
-              <DraggableDealCard key={deal.id} deal={deal} />
+              <DraggableDealCard key={deal.id} deal={deal} onSelect={onSelectDeal} />
             ))}
             {/* Extra drop target at the bottom so you can drop after the last card */}
             {isDragging && (
@@ -357,7 +371,7 @@ function KanbanColumn({
 // setNodeRef, listeners, AND attributes are all on the same element so dnd-kit
 // can reliably detect pointer events and apply the transform.
 
-function DraggableDealCard({ deal }: { deal: MyDeal }) {
+function DraggableDealCard({ deal, onSelect }: { deal: MyDeal; onSelect: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
   })
@@ -367,17 +381,15 @@ function DraggableDealCard({ deal }: { deal: MyDeal }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      onClick={() => { if (!isDragging) onSelect(deal.id) }}
       style={{
         transform: transform
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
         opacity: isDragging ? 0.3 : 1,
-        // Required for pointer events to reach dnd-kit on touch devices
         touchAction: 'none',
-        // Prevent text selection while dragging
         userSelect: 'none',
         cursor: isDragging ? 'grabbing' : 'grab',
-        // Keep the placeholder in the original position during drag
         zIndex: isDragging ? 0 : undefined,
       }}
     >

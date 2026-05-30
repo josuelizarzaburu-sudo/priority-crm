@@ -147,6 +147,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['pipeline', 'deal', dealId] })
     qc.invalidateQueries({ queryKey: ['pipeline', 'deals'] })
+    qc.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
   }
 
   const updateDeal = useMutation({

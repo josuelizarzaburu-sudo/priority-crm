@@ -5,6 +5,7 @@ import { Queue } from 'bull'
 import { Resend } from 'resend'
 import { UserRole } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
+import { PushService } from '../push/push.service'
 
 const FROM = 'Priority CRM <leads@priorityhealth.ec>'
 
@@ -59,6 +60,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly push: PushService,
     @InjectQueue('notifications') private readonly queue: Queue,
   ) {
     const apiKey = config.get<string>('RESEND_API_KEY')
@@ -224,7 +226,7 @@ export class NotificationsService {
         organizationId: data.orgId,
         role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
       },
-      select: { email: true },
+      select: { id: true, email: true },
     })
 
     console.log(`Recipients (${recipients.length}):`, recipients.map(r => r.email))
@@ -235,6 +237,10 @@ export class NotificationsService {
       console.log('Sending email to:', r.email)
       await this.sendEmail(r.email, subject, html)
     }
+    await this.push.sendToUsers(
+      recipients.map(r => r.id),
+      { title: `🎯 Nuevo lead — ${data.contactName}`, body: `Tel: ${data.phone} · Fuente: ${data.source}`, url: '/pipeline' },
+    )
 
     await this.queue.add('unassigned-reminder', data, {
       delay: 2 * 60 * 1000,
@@ -244,10 +250,15 @@ export class NotificationsService {
     this.logger.log(`Unassigned-reminder queued for deal ${data.dealId} (+2 min)`)
   }
 
-  async notifyDealAssigned(agent: { email: string; phone?: string | null }, data: LeadNotificationData): Promise<void> {
+  async notifyDealAssigned(agent: { id: string; email: string; phone?: string | null }, data: LeadNotificationData): Promise<void> {
     const subject = `🎯 Nuevo lead asignado — ${data.contactName}`
     const html = this.buildHtml(data, true)
     await this.sendEmail(agent.email, subject, html)
+    await this.push.sendToUser(agent.id, {
+      title: `🎯 Nuevo lead asignado — ${data.contactName}`,
+      body: `Tel: ${data.phone}${data.email ? ` · ${data.email}` : ''}`,
+      url: '/pipeline',
+    })
 
     if (agent.phone) {
       const profile = PROFILE_INFO[data.profileType]
@@ -321,29 +332,37 @@ export class NotificationsService {
     const [deal, managers] = await Promise.all([
       this.prisma.deal.findUnique({
         where: { id: data.dealId },
-        include: { assignedTo: { select: { email: true, phone: true } } },
+        include: { assignedTo: { select: { id: true, email: true, phone: true } } },
       }),
       this.prisma.user.findMany({
         where: {
           organizationId: data.orgId,
           role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
         },
-        select: { email: true, phone: true },
+        select: { id: true, email: true, phone: true },
       }),
     ])
 
     if (!deal) return
 
-    // Notify vendor (WhatsApp + email)
+    const pushPayload = {
+      title: subject,
+      body: `Cliente: ${data.contactName} · Tel: ${data.phone} · ${timeStr}`,
+      url: '/pipeline',
+    }
+
+    // Notify vendor (WhatsApp + email + push)
     if (deal.assignedTo) {
       if (deal.assignedTo.phone) await this.sendWhatsapp(deal.assignedTo.phone, waMsg)
       await this.sendEmail(deal.assignedTo.email, subject, html)
+      await this.push.sendToUser(deal.assignedTo.id, pushPayload)
     }
 
-    // Notify managers (WhatsApp + email)
+    // Notify managers (WhatsApp + email + push)
     for (const m of managers) {
       if (m.phone) await this.sendWhatsapp(m.phone, waMsg)
       await this.sendEmail(m.email, subject, html)
+      await this.push.sendToUser(m.id, pushPayload)
     }
 
     this.logger.log(`Follow-up ${data.reminderType} reminder sent for deal ${data.dealId}`)
@@ -356,19 +375,23 @@ export class NotificationsService {
     })
     if (!deal || deal.assignedToId) return
 
-    const recipients = await this.prisma.user.findMany({
+    const unassignedRecipients = await this.prisma.user.findMany({
       where: {
         organizationId: data.orgId,
         role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
       },
-      select: { email: true },
+      select: { id: true, email: true },
     })
 
     const subject = `⚠️ Lead sin asignar — ${data.contactName}`
     const html = this.buildHtml(data, false)
-    for (const r of recipients) {
+    for (const r of unassignedRecipients) {
       await this.sendEmail(r.email, subject, html)
     }
+    await this.push.sendToUsers(
+      unassignedRecipients.map(r => r.id),
+      { title: `⚠️ Lead sin asignar`, body: `${data.contactName} · Tel: ${data.phone}`, url: '/pipeline' },
+    )
     this.logger.log(`Unassigned reminder sent for deal ${data.dealId}`)
   }
 }

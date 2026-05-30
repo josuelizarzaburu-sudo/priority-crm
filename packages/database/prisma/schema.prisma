@@ -54,7 +54,8 @@ model User {
   assignedDeals  Deal[]        @relation("DealAssignedTo")
   activities     Activity[]
   automations    Automation[]
-  sentMessages   Message[]
+  sentMessages      Message[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -64,6 +65,20 @@ enum UserRole {
   OWNER
   MANAGER
   SALES_REP
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
 }
 
 // ─── Contacts ────────────────────────────────────────────────────────────────

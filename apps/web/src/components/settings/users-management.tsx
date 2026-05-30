@@ -1,11 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog, Crown } from 'lucide-react'
+import { Plus, Trash2, Loader2, ShieldCheck, Users, UserCog, Crown, Phone, Check, X } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ interface TeamMember {
   id: string
   name: string
   email: string
+  phone: string | null
   role: SystemRole
   avatar: string | null
   createdAt: string
@@ -262,6 +264,24 @@ function MemberRow({
   const { toast } = useToast()
   const { label, variant } = ROLE_CONFIG[member.role] ?? { label: member.role, variant: 'outline' as const }
 
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [phoneValue, setPhoneValue] = useState(member.phone ?? '')
+
+  const canEditPhone = callerRole === 'SUPER_ADMIN' || callerRole === 'OWNER' || callerRole === 'MANAGER'
+
+  const phoneMutation = useMutation({
+    mutationFn: (phone: string | null) => api.patch(`/users/${member.id}/phone`, { phone }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast({ title: 'Teléfono actualizado' })
+      setEditingPhone(false)
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'No se pudo actualizar el teléfono.'
+      toast({ title: 'Error', description: Array.isArray(msg) ? msg.join(', ') : msg, variant: 'destructive' })
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/users/${member.id}`),
     onSuccess: () => {
@@ -283,11 +303,53 @@ function MemberRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-sm">{member.name}</span>
-          {isSelf && (
-            <Badge variant="outline" className="text-xs">Tú</Badge>
-          )}
+          {isSelf && <Badge variant="outline" className="text-xs">Tú</Badge>}
         </div>
         <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+
+        {/* Phone — inline edit */}
+        {editingPhone ? (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <Input
+              value={phoneValue}
+              onChange={(e) => setPhoneValue(e.target.value)}
+              placeholder="+593XXXXXXXXX"
+              className="h-7 w-40 text-xs"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') phoneMutation.mutate(phoneValue || null)
+                if (e.key === 'Escape') { setEditingPhone(false); setPhoneValue(member.phone ?? '') }
+              }}
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-green-600"
+              disabled={phoneMutation.isPending}
+              onClick={() => phoneMutation.mutate(phoneValue || null)}
+            >
+              {phoneMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-muted-foreground"
+              onClick={() => { setEditingPhone(false); setPhoneValue(member.phone ?? '') }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          canEditPhone && (
+            <button
+              className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setEditingPhone(true)}
+            >
+              <Phone className="h-3 w-3" />
+              {member.phone ?? <span className="italic">Agregar teléfono</span>}
+            </button>
+          )
+        )}
       </div>
 
       <div className="hidden sm:block text-xs text-muted-foreground shrink-0">

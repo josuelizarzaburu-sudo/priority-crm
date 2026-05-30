@@ -118,7 +118,7 @@ export class PipelineService {
       const contactName = `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}`
       this.notifications
         .notifyDealAssigned(
-          { email: updated.assignedTo.email, phone: (updated.assignedTo as any).phone },
+          { id: updated.assignedTo.id, email: updated.assignedTo.email, phone: (updated.assignedTo as any).phone },
           {
             dealId: updated.id,
             orgId: organizationId,

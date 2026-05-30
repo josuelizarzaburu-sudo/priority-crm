@@ -13,6 +13,7 @@ import { AiModule } from './modules/ai/ai.module'
 import { AutomationsModule } from './modules/automations/automations.module'
 import { WebhooksModule } from './modules/webhooks/webhooks.module'
 import { LeadsModule } from './modules/leads/leads.module'
+import { PushModule } from './modules/push/push.module'
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { LeadsModule } from './modules/leads/leads.module'
     AutomationsModule,
     WebhooksModule,
     LeadsModule,
+    PushModule,
   ],
 })
 export class AppModule {}

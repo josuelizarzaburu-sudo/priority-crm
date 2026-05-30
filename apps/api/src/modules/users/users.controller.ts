@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { UsersService } from './users.service'
@@ -15,6 +15,18 @@ export class UsersController {
   getMe(@Req() req: any) {
     const { password: _, ...user } = req.user
     return user
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update own profile (name, phone)' })
+  updateMe(@Body() body: { name?: string; phone?: string }, @Req() req: any) {
+    return this.usersService.updateProfile(req.user.id, body)
+  }
+
+  @Patch(':id/phone')
+  @ApiOperation({ summary: 'Update phone of any team member — ADMIN/MANAGER only' })
+  updateMemberPhone(@Param('id') id: string, @Body() body: { phone: string | null }, @Req() req: any) {
+    return this.usersService.updateMemberPhone(id, body.phone, req.user.organizationId, req.user.role)
   }
 
   @Get()

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { Injectable, ConflictException, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common'
 import * as bcrypt from 'bcryptjs'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateTeamMemberDto } from './dto/create-team-member.dto'
@@ -35,8 +35,37 @@ export class UsersService {
   findByOrganization(organizationId: string) {
     return this.prisma.user.findMany({
       where: { organizationId },
-      select: { id: true, name: true, email: true, role: true, avatar: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+    })
+  }
+
+  async updateProfile(userId: string, data: { name?: string; phone?: string }): Promise<object> {
+    if (data.phone && !/^\+\d{7,15}$/.test(data.phone)) {
+      throw new BadRequestException('Formato de teléfono inválido. Usa +593XXXXXXXXX')
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { ...(data.name ? { name: data.name } : {}), ...(data.phone !== undefined ? { phone: data.phone } : {}) },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true },
+    })
+    return updated
+  }
+
+  async updateMemberPhone(targetId: string, phone: string | null, organizationId: string, callerRole: string): Promise<object> {
+    if (!['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(callerRole)) {
+      throw new ForbiddenException('No tienes permisos para editar el teléfono de otros usuarios')
+    }
+    if (phone && !/^\+\d{7,15}$/.test(phone)) {
+      throw new BadRequestException('Formato de teléfono inválido. Usa +593XXXXXXXXX')
+    }
+    const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: { phone: phone ?? null },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true },
     })
   }
 

@@ -52,6 +52,17 @@ export interface FollowUpReminderData {
   agentId: string
 }
 
+export interface DealWonData {
+  dealId: string
+  orgId: string
+  contactName: string
+  phone: string
+  plan?: string
+  netPremium?: number
+  vendorName: string
+  closedAt: Date
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name)
@@ -396,6 +407,86 @@ export class NotificationsService {
     }
 
     this.logger.log(`Follow-up ${data.reminderType} reminder sent for deal ${data.dealId}`)
+  }
+
+  private buildDealWonHtml(data: DealWonData): string {
+    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const dateStr = this.formatTime(data.closedAt)
+
+    const rows: [string, string][] = [
+      ['Cliente', this.escape(data.contactName)],
+      ['Teléfono', this.escape(data.phone)],
+      ['Vendedor', this.escape(data.vendorName)],
+      ['Plan', this.escape(data.plan ?? '—')],
+      ['Prima neta', data.netPremium ? `$${data.netPremium.toLocaleString('es-EC')}` : '—'],
+      ['Fecha de cierre', dateStr],
+    ]
+
+    const rowsHtml = rows
+      .map(
+        ([k, v]) => `
+      <tr>
+        <td style="padding:10px 24px;color:#6b7585;font-size:13px;width:38%;border-bottom:1px solid #f3f4f6;">${k}</td>
+        <td style="padding:10px 24px;color:#25324b;font-size:13px;font-weight:600;border-bottom:1px solid #f3f4f6;">${v}</td>
+      </tr>`,
+      )
+      .join('')
+
+    return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#f4f5f7;font-family:sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#25324b;padding:20px 24px;">
+      <h2 style="margin:0;color:#d3ac76;font-size:17px;font-weight:700;">🏆 ¡Deal ganado! — Priority CRM</h2>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      ${rowsHtml}
+    </table>
+    <div style="padding:20px 24px;text-align:center;background:#f8f9fa;">
+      <a href="${appUrl}" style="display:inline-block;background:#25324b;color:#fff;padding:10px 28px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">
+        Abrir CRM
+      </a>
+    </div>
+  </div>
+</body>
+</html>`
+  }
+
+  async notifyDealWon(data: DealWonData): Promise<void> {
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        organizationId: data.orgId,
+        role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
+      },
+      select: { id: true, email: true, phone: true },
+    })
+
+    const subject = `🏆 ¡Deal ganado! — ${data.contactName}`
+    const html = this.buildDealWonHtml(data)
+    const waMsg =
+      `🏆 ¡Deal ganado! — Priority CRM\n` +
+      `👤 Cliente: ${data.contactName}\n` +
+      `📱 Teléfono: ${data.phone}\n` +
+      `💼 Vendedor: ${data.vendorName}\n` +
+      `📋 Plan: ${data.plan ?? '—'}\n` +
+      `💰 Prima neta: ${data.netPremium ? `$${data.netPremium}` : '—'}\n` +
+      `👉 crm.priorityhealth.ec`
+
+    for (const r of recipients) {
+      await this.sendEmail(r.email, subject, html)
+      if (r.phone) await this.sendWhatsapp(r.phone, waMsg)
+    }
+
+    await this.push.sendToUsers(
+      recipients.map(r => r.id),
+      {
+        title: `🏆 ¡Deal ganado!`,
+        body: `${data.vendorName} cerró el deal con ${data.contactName}`,
+        url: '/pipeline',
+      },
+    )
+
+    this.logger.log(`Deal-won notifications sent for deal ${data.dealId} — ${recipients.length} recipients`)
   }
 
   async sendUnassignedReminder(data: LeadNotificationData): Promise<void> {

@@ -280,12 +280,18 @@ export class PipelineService {
     return updated
   }
 
+  private readonly WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
+
   async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
     const updated = await this.prisma.deal.update({
       where: { id },
       data: { stageId: dto.stageId, position: dto.position },
-      include: { stage: true },
+      include: {
+        stage: true,
+        contact: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
     })
 
     await this.prisma.activity.create({
@@ -300,6 +306,25 @@ export class PipelineService {
     })
 
     this.gateway.broadcastDealMoved(organizationId, updated)
+
+    if (dto.stageId === this.WON_STAGE_ID) {
+      const c = updated.contact as any
+      const cf = updated.customFields as any
+      const contactName = c ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}` : updated.title
+      this.notifications
+        .notifyDealWon({
+          dealId: id,
+          orgId: organizationId,
+          contactName,
+          phone: c?.phone ?? '',
+          plan: cf?.insuranceData?.plan ?? undefined,
+          netPremium: cf?.insuranceData?.netPremium ?? (typeof cf?.prima === 'number' ? cf.prima : undefined),
+          vendorName: updated.assignedTo?.name ?? 'Sin asignar',
+          closedAt: new Date(),
+        })
+        .catch(err => this.logger.error(`Deal-won notification error: ${err}`))
+    }
+
     return updated
   }
 

@@ -21,6 +21,8 @@ import {
   BellOff,
   Pencil,
   Check,
+  Plus,
+  Trash2,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -54,6 +56,27 @@ interface ActivityEntry {
   description: string
   createdAt: string
   user?: { id: string; name: string }
+}
+
+interface AdditionalContact {
+  id: string
+  firstName: string
+  lastName: string
+  relationship: string
+}
+
+interface ComplementaryNote {
+  id: string
+  text: string
+  createdAt: string
+}
+
+interface InsuranceData {
+  holderName?: string
+  plan?: string
+  paymentFrequency?: string
+  issueDate?: string
+  netPremium?: number
 }
 
 interface DealDetail {
@@ -113,6 +136,8 @@ const ACTIVITY_ICON: Record<string, React.ReactNode> = {
 export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) {
   const isOpen = !!dealId
   const isAdminOrManager = ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole)
+
+  // ── Existing state ────────────────────────────────────────────────────────
   const [showLostInput, setShowLostInput] = useState(false)
   const [closingReason, setClosingReason] = useState('')
   const [noteText, setNoteText] = useState('')
@@ -120,10 +145,24 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [editingContact, setEditingContact] = useState(false)
   const [editPhone, setEditPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
-  const [editingInsurance, setEditingInsurance] = useState(false)
-  const [editPrima, setEditPrima] = useState('')
-  const [editCompania, setEditCompania] = useState('')
-  const [editPlan, setEditPlan] = useState('')
+
+  // ── Contact extra fields state ────────────────────────────────────────────
+  const [addingContact, setAddingContact] = useState(false)
+  const [newContactFirstName, setNewContactFirstName] = useState('')
+  const [newContactLastName, setNewContactLastName] = useState('')
+  const [newContactRelationship, setNewContactRelationship] = useState('esposa')
+
+  // ── Datos complementarios state ───────────────────────────────────────────
+  const [complementaryNoteText, setComplementaryNoteText] = useState('')
+
+  // ── Insurance data state ──────────────────────────────────────────────────
+  const [editingInsuranceData, setEditingInsuranceData] = useState(false)
+  const [insHolderName, setInsHolderName] = useState('')
+  const [insPlan, setInsPlan] = useState('')
+  const [insPaymentFrequency, setInsPaymentFrequency] = useState('mensual')
+  const [insIssueDate, setInsIssueDate] = useState('')
+  const [insNetPremium, setInsNetPremium] = useState('')
+
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -144,11 +183,30 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     setFollowUpDate(fua ? toDatetimeLocal(fua) : '')
   }, [deal?.id, deal?.customFields?.followUpAt])
 
+  // Sync insurance form when deal loads
+  useEffect(() => {
+    const ins = (deal?.customFields?.insuranceData ?? {}) as InsuranceData
+    setInsHolderName(ins.holderName ?? '')
+    setInsPlan(ins.plan ?? '')
+    setInsPaymentFrequency(ins.paymentFrequency ?? 'mensual')
+    setInsIssueDate(ins.issueDate ?? '')
+    setInsNetPremium(ins.netPremium != null ? String(ins.netPremium) : '')
+  }, [deal?.id, deal?.customFields?.insuranceData])
+
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['pipeline', 'deal', dealId] })
     qc.invalidateQueries({ queryKey: ['pipeline', 'deals'] })
     qc.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
   }
+
+  // Generic customFields patch — merges with existing fields
+  const patchCustomFields = useMutation({
+    mutationFn: (fields: Record<string, unknown>) =>
+      api.put(`/pipeline/deals/${dealId}`, {
+        customFields: { ...deal?.customFields, ...fields },
+      }).then((r) => r.data),
+    onSuccess: invalidate,
+  })
 
   const updateDeal = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -199,27 +257,11 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     },
   })
 
-  const saveInsurance = useMutation({
-    mutationFn: (fields: { prima?: number | null; compania?: string; plan?: string }) =>
-      api
-        .put(`/pipeline/deals/${dealId}`, {
-          customFields: { ...deal?.customFields, ...fields },
-        })
-        .then((r) => r.data),
-    onSuccess: () => {
-      invalidate()
-      setEditingInsurance(false)
-      toast({ title: 'Datos del seguro guardados' })
-    },
-  })
-
   const saveFollowUp = useMutation({
     mutationFn: (isoDate: string | null) =>
-      api
-        .put(`/pipeline/deals/${dealId}`, {
-          customFields: { ...deal?.customFields, followUpAt: isoDate },
-        })
-        .then((r) => r.data),
+      api.put(`/pipeline/deals/${dealId}`, {
+        customFields: { ...deal?.customFields, followUpAt: isoDate },
+      }).then((r) => r.data),
     onSuccess: (_, isoDate) => {
       invalidate()
       toast({ title: isoDate ? 'Seguimiento programado' : 'Seguimiento cancelado' })
@@ -238,20 +280,73 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     },
   })
 
+  // ── Helper handlers ───────────────────────────────────────────────────────
+
   function handleLeadStatusChange(value: string) {
     updateDeal.mutate({ customFields: { ...deal?.customFields, leadStatus: value } })
   }
 
   function handleLost() {
-    if (!showLostInput) {
-      setShowLostInput(true)
-      return
-    }
+    if (!showLostInput) { setShowLostInput(true); return }
     closeDealMutation.mutate({ status: 'LOST', closingReason: closingReason || undefined })
+  }
+
+  function addAdditionalContact() {
+    if (!newContactFirstName.trim()) return
+    const existing = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
+    const entry: AdditionalContact = {
+      id: Date.now().toString(),
+      firstName: newContactFirstName.trim(),
+      lastName: newContactLastName.trim(),
+      relationship: newContactRelationship,
+    }
+    patchCustomFields.mutate({ additionalContacts: [...existing, entry] })
+    setNewContactFirstName('')
+    setNewContactLastName('')
+    setNewContactRelationship('esposa')
+    setAddingContact(false)
+  }
+
+  function removeAdditionalContact(id: string) {
+    const existing = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
+    patchCustomFields.mutate({ additionalContacts: existing.filter((c) => c.id !== id) })
+  }
+
+  function addComplementaryNote() {
+    if (!complementaryNoteText.trim()) return
+    const existing = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
+    const entry: ComplementaryNote = {
+      id: Date.now().toString(),
+      text: complementaryNoteText.trim(),
+      createdAt: new Date().toISOString(),
+    }
+    patchCustomFields.mutate({ complementaryNotes: [...existing, entry] })
+    setComplementaryNoteText('')
+  }
+
+  function deleteComplementaryNote(id: string) {
+    const existing = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
+    patchCustomFields.mutate({ complementaryNotes: existing.filter((n) => n.id !== id) })
+  }
+
+  function saveInsuranceData() {
+    const insuranceData: InsuranceData = {
+      ...(insHolderName.trim() ? { holderName: insHolderName.trim() } : {}),
+      ...(insPlan.trim() ? { plan: insPlan.trim() } : {}),
+      ...(insPaymentFrequency ? { paymentFrequency: insPaymentFrequency } : {}),
+      ...(insIssueDate ? { issueDate: insIssueDate } : {}),
+      ...(insNetPremium ? { netPremium: parseFloat(insNetPremium) } : {}),
+    }
+    patchCustomFields.mutate({ insuranceData })
+    setEditingInsuranceData(false)
+    toast({ title: 'Datos del seguro guardados' })
   }
 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
+  const additionalContacts = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
+  const complementaryNotes = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
+  const insuranceData = (deal?.customFields?.insuranceData as InsuranceData) ?? {}
 
   return (
     <>
@@ -303,7 +398,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
             </div>
           ) : deal ? (
             <div className="space-y-5 p-5">
-              {/* Lead Status */}
+
+              {/* ── Lead Status ─────────────────────────────────────────── */}
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Estado del lead
@@ -336,7 +432,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* Stage change */}
+              {/* ── Etapa del pipeline ───────────────────────────────────── */}
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Etapa del pipeline
@@ -359,11 +455,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* Deal Info */}
-              <div className="space-y-1.5">
+              {/* ── 1. INFORMACIÓN DEL CONTACTO ─────────────────────────── */}
+              <div className="space-y-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Información
+                  Información del contacto
                 </p>
+
+                {/* Base contact fields */}
                 <div className="divide-y rounded-md border text-sm">
                   {deal.value != null && (
                     <div className="flex items-center justify-between px-3 py-2">
@@ -384,7 +482,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     </div>
                   )}
 
-                  {/* Contact fields — editable */}
+                  {/* Phone / email — inline edit */}
                   {deal.contact && editingContact ? (
                     <div className="space-y-2 px-3 py-2.5">
                       <div className="flex items-center gap-2">
@@ -414,12 +512,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         >
                           <Check className="h-3 w-3" /> Guardar
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setEditingContact(false)}
-                        >
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingContact(false)}>
                           Cancelar
                         </Button>
                       </div>
@@ -434,11 +527,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           <span className="font-medium">{deal.contact?.phone ?? '—'}</span>
                           <button
                             className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                            onClick={() => {
-                              setEditPhone(deal.contact?.phone ?? '')
-                              setEditEmail(deal.contact?.email ?? '')
-                              setEditingContact(true)
-                            }}
+                            onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
                           >
                             <Pencil className="h-3 w-3 text-muted-foreground" />
                           </button>
@@ -452,11 +541,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           <span className="truncate font-medium max-w-[160px]">{deal.contact?.email ?? '—'}</span>
                           <button
                             className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                            onClick={() => {
-                              setEditPhone(deal.contact?.phone ?? '')
-                              setEditEmail(deal.contact?.email ?? '')
-                              setEditingContact(true)
-                            }}
+                            onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
                           >
                             <Pencil className="h-3 w-3 text-muted-foreground" />
                           </button>
@@ -464,6 +549,33 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       </div>
                     </>
                   )}
+
+                  {/* Fecha de nacimiento */}
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" /> Fecha de nacimiento
+                    </span>
+                    <input
+                      type="date"
+                      value={(deal.customFields?.birthDate as string) ?? ''}
+                      onChange={(e) => patchCustomFields.mutate({ birthDate: e.target.value || null })}
+                      className="rounded border bg-background px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+
+                  {/* Personas en el seguro */}
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" /> Personas en el seguro
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={(deal.customFields?.insuredPersonsCount as number) ?? ''}
+                      onChange={(e) => patchCustomFields.mutate({ insuredPersonsCount: e.target.value ? parseInt(e.target.value) : null })}
+                      className="w-16 rounded border bg-background px-2 py-0.5 text-right text-sm outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
 
                   {deal.expectedCloseDate && (
                     <div className="flex items-center justify-between px-3 py-2">
@@ -482,138 +594,140 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Insurance / policy fields */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Datos del seguro
-                  </p>
-                  {!isClosed && !editingInsurance && (
-                    <button
-                      className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                      onClick={() => {
-                        setEditPrima(String(deal?.customFields?.prima ?? ''))
-                        setEditCompania(String(deal?.customFields?.compania ?? ''))
-                        setEditPlan(String(deal?.customFields?.plan ?? ''))
-                        setEditingInsurance(true)
-                      }}
-                    >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                    </button>
+                {/* Contactos adicionales */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Contactos adicionales</span>
+                    {!addingContact && (
+                      <button
+                        onClick={() => setAddingContact(true)}
+                        className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <Plus className="h-3 w-3" /> Agregar contacto
+                      </button>
+                    )}
+                  </div>
+
+                  {additionalContacts.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
+                      <span>
+                        {c.firstName} {c.lastName}
+                        <span className="ml-1.5 text-xs text-muted-foreground">· {c.relationship}</span>
+                      </span>
+                      <button
+                        onClick={() => removeAdditionalContact(c.id)}
+                        className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {addingContact && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          placeholder="Nombre"
+                          value={newContactFirstName}
+                          onChange={(e) => setNewContactFirstName(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          placeholder="Apellido"
+                          value={newContactLastName}
+                          onChange={(e) => setNewContactLastName(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <Select value={newContactRelationship} onValueChange={setNewContactRelationship}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="esposa">Esposa / Esposo</SelectItem>
+                          <SelectItem value="hijo">Hijo / Hija</SelectItem>
+                          <SelectItem value="madre">Madre</SelectItem>
+                          <SelectItem value="padre">Padre</SelectItem>
+                          <SelectItem value="otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={addAdditionalContact}
+                          disabled={patchCustomFields.isPending}
+                        >
+                          <Check className="h-3 w-3" /> Guardar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => { setAddingContact(false); setNewContactFirstName(''); setNewContactLastName(''); setNewContactRelationship('esposa') }}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {editingInsurance ? (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Valor de la prima (USD)</label>
-                      <Input
-                        type="number"
-                        value={editPrima}
-                        onChange={(e) => setEditPrima(e.target.value)}
-                        placeholder="0.00"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Compañía que emitió</label>
-                      <Input
-                        value={editCompania}
-                        onChange={(e) => setEditCompania(e.target.value)}
-                        placeholder="Ej: SALUDSA"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Plan elegido</label>
-                      <Input
-                        value={editPlan}
-                        onChange={(e) => setEditPlan(e.target.value)}
-                        placeholder="Ej: Sky, Star, Pro"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        className="h-7 gap-1 px-2 text-xs"
-                        onClick={() =>
-                          saveInsurance.mutate({
-                            prima: editPrima ? parseFloat(editPrima) : null,
-                            compania: editCompania || undefined,
-                            plan: editPlan || undefined,
-                          })
-                        }
-                        disabled={saveInsurance.isPending}
-                      >
-                        <Check className="h-3 w-3" /> Guardar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => setEditingInsurance(false)}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="divide-y rounded-md border text-sm">
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <DollarSign className="h-3.5 w-3.5" /> Valor de la prima
-                      </span>
-                      <span className="font-medium">
-                        {deal?.customFields?.prima != null
-                          ? formatCurrency(deal.customFields.prima as number)
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-muted-foreground">Compañía</span>
-                      <span className="font-medium">{(deal?.customFields?.compania as string) || '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-muted-foreground">Plan</span>
-                      <span className="font-medium">{(deal?.customFields?.plan as string) || '—'}</span>
-                    </div>
+              <Separator />
+
+              {/* ── 2. DATOS COMPLEMENTARIOS ────────────────────────────── */}
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Datos complementarios
+                </p>
+
+                <Textarea
+                  placeholder="Escribe una nota complementaria..."
+                  value={complementaryNoteText}
+                  onChange={(e) => setComplementaryNoteText(e.target.value)}
+                  className="min-h-[80px] text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && complementaryNoteText.trim()) {
+                      addComplementaryNote()
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={addComplementaryNote}
+                  disabled={!complementaryNoteText.trim() || patchCustomFields.isPending}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Agregar nota
+                </Button>
+
+                {complementaryNotes.length > 0 && (
+                  <div className="space-y-2">
+                    {complementaryNotes.map((note) => (
+                      <div key={note.id} className="rounded-md border bg-muted/30 px-3 py-2.5 text-sm">
+                        <div className="flex items-start gap-2">
+                          <p className="flex-1 whitespace-pre-wrap leading-snug">{note.text}</p>
+                          <button
+                            onClick={() => deleteComplementaryNote(note.id)}
+                            className="shrink-0 rounded p-0.5 hover:bg-muted"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                          {format(new Date(note.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
               <Separator />
 
-              {/* Owner */}
-              {isAdminOrManager && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Vendedor asignado
-                  </p>
-                  <Select
-                    value={deal.assignedToId ?? ''}
-                    onValueChange={(v) => v && assignDeal.mutate(v)}
-                    disabled={assignDeal.isPending}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sin asignar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* Follow-up reminder */}
+              {/* ── 3. SEGUIMIENTO PROGRAMADO ───────────────────────────── */}
               {(() => {
                 const fua = deal.customFields?.followUpAt as string | undefined
                 const isOverdue = fua ? new Date(fua) < new Date() : false
@@ -634,9 +748,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                             <p className="text-xs font-medium">
                               {format(new Date(fua), "d MMM yyyy, HH:mm", { locale: es })}
                             </p>
-                            {isOverdue && (
-                              <p className="text-[11px] font-bold text-red-600">VENCIDO</p>
-                            )}
+                            {isOverdue && <p className="text-[11px] font-bold text-red-600">VENCIDO</p>}
                           </div>
                         </div>
                         <button
@@ -673,7 +785,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* Quick Actions */}
+              {/* ── 4. ACCIONES RÁPIDAS ─────────────────────────────────── */}
               <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Acciones rápidas
@@ -738,10 +850,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          setShowLostInput(false)
-                          setClosingReason('')
-                        }}
+                        onClick={() => { setShowLostInput(false); setClosingReason('') }}
                       >
                         Cancelar
                       </Button>
@@ -760,9 +869,149 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 )}
               </div>
 
+              {/* Vendedor asignado — admin/manager only */}
+              {isAdminOrManager && (
+                <>
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Vendedor asignado
+                    </p>
+                    <Select
+                      value={deal.assignedToId ?? ''}
+                      onValueChange={(v) => v && assignDeal.mutate(v)}
+                      disabled={assignDeal.isPending}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Sin asignar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
               <Separator />
 
-              {/* Notes */}
+              {/* ── 5. DATOS DEL SEGURO ─────────────────────────────────── */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Datos del seguro
+                  </p>
+                  {!isClosed && !editingInsuranceData && (
+                    <button
+                      className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                      onClick={() => setEditingInsuranceData(true)}
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+
+                {editingInsuranceData ? (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Titular del plan</label>
+                      <Input
+                        value={insHolderName}
+                        onChange={(e) => setInsHolderName(e.target.value)}
+                        placeholder="Nombre y apellido"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Plan contratado</label>
+                      <Input
+                        value={insPlan}
+                        onChange={(e) => setInsPlan(e.target.value)}
+                        placeholder="Ej: Sky, Star, Pro"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Forma de pago</label>
+                      <Select value={insPaymentFrequency} onValueChange={setInsPaymentFrequency}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mensual">Mensual</SelectItem>
+                          <SelectItem value="trimestral">Trimestral</SelectItem>
+                          <SelectItem value="semestral">Semestral</SelectItem>
+                          <SelectItem value="anual">Anual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Fecha de emisión</label>
+                      <input
+                        type="date"
+                        value={insIssueDate}
+                        onChange={(e) => setInsIssueDate(e.target.value)}
+                        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Prima neta (USD)</label>
+                      <Input
+                        type="number"
+                        value={insNetPremium}
+                        onChange={(e) => setInsNetPremium(e.target.value)}
+                        placeholder="0.00"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={saveInsuranceData}
+                        disabled={patchCustomFields.isPending}
+                      >
+                        <Check className="h-3 w-3" /> Guardar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setEditingInsuranceData(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y rounded-md border text-sm">
+                    {([
+                      ['Titular', insuranceData.holderName],
+                      ['Plan', insuranceData.plan],
+                      ['Forma de pago', insuranceData.paymentFrequency
+                        ? insuranceData.paymentFrequency.charAt(0).toUpperCase() + insuranceData.paymentFrequency.slice(1)
+                        : undefined],
+                      ['Fecha de emisión', insuranceData.issueDate
+                        ? format(new Date(insuranceData.issueDate), "d MMM yyyy", { locale: es })
+                        : undefined],
+                      ['Prima neta', insuranceData.netPremium != null
+                        ? formatCurrency(insuranceData.netPremium)
+                        : undefined],
+                    ] as [string, string | undefined][]).map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{value ?? '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* ── Notas de actividad ───────────────────────────────────── */}
               <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Notas
@@ -798,9 +1047,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                             {note.user && <span className="font-medium">{note.user.name}</span>}
                             {note.user && <span>·</span>}
-                            <span>
-                              {format(new Date(note.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
-                            </span>
+                            <span>{format(new Date(note.createdAt), "d MMM yyyy, HH:mm", { locale: es })}</span>
                           </div>
                         </div>
                       ))}
@@ -811,7 +1058,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* Activity History — calls, stage changes, etc. */}
+              {/* ── Historial de actividades ─────────────────────────────── */}
               <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Historial
@@ -826,9 +1073,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       {nonNotes.map((act) => (
                         <div key={act.id} className="flex gap-3">
                           <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
-                            {ACTIVITY_ICON[act.type] ?? (
-                              <FileText className="h-3.5 w-3.5 text-gray-400" />
-                            )}
+                            {ACTIVITY_ICON[act.type] ?? <FileText className="h-3.5 w-3.5 text-gray-400" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs leading-snug">{act.description}</p>
@@ -836,10 +1081,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                               {act.user && <span>{act.user.name}</span>}
                               {act.user && <span>·</span>}
                               <span>
-                                {formatDistanceToNow(new Date(act.createdAt), {
-                                  addSuffix: true,
-                                  locale: es,
-                                })}
+                                {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true, locale: es })}
                               </span>
                             </div>
                           </div>
@@ -849,6 +1091,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   )
                 })()}
               </div>
+
             </div>
           ) : null}
         </ScrollArea>

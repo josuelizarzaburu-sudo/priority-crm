@@ -23,9 +23,32 @@ import { PushModule } from './modules/push/push.module'
 
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        redis: { host: 'localhost', port: 6379, password: config.get('REDIS_PASSWORD') },
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL')
+        let host = 'localhost'
+        let port = 6379
+        let password: string | undefined = config.get('REDIS_PASSWORD') || undefined
+
+        if (redisUrl) {
+          try {
+            const parsed = new URL(redisUrl)
+            host = parsed.hostname
+            port = parseInt(parsed.port, 10) || 6379
+            if (parsed.password) password = decodeURIComponent(parsed.password)
+          } catch { /* fallback to defaults above */ }
+        }
+
+        return {
+          redis: {
+            host,
+            port,
+            password,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            retryStrategy: (times: number) => Math.min(times * 50, 2000),
+          },
+        }
+      },
     }),
 
     CacheModule.registerAsync({

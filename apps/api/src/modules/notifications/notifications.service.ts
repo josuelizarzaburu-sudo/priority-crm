@@ -275,41 +275,46 @@ export class NotificationsService {
   }
 
   async scheduleFollowUpReminders(data: FollowUpReminderData): Promise<void> {
-    const followUpDate = new Date(data.followUpAt)
-    const now = Date.now()
+    try {
+      const followUpDate = new Date(data.followUpAt)
+      const now = Date.now()
 
-    const job24hId = `follow-up-24h-${data.dealId}`
-    const job2hId = `follow-up-2h-${data.dealId}`
+      const job24hId = `follow-up-24h-${data.dealId}`
+      const job2hId = `follow-up-2h-${data.dealId}`
 
-    // Remove existing jobs for this deal before rescheduling
-    const [existing24h, existing2h] = await Promise.all([
-      this.queue.getJob(job24hId),
-      this.queue.getJob(job2hId),
-    ])
-    if (existing24h) await existing24h.remove()
-    if (existing2h) await existing2h.remove()
+      // Remove existing jobs for this deal before rescheduling
+      const [existing24h, existing2h] = await Promise.all([
+        this.queue.getJob(job24hId),
+        this.queue.getJob(job2hId),
+      ])
+      if (existing24h) await existing24h.remove()
+      if (existing2h) await existing2h.remove()
 
-    const delay24h = followUpDate.getTime() - 24 * 60 * 60 * 1000 - now
-    const delay2h = followUpDate.getTime() - 2 * 60 * 60 * 1000 - now
+      const delay24h = followUpDate.getTime() - 24 * 60 * 60 * 1000 - now
+      const delay2h  = followUpDate.getTime() -  2 * 60 * 60 * 1000 - now
 
-    if (delay24h > 0) {
-      await this.queue.add('follow-up-reminder', { ...data, reminderType: '24h' }, {
-        delay: delay24h,
-        attempts: 1,
-        removeOnComplete: true,
-        jobId: job24hId,
-      })
-      this.logger.log(`Follow-up 24h reminder scheduled for deal ${data.dealId}`)
-    }
+      if (delay24h > 0) {
+        await this.queue.add('follow-up-reminder', { ...data, reminderType: '24h' }, {
+          delay: delay24h,
+          attempts: 1,
+          removeOnComplete: true,
+          jobId: job24hId,
+        })
+        this.logger.log(`Follow-up 24h reminder scheduled for deal ${data.dealId}`)
+      }
 
-    if (delay2h > 0) {
-      await this.queue.add('follow-up-reminder', { ...data, reminderType: '2h' }, {
-        delay: delay2h,
-        attempts: 1,
-        removeOnComplete: true,
-        jobId: job2hId,
-      })
-      this.logger.log(`Follow-up 2h reminder scheduled for deal ${data.dealId}`)
+      if (delay2h > 0) {
+        await this.queue.add('follow-up-reminder', { ...data, reminderType: '2h' }, {
+          delay: delay2h,
+          attempts: 1,
+          removeOnComplete: true,
+          jobId: job2hId,
+        })
+        this.logger.log(`Follow-up 2h reminder scheduled for deal ${data.dealId}`)
+      }
+    } catch (err) {
+      // Redis/BullMQ unavailable — follow-up is saved in DB; reminders will not fire
+      this.logger.warn(`scheduleFollowUpReminders skipped (Redis unavailable): ${err instanceof Error ? err.message : err}`)
     }
   }
 

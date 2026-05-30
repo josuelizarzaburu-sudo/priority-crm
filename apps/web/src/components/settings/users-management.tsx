@@ -72,11 +72,11 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; description: string; icon
   },
 }
 
-// Roles que cada nivel puede crear
+// Solo SUPER_ADMIN puede crear usuarios
 const CREATABLE_BY: Record<SystemRole, SystemRole[]> = {
   SUPER_ADMIN: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'],
-  OWNER:       ['MANAGER', 'SALES_REP'],
-  MANAGER:     ['SALES_REP'],
+  OWNER:       [],
+  MANAGER:     [],
   SALES_REP:   [],
 }
 
@@ -267,7 +267,7 @@ function MemberRow({
   const [editingPhone, setEditingPhone] = useState(false)
   const [phoneValue, setPhoneValue] = useState(member.phone ?? '')
 
-  const canEditPhone = callerRole === 'SUPER_ADMIN' || callerRole === 'OWNER' || callerRole === 'MANAGER'
+  const canEditPhone = callerRole === 'SUPER_ADMIN'
 
   const phoneMutation = useMutation({
     mutationFn: (phone: string | null) => api.patch(`/users/${member.id}/phone`, { phone }),
@@ -360,8 +360,8 @@ function MemberRow({
         {label}
       </Badge>
 
-      {/* Delete — only SUPER_ADMIN and OWNER, cannot delete self */}
-      {(callerRole === 'SUPER_ADMIN' || callerRole === 'OWNER') && !isSelf && (
+      {/* Delete — only SUPER_ADMIN, cannot delete self */}
+      {callerRole === 'SUPER_ADMIN' && !isSelf && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button

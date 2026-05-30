@@ -53,8 +53,8 @@ export class UsersService {
   }
 
   async updateMemberPhone(targetId: string, phone: string | null, organizationId: string, callerRole: string): Promise<object> {
-    if (!['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(callerRole)) {
-      throw new ForbiddenException('No tienes permisos para editar el teléfono de otros usuarios')
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede editar el teléfono de otros usuarios')
     }
     if (phone && !/^\+\d{7,15}$/.test(phone)) {
       throw new BadRequestException('Formato de teléfono inválido. Usa +593XXXXXXXXX')
@@ -69,21 +69,9 @@ export class UsersService {
     })
   }
 
-  // Which roles each caller level is allowed to create
-  private static readonly CREATABLE_BY: Record<string, string[]> = {
-    SUPER_ADMIN: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'],
-    OWNER:       ['MANAGER', 'SALES_REP'],
-    MANAGER:     ['SALES_REP'],
-    SALES_REP:   [],
-  }
-
   async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: string) {
-    const allowed = UsersService.CREATABLE_BY[callerRole] ?? []
-    if (allowed.length === 0) {
-      throw new ForbiddenException('No tienes permisos para crear usuarios')
-    }
-    if (!allowed.includes(dto.role)) {
-      throw new ForbiddenException(`Tu rol no puede crear usuarios con rol ${dto.role}`)
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede crear usuarios')
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } })
@@ -98,8 +86,8 @@ export class UsersService {
   }
 
   async removeTeamMember(targetId: string, organizationId: string, callerId: string, callerRole: string) {
-    if (callerRole !== 'SUPER_ADMIN' && callerRole !== 'OWNER') {
-      throw new ForbiddenException('Solo SUPER_ADMIN y OWNER pueden eliminar usuarios')
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede eliminar usuarios')
     }
     if (targetId === callerId) throw new ForbiddenException('You cannot remove yourself')
 

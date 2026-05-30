@@ -63,12 +63,7 @@ interface AdditionalContact {
   firstName: string
   lastName: string
   relationship: string
-}
-
-interface ComplementaryNote {
-  id: string
-  text: string
-  createdAt: string
+  birthDate?: string
 }
 
 interface InsuranceData {
@@ -151,9 +146,10 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [newContactFirstName, setNewContactFirstName] = useState('')
   const [newContactLastName, setNewContactLastName] = useState('')
   const [newContactRelationship, setNewContactRelationship] = useState('esposa')
+  const [newContactBirthDate, setNewContactBirthDate] = useState('')
 
   // ── Datos complementarios state ───────────────────────────────────────────
-  const [complementaryNoteText, setComplementaryNoteText] = useState('')
+  const [complementaryContent, setComplementaryContent] = useState('')
 
   // ── Insurance data state ──────────────────────────────────────────────────
   const [editingInsuranceData, setEditingInsuranceData] = useState(false)
@@ -182,6 +178,11 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     const fua = deal?.customFields?.followUpAt as string | undefined
     setFollowUpDate(fua ? toDatetimeLocal(fua) : '')
   }, [deal?.id, deal?.customFields?.followUpAt])
+
+  // Sync complementary notes content when deal loads
+  useEffect(() => {
+    setComplementaryContent((deal?.customFields?.complementaryNotes as string) ?? '')
+  }, [deal?.id, deal?.customFields?.complementaryNotes])
 
   // Sync insurance form when deal loads
   useEffect(() => {
@@ -299,11 +300,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       firstName: newContactFirstName.trim(),
       lastName: newContactLastName.trim(),
       relationship: newContactRelationship,
+      ...(newContactBirthDate ? { birthDate: newContactBirthDate } : {}),
     }
     patchCustomFields.mutate({ additionalContacts: [...existing, entry] })
     setNewContactFirstName('')
     setNewContactLastName('')
     setNewContactRelationship('esposa')
+    setNewContactBirthDate('')
     setAddingContact(false)
   }
 
@@ -312,21 +315,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     patchCustomFields.mutate({ additionalContacts: existing.filter((c) => c.id !== id) })
   }
 
-  function addComplementaryNote() {
-    if (!complementaryNoteText.trim()) return
-    const existing = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
-    const entry: ComplementaryNote = {
-      id: Date.now().toString(),
-      text: complementaryNoteText.trim(),
-      createdAt: new Date().toISOString(),
-    }
-    patchCustomFields.mutate({ complementaryNotes: [...existing, entry] })
-    setComplementaryNoteText('')
-  }
-
-  function deleteComplementaryNote(id: string) {
-    const existing = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
-    patchCustomFields.mutate({ complementaryNotes: existing.filter((n) => n.id !== id) })
+  function saveComplementaryContent() {
+    patchCustomFields.mutate({
+      complementaryNotes: complementaryContent,
+      complementaryNotesUpdatedAt: new Date().toISOString(),
+    })
+    toast({ title: 'Notas guardadas' })
   }
 
   function saveInsuranceData() {
@@ -345,7 +339,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
   const additionalContacts = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
-  const complementaryNotes = (deal?.customFields?.complementaryNotes as ComplementaryNote[]) ?? []
+  const complementaryNotesUpdatedAt = deal?.customFields?.complementaryNotesUpdatedAt as string | undefined
   const insuranceData = (deal?.customFields?.insuranceData as InsuranceData) ?? {}
 
   return (
@@ -610,11 +604,16 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   </div>
 
                   {additionalContacts.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
-                      <span>
-                        {c.firstName} {c.lastName}
+                    <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <span className="font-medium">{c.firstName} {c.lastName}</span>
                         <span className="ml-1.5 text-xs text-muted-foreground">· {c.relationship}</span>
-                      </span>
+                        {c.birthDate && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Nac. {format(new Date(c.birthDate), "d MMM yyyy", { locale: es })}
+                          </p>
+                        )}
+                      </div>
                       <button
                         onClick={() => removeAdditionalContact(c.id)}
                         className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
@@ -652,6 +651,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           <SelectItem value="otro">Otro</SelectItem>
                         </SelectContent>
                       </Select>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Fecha de nacimiento (opcional)</label>
+                        <input
+                          type="date"
+                          value={newContactBirthDate}
+                          onChange={(e) => setNewContactBirthDate(e.target.value)}
+                          className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
                       <div className="flex gap-1.5">
                         <Button
                           size="sm"
@@ -665,7 +673,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-xs"
-                          onClick={() => { setAddingContact(false); setNewContactFirstName(''); setNewContactLastName(''); setNewContactRelationship('esposa') }}
+                          onClick={() => { setAddingContact(false); setNewContactFirstName(''); setNewContactLastName(''); setNewContactRelationship('esposa'); setNewContactBirthDate('') }}
                         >
                           Cancelar
                         </Button>
@@ -678,51 +686,33 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
               <Separator />
 
               {/* ── 2. DATOS COMPLEMENTARIOS ────────────────────────────── */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Datos complementarios
                 </p>
-
                 <Textarea
-                  placeholder="Escribe una nota complementaria..."
-                  value={complementaryNoteText}
-                  onChange={(e) => setComplementaryNoteText(e.target.value)}
-                  className="min-h-[80px] text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && complementaryNoteText.trim()) {
-                      addComplementaryNote()
-                    }
-                  }}
+                  placeholder="Bloc de notas libre — escribe, edita y borra lo que necesites..."
+                  value={complementaryContent}
+                  onChange={(e) => setComplementaryContent(e.target.value)}
+                  className="min-h-[140px] text-sm"
                 />
-                <Button
-                  size="sm"
-                  className="w-full gap-1.5"
-                  onClick={addComplementaryNote}
-                  disabled={!complementaryNoteText.trim() || patchCustomFields.isPending}
-                >
-                  <Plus className="h-3.5 w-3.5" /> Agregar nota
-                </Button>
-
-                {complementaryNotes.length > 0 && (
-                  <div className="space-y-2">
-                    {complementaryNotes.map((note) => (
-                      <div key={note.id} className="rounded-md border bg-muted/30 px-3 py-2.5 text-sm">
-                        <div className="flex items-start gap-2">
-                          <p className="flex-1 whitespace-pre-wrap leading-snug">{note.text}</p>
-                          <button
-                            onClick={() => deleteComplementaryNote(note.id)}
-                            className="shrink-0 rounded p-0.5 hover:bg-muted"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
-                          </button>
-                        </div>
-                        <p className="mt-1.5 text-[11px] text-muted-foreground">
-                          {format(new Date(note.createdAt), "d MMM yyyy, HH:mm", { locale: es })}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center justify-between gap-3">
+                  {complementaryNotesUpdatedAt ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Última edición: {format(new Date(complementaryNotesUpdatedAt), "d MMM yyyy, HH:mm", { locale: es })}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={saveComplementaryContent}
+                    disabled={patchCustomFields.isPending}
+                  >
+                    Guardar
+                  </Button>
+                </div>
               </div>
 
               <Separator />

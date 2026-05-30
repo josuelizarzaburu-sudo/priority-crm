@@ -95,8 +95,10 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
   const sortedStages = [...stages].sort((a, b) => a.position - b.position)
   const activeMobileStage = sortedStages[Math.min(mobileStageIndex, sortedStages.length - 1)]
   const activeMobileDeals = activeMobileStage ? getStageDeals(activeMobileStage.id) : []
-  const allowDrag = viewMode === 'mine' || userRole === 'SUPER_ADMIN'
-  const allowClick = !(viewMode === 'all' && userRole === 'SALES_REP')
+  const allowDrag = userRole === 'SUPER_ADMIN' || (viewMode === 'mine' && userRole !== 'SALES_REP')
+  const allowClick = userRole !== 'SALES_REP'
+
+  console.log('[KanbanBoard] userRole:', userRole, '| viewMode:', viewMode, '| allowDrag:', allowDrag, '| allowClick:', allowClick)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

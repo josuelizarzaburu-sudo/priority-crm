@@ -21,6 +21,10 @@ export function PipelineClient() {
   const currentUserId = session?.user?.id ?? ''
   const isAdminOrManager = ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole)
 
+  console.log('Current user role (raw):', session?.user?.role)
+  console.log('Current user role (normalized):', userRole)
+  console.log('Is sales rep:', userRole === 'SALES_REP')
+
   // null means "not yet overridden by user" — computed default reacts to session load
   const [viewModeOverride, setViewModeOverride] = useState<'mine' | 'all' | null>(null)
   const viewMode = viewModeOverride ?? (isAdminOrManager ? 'all' : 'mine')

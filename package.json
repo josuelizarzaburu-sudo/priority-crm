@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Priority CRM - Omnichannel CRM with AI-powered pipeline management",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"

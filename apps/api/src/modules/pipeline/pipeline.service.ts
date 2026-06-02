@@ -311,14 +311,15 @@ export class PipelineService {
     const isMovingToWon = dto.stageId === this.WON_STAGE_ID
     const extraFields: Record<string, unknown> = {}
 
-    if (isMovingToWon && dto.insuranceData) {
-      const newEntry = { id: Date.now().toString(), ...dto.insuranceData }
+    if (isMovingToWon && dto.insuranceData && dto.insuranceData.length > 0) {
+      const entries = dto.insuranceData.map((e, i) => ({ id: `${Date.now()}-${i}`, ...e }))
+      const totalPremium = entries.reduce((s, e) => s + (typeof e.netPremium === 'number' ? e.netPremium : 0), 0)
       extraFields.customFields = {
         ...(deal.customFields as Record<string, unknown>),
-        insuranceData: [newEntry],
+        insuranceData: entries,
         locked: true,
       }
-      extraFields.value = dto.insuranceData.netPremium
+      extraFields.value = totalPremium
     }
 
     const updated = await this.prisma.deal.update({
@@ -354,8 +355,10 @@ export class PipelineService {
           orgId: organizationId,
           contactName,
           phone: c?.phone ?? '',
-          plan: cf?.insuranceData?.plan ?? undefined,
-          netPremium: cf?.insuranceData?.netPremium ?? (typeof cf?.prima === 'number' ? cf.prima : undefined),
+          plan: Array.isArray(cf?.insuranceData) ? cf.insuranceData[0]?.plan : cf?.insuranceData?.plan,
+          netPremium: Array.isArray(cf?.insuranceData)
+            ? cf.insuranceData.reduce((s: number, e: any) => s + (typeof e.netPremium === 'number' ? e.netPremium : 0), 0)
+            : (cf?.insuranceData?.netPremium ?? (typeof cf?.prima === 'number' ? cf.prima : undefined)),
           vendorName: updated.assignedTo?.name ?? 'Sin asignar',
           closedAt: new Date(),
         })

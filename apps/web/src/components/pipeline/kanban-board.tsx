@@ -54,7 +54,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
 
   const moveDealMutation = useMutation({
     mutationFn: ({ dealId, stageId, position, insuranceData }: {
-      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData
+      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData[]
     }) => api.put(`/pipeline/deals/${dealId}/move`, { stageId, position, insuranceData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline'] })
@@ -82,11 +82,11 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
     moveDealMutation.mutate({ dealId, stageId, position })
   }
 
-  function handleWonConfirm(insuranceData: WonInsuranceData) {
+  function handleWonConfirm(entries: WonInsuranceData[]) {
     if (!pendingMove) return
     const { dealId, stageId, position } = pendingMove
     moveDeal(dealId, stageId, position)
-    moveDealMutation.mutate({ dealId, stageId, position, insuranceData })
+    moveDealMutation.mutate({ dealId, stageId, position, insuranceData: entries })
   }
 
   const { data: stagesData } = useQuery({

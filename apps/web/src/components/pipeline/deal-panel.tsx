@@ -181,9 +181,6 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
 
-  // ── Insurance data state ──────────────────────────────────────────────────
-  const [editingInsuranceData, setEditingInsuranceData] = useState(false)
-  const [draftInsurance, setDraftInsurance] = useState<InsuranceEntry[]>([])
 
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -209,11 +206,6 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   useEffect(() => {
     setComplementaryContent((deal?.customFields?.complementaryNotes as string) ?? '')
   }, [deal?.id, deal?.customFields?.complementaryNotes])
-
-  // Sync insurance draft when deal loads
-  useEffect(() => {
-    setDraftInsurance(toInsuranceEntries(deal?.customFields?.insuranceData))
-  }, [deal?.id, deal?.customFields?.insuranceData])
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['pipeline', 'deal', dealId] })
@@ -261,7 +253,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   })
 
   const moveStage = useMutation({
-    mutationFn: ({ stageId, insuranceData }: { stageId: string; insuranceData?: WonInsuranceData }) =>
+    mutationFn: ({ stageId, insuranceData }: { stageId: string; insuranceData?: WonInsuranceData[] }) =>
       api.put(`/pipeline/deals/${dealId}/move`, { stageId, position: 1000, insuranceData }).then((r) => r.data),
     onSuccess: (_, vars) => {
       invalidate()
@@ -359,31 +351,6 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     toast({ title: 'Notas guardadas' })
   }
 
-  function addInsuranceEntry() {
-    setDraftInsurance(prev => [...prev, {
-      id: Date.now().toString(),
-      holderName: '',
-      plan: '',
-      paymentFrequency: 'debito-mensual',
-      aseguradora: '',
-      issueDate: '',
-    }])
-  }
-
-  function removeInsuranceEntry(idx: number) {
-    setDraftInsurance(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  function updateInsuranceEntry(idx: number, field: keyof InsuranceEntry, value: string | number) {
-    setDraftInsurance(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e))
-  }
-
-  function saveInsuranceData() {
-    patchCustomFields.mutate({ insuranceData: draftInsurance })
-    setEditingInsuranceData(false)
-    toast({ title: 'Datos del seguro guardados' })
-  }
-
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
   const isLocked = !!(deal?.customFields?.locked)
@@ -435,7 +402,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
         <WonDealModal
           open={showWonModal}
-          onConfirm={(insuranceData) => moveStage.mutate({ stageId: WON_STAGE_ID, insuranceData })}
+          onConfirm={(entries) => moveStage.mutate({ stageId: WON_STAGE_ID, insuranceData: entries })}
           onCancel={() => setShowWonModal(false)}
           loading={moveStage.isPending}
         />
@@ -969,145 +936,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* ── 5. DATOS DEL SEGURO ─────────────────────────────────── */}
+              {/* ── 5. DATOS DEL SEGURO (solo lectura) ──────────────────── */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Datos del seguro
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Datos del seguro
+                </p>
+                {insuranceEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {isGanadoLocked ? 'Sin datos registrados.' : 'Se completarán al mover el deal a Ganado.'}
                   </p>
-                  {!isClosed && !isGanadoLocked && !editingInsuranceData && (
-                    <button
-                      className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                      onClick={() => setEditingInsuranceData(true)}
-                    >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  )}
-                </div>
-
-                {editingInsuranceData ? (
-                  <div className="space-y-3">
-                    {draftInsurance.map((entry, idx) => (
-                      <div key={entry.id} className="relative rounded-md border p-3 space-y-2">
-                        {draftInsurance.length > 1 && (
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-muted-foreground">Cliente {idx + 1}</span>
-                            <button
-                              onClick={() => removeInsuranceEntry(idx)}
-                              className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-red-500"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Titular del plan</label>
-                          <Input
-                            value={entry.holderName ?? ''}
-                            onChange={(e) => updateInsuranceEntry(idx, 'holderName', e.target.value)}
-                            placeholder="Nombre y apellido"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Plan contratado</label>
-                          <Input
-                            value={entry.plan ?? ''}
-                            onChange={(e) => updateInsuranceEntry(idx, 'plan', e.target.value)}
-                            placeholder="Ej: Sky, Star, Pro"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">Aseguradora</label>
-                            <Select
-                              value={entry.aseguradora ?? ''}
-                              onValueChange={(v) => updateInsuranceEntry(idx, 'aseguradora', v)}
-                            >
-                              <SelectTrigger className="h-8 text-sm">
-                                <SelectValue placeholder="Seleccionar..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="BMI">BMI</SelectItem>
-                                <SelectItem value="Saludsa">Saludsa</SelectItem>
-                                <SelectItem value="Cuasanitas">Cuasanitas</SelectItem>
-                                <SelectItem value="Humana">Humana</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">Forma de pago</label>
-                            <Select
-                              value={entry.paymentFrequency ?? 'debito-mensual'}
-                              onValueChange={(v) => updateInsuranceEntry(idx, 'paymentFrequency', v)}
-                            >
-                              <SelectTrigger className="h-8 text-sm">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pago-contado">Pago contado</SelectItem>
-                                <SelectItem value="debito-mensual">Débito mensual</SelectItem>
-                                <SelectItem value="diferido-especial">Diferido especial</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">Fecha de emisión</label>
-                            <input
-                              type="date"
-                              value={entry.issueDate ?? ''}
-                              onChange={(e) => updateInsuranceEntry(idx, 'issueDate', e.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">Prima neta (USD)</label>
-                            <Input
-                              type="number"
-                              value={entry.netPremium != null ? String(entry.netPremium) : ''}
-                              onChange={(e) => updateInsuranceEntry(idx, 'netPremium', e.target.value ? parseFloat(e.target.value) : 0)}
-                              placeholder="0.00"
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <button
-                      onClick={addInsuranceEntry}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-xs text-muted-foreground hover:border-primary hover:text-primary"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Agregar cliente
-                    </button>
-
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        className="h-7 gap-1 px-2 text-xs"
-                        onClick={saveInsuranceData}
-                        disabled={patchCustomFields.isPending}
-                      >
-                        <Check className="h-3 w-3" /> Guardar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          setEditingInsuranceData(false)
-                          setDraftInsurance(toInsuranceEntries(deal?.customFields?.insuranceData))
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : insuranceEntries.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Sin datos del seguro.</p>
                 ) : (
                   <div className="space-y-2">
                     {insuranceEntries.map((entry, idx) => (

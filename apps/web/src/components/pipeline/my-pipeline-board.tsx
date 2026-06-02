@@ -151,7 +151,7 @@ export function MyPipelineBoard() {
   // ── Move mutation ─────────────────────────────────────────────────────────
   const moveMutation = useMutation({
     mutationFn: ({ dealId, stageId, position, insuranceData }: {
-      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData
+      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData[]
     }) => api.put(`/pipeline/deals/${dealId}/move`, { stageId, position, insuranceData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
@@ -212,13 +212,13 @@ export function MyPipelineBoard() {
     moveMutation.mutate({ dealId, stageId, position })
   }
 
-  function handleWonConfirm(insuranceData: WonInsuranceData) {
+  function handleWonConfirm(entries: WonInsuranceData[]) {
     if (!pendingMove) return
     const { dealId, stageId, position } = pendingMove
     setLocalDeals((prev) =>
       prev.map((d) => (d.id === dealId ? { ...d, stageId, position } : d)),
     )
-    moveMutation.mutate({ dealId, stageId, position, insuranceData })
+    moveMutation.mutate({ dealId, stageId, position, insuranceData: entries })
   }
 
   const activeDeal = activeId ? (localDeals.find((d) => d.id === activeId) ?? null) : null

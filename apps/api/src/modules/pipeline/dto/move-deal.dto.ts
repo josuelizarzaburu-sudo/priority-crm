@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsObject } from 'class-validator'
+import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator'
 
 export class MoveDealDto {
   @IsString()
@@ -8,13 +8,13 @@ export class MoveDealDto {
   position!: number
 
   @IsOptional()
-  @IsObject()
-  insuranceData?: {
+  @IsArray()
+  insuranceData?: Array<{
     netPremium: number
     plan: string
     paymentFrequency?: string
     issueDate?: string
     holderName?: string
     aseguradora?: string
-  }
+  }>
 }

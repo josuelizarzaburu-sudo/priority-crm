@@ -35,6 +35,9 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
+import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+
+const WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
 
 type ProfileType = 'A' | 'B' | 'C' | 'D'
 
@@ -149,6 +152,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [newContactBirthDate, setNewContactBirthDate] = useState('')
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showWonModal, setShowWonModal] = useState(false)
 
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
@@ -242,11 +246,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   })
 
   const moveStage = useMutation({
-    mutationFn: (stageId: string) =>
-      api.put(`/pipeline/deals/${dealId}/move`, { stageId, position: 1000 }).then((r) => r.data),
-    onSuccess: () => {
+    mutationFn: ({ stageId, insuranceData }: { stageId: string; insuranceData?: WonInsuranceData }) =>
+      api.put(`/pipeline/deals/${dealId}/move`, { stageId, position: 1000, insuranceData }).then((r) => r.data),
+    onSuccess: (_, vars) => {
       invalidate()
-      toast({ title: 'Etapa actualizada' })
+      toast({ title: vars.insuranceData ? '🏆 ¡Deal ganado!' : 'Etapa actualizada' })
+      setShowWonModal(false)
     },
   })
 
@@ -354,6 +359,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
+  const isLocked = !!(deal?.customFields?.locked)
   const additionalContacts = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
   const complementaryNotesUpdatedAt = deal?.customFields?.complementaryNotesUpdatedAt as string | undefined
   const insuranceData = (deal?.customFields?.insuranceData as InsuranceData) ?? {}
@@ -398,6 +404,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <WonDealModal
+          open={showWonModal}
+          onConfirm={(insuranceData) => moveStage.mutate({ stageId: WON_STAGE_ID, insuranceData })}
+          onCancel={() => setShowWonModal(false)}
+          loading={moveStage.isPending}
+        />
 
         <ScrollArea className="flex-1">
           {isLoading ? (
@@ -449,8 +462,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 </p>
                 <Select
                   value={deal.stageId}
-                  onValueChange={(v) => v && moveStage.mutate(v)}
-                  disabled={moveStage.isPending || isClosed}
+                  onValueChange={(v) => {
+                    if (!v) return
+                    if (v === WON_STAGE_ID) {
+                      setShowWonModal(true)
+                      return
+                    }
+                    moveStage.mutate({ stageId: v })
+                  }}
+                  disabled={moveStage.isPending || isClosed || isLocked}
                 >
                   <SelectTrigger className="h-9">
                     <SelectValue />
@@ -909,7 +929,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Datos del seguro
                   </p>
-                  {!isClosed && !editingInsuranceData && (
+                  {!isClosed && !isLocked && !editingInsuranceData && (
                     <button
                       className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
                       onClick={() => setEditingInsuranceData(true)}

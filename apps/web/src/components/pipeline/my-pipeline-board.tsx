@@ -19,8 +19,9 @@ import {
 import {
   Flame, Thermometer, Snowflake, DollarSign, TrendingUp,
   CheckCircle2, LayoutDashboard, Clock, CalendarDays, Activity,
-  GripVertical,
+  GripVertical, Lock,
 } from 'lucide-react'
+import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -52,7 +53,10 @@ interface MyDeal {
   stage: PipelineStage
   contact: { id: string; firstName: string; lastName: string | null; company: string | null } | null
   activities: ActivityRecord[]
+  customFields?: Record<string, unknown> | null
 }
+
+const WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
 
 type Heat = 'hot' | 'warm' | 'cold'
 
@@ -86,6 +90,8 @@ export function MyPipelineBoard() {
   const queryClient = useQueryClient()
 
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
+  const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
+  const [showWonModal, setShowWonModal] = useState(false)
 
   const [stagesQuery, dealsQuery] = useQueries({
     queries: [
@@ -144,17 +150,18 @@ export function MyPipelineBoard() {
 
   // ── Move mutation ─────────────────────────────────────────────────────────
   const moveMutation = useMutation({
-    mutationFn: ({ dealId, stageId, position }: { dealId: string; stageId: string; position: number }) => {
-      console.log('[DnD] calling PUT /pipeline/deals/:id/move', { dealId, stageId, position })
-      return api.put(`/pipeline/deals/${dealId}/move`, { stageId, position })
-    },
+    mutationFn: ({ dealId, stageId, position, insuranceData }: {
+      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData
+    }) => api.put(`/pipeline/deals/${dealId}/move`, { stageId, position, insuranceData }),
     onSuccess: () => {
-      console.log('[DnD] move succeeded — refreshing my-deals')
       queryClient.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
+      setShowWonModal(false)
+      setPendingMove(null)
     },
-    onError: (error: unknown) => {
-      console.error('[DnD] move failed — reverting optimistic update', error)
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
+      setShowWonModal(false)
+      setPendingMove(null)
     },
   })
 
@@ -174,28 +181,17 @@ export function MyPipelineBoard() {
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
-    console.log('[DnD] dragEnd — active:', active.id, '| over:', over?.id ?? 'null (no target)')
     setActiveId(null)
 
-    if (!over) {
-      console.warn('[DnD] dropped outside any column — no-op')
-      return
-    }
+    if (!over) return
 
     const dealId  = active.id as string
     const stageId = over.id  as string
 
     const deal = localDeals.find((d) => d.id === dealId)
-    if (!deal) {
-      console.error('[DnD] could not find deal in localDeals for id:', dealId)
-      return
-    }
-    if (deal.stageId === stageId) {
-      console.log('[DnD] same stage — no-op')
-      return
-    }
+    if (!deal || deal.stageId === stageId) return
+    if (deal.customFields?.locked) return
 
-    // Optimistic: move deal into new stage locally
     const targetDeals = localDeals.filter(
       (d) => d.stageId === stageId && d.status === DealStatus.OPEN,
     )
@@ -204,12 +200,25 @@ export function MyPipelineBoard() {
         ? Math.max(...targetDeals.map((d) => d.position)) + 1000
         : 1000
 
-    console.log('[DnD] moving deal optimistically', { dealId, from: deal.stageId, to: stageId, position })
+    if (stageId === WON_STAGE_ID) {
+      setPendingMove({ dealId, stageId, position })
+      setShowWonModal(true)
+      return
+    }
+
     setLocalDeals((prev) =>
       prev.map((d) => (d.id === dealId ? { ...d, stageId, position } : d)),
     )
-
     moveMutation.mutate({ dealId, stageId, position })
+  }
+
+  function handleWonConfirm(insuranceData: WonInsuranceData) {
+    if (!pendingMove) return
+    const { dealId, stageId, position } = pendingMove
+    setLocalDeals((prev) =>
+      prev.map((d) => (d.id === dealId ? { ...d, stageId, position } : d)),
+    )
+    moveMutation.mutate({ dealId, stageId, position, insuranceData })
   }
 
   const activeDeal = activeId ? (localDeals.find((d) => d.id === activeId) ?? null) : null
@@ -292,6 +301,13 @@ export function MyPipelineBoard() {
         userRole={userRole}
         users={[]}
       />
+
+      <WonDealModal
+        open={showWonModal}
+        onConfirm={handleWonConfirm}
+        onCancel={() => { setShowWonModal(false); setPendingMove(null) }}
+        loading={moveMutation.isPending}
+      />
     </div>
   )
 }
@@ -372,14 +388,16 @@ function KanbanColumn({
 // can reliably detect pointer events and apply the transform.
 
 function DraggableDealCard({ deal, onSelect }: { deal: MyDeal; onSelect: (id: string) => void }) {
+  const isLocked = !!deal.customFields?.locked
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
+    disabled: isLocked,
   })
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
+      {...(isLocked ? {} : listeners)}
       {...attributes}
       onClick={() => { if (!isDragging) onSelect(deal.id) }}
       style={{
@@ -389,7 +407,7 @@ function DraggableDealCard({ deal, onSelect }: { deal: MyDeal; onSelect: (id: st
         opacity: isDragging ? 0.3 : 1,
         touchAction: 'none',
         userSelect: 'none',
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: isLocked ? 'pointer' : isDragging ? 'grabbing' : 'grab',
         zIndex: isDragging ? 0 : undefined,
       }}
     >
@@ -496,6 +514,13 @@ function DealCardDisplay({
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <CalendarDays className="h-3 w-3 shrink-0" />
             <span>Programa una actividad</span>
+          </div>
+        )}
+
+        {!!(deal.customFields?.locked) && (
+          <div className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-500">
+            <Lock className="h-3 w-3" />
+            Cerrado
           </div>
         )}
       </CardContent>

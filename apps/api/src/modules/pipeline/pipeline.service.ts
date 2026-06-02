@@ -291,9 +291,26 @@ export class PipelineService {
 
   async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
+
+    if ((deal.customFields as any)?.locked) {
+      throw new ForbiddenException('Este deal está cerrado y no puede moverse de etapa')
+    }
+
+    const isMovingToWon = dto.stageId === this.WON_STAGE_ID
+    const extraFields: Record<string, unknown> = {}
+
+    if (isMovingToWon && dto.insuranceData) {
+      extraFields.customFields = {
+        ...(deal.customFields as Record<string, unknown>),
+        insuranceData: dto.insuranceData,
+        locked: true,
+      }
+      extraFields.value = dto.insuranceData.netPremium
+    }
+
     const updated = await this.prisma.deal.update({
       where: { id },
-      data: { stageId: dto.stageId, position: dto.position },
+      data: { stageId: dto.stageId, position: dto.position, ...extraFields },
       include: {
         stage: true,
         contact: { select: { id: true, firstName: true, lastName: true, phone: true } },
@@ -314,7 +331,7 @@ export class PipelineService {
 
     this.gateway.broadcastDealMoved(organizationId, updated)
 
-    if (dto.stageId === this.WON_STAGE_ID) {
+    if (isMovingToWon) {
       const c = updated.contact as any
       const cf = updated.customFields as any
       const contactName = c ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}` : updated.title

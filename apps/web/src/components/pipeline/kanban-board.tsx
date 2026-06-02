@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { GripVertical, DollarSign, Bell } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { GripVertical, DollarSign, Bell, Lock } from 'lucide-react'
+import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePipelineStore } from '@/store'
@@ -33,6 +34,8 @@ interface KanbanBoardProps {
   onSelectDeal: (id: string) => void
 }
 
+const WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
+
 function getInitials(name: string) {
   return name
     .split(' ')
@@ -45,6 +48,46 @@ function getInitials(name: string) {
 export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
+  const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
+  const [showWonModal, setShowWonModal] = useState(false)
+  const queryClient = useQueryClient()
+
+  const moveDealMutation = useMutation({
+    mutationFn: ({ dealId, stageId, position, insuranceData }: {
+      dealId: string; stageId: string; position: number; insuranceData?: WonInsuranceData
+    }) => api.put(`/pipeline/deals/${dealId}/move`, { stageId, position, insuranceData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline'] })
+      setShowWonModal(false)
+      setPendingMove(null)
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline'] })
+      setShowWonModal(false)
+      setPendingMove(null)
+    },
+  })
+
+  function handleMove(dealId: string, stageId: string, position: number) {
+    const deal = deals.find((d) => d.id === dealId)
+    if (!deal || (deal as any).customFields?.locked) return
+
+    if (stageId === WON_STAGE_ID) {
+      setPendingMove({ dealId, stageId, position })
+      setShowWonModal(true)
+      return
+    }
+
+    moveDeal(dealId, stageId, position)
+    moveDealMutation.mutate({ dealId, stageId, position })
+  }
+
+  function handleWonConfirm(insuranceData: WonInsuranceData) {
+    if (!pendingMove) return
+    const { dealId, stageId, position } = pendingMove
+    moveDeal(dealId, stageId, position)
+    moveDealMutation.mutate({ dealId, stageId, position, insuranceData })
+  }
 
   const { data: stagesData } = useQuery({
     queryKey: ['pipeline', 'stages'],
@@ -161,11 +204,18 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
             totalValue={getStageValue(stage.id)}
             allowDrag={allowDrag}
             allowClick={allowClick}
-            onDrop={(dealId) => moveDeal(dealId, stage.id, getStageDeals(stage.id).length)}
+            onDrop={(dealId) => handleMove(dealId, stage.id, getStageDeals(stage.id).length)}
             onSelectDeal={onSelectDeal}
           />
         ))}
       </div>
+
+      <WonDealModal
+        open={showWonModal}
+        onConfirm={handleWonConfirm}
+        onCancel={() => { setShowWonModal(false); setPendingMove(null) }}
+        loading={moveDealMutation.isPending}
+      />
     </div>
   )
 }
@@ -251,6 +301,9 @@ function DealCard({
   allowDrag?: boolean
   allowClick?: boolean
 }) {
+  const isLocked = !!(deal as any).customFields?.locked
+  const canDrag = allowDrag && !isLocked
+
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData('dealId', deal.id)
   }
@@ -259,8 +312,8 @@ function DealCard({
 
   return (
     <div
-      draggable={allowDrag}
-      onDragStart={allowDrag ? handleDragStart : undefined}
+      draggable={canDrag}
+      onDragStart={canDrag ? handleDragStart : undefined}
       onClick={allowClick ? () => onSelect(deal.id) : undefined}
       className={cn(
         'rounded-lg bg-white shadow-sm transition-all duration-150',
@@ -325,6 +378,14 @@ function DealCard({
             </div>
           )
         })()}
+
+        {/* Locked badge */}
+        {isLocked && (
+          <div className="mt-2 flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-500">
+            <Lock className="h-3 w-3" />
+            Cerrado
+          </div>
+        )}
 
         {/* Follow-up overdue */}
         {(() => {

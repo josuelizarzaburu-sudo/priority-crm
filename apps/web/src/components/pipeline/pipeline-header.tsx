@@ -36,6 +36,23 @@ interface PipelineHeaderProps {
   setFilterUserId: (id: string | null) => void
   users: TeamMember[]
   isAdminOrManager: boolean
+  userRole: string
+}
+
+type ProfileType = 'A' | 'B' | 'C' | 'D'
+
+const PROFILES: Record<ProfileType, { label: string; className: string }> = {
+  A: { label: 'Deportista con seguro',  className: 'bg-green-100 text-green-700 border-green-200' },
+  B: { label: 'Deportista sin seguro',  className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  C: { label: 'Sin deporte con seguro', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  D: { label: 'Sin deporte sin seguro', className: 'bg-violet-100 text-violet-700 border-violet-200' },
+}
+
+function computeProfile(sport: boolean, insured: boolean): ProfileType {
+  if (sport && insured) return 'A'
+  if (sport && !insured) return 'B'
+  if (!sport && insured) return 'C'
+  return 'D'
 }
 
 export function PipelineHeader({
@@ -45,31 +62,82 @@ export function PipelineHeader({
   setFilterUserId,
   users,
   isAdminOrManager,
+  userRole,
 }: PipelineHeaderProps) {
+  const isSuperAdmin = userRole === 'SUPER_ADMIN'
+
   const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Form fields
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName]   = useState('')
+  const [phone, setPhone]         = useState('')
+  const [email, setEmail]         = useState('')
+  const [doSport, setDoSport]     = useState<boolean | null>(null)
+  const [hasInsurance, setHasInsurance] = useState<boolean | null>(null)
+
   const { setSearchQuery, stages } = usePipelineStore()
   const queryClient = useQueryClient()
 
+  const profile =
+    doSport !== null && hasInsurance !== null
+      ? computeProfile(doSport, hasInsurance)
+      : null
+
+  function resetForm() {
+    setFirstName('')
+    setLastName('')
+    setPhone('')
+    setEmail('')
+    setDoSport(null)
+    setHasInsurance(null)
+  }
+
   async function handleCreate() {
-    if (!title.trim()) return
+    if (!firstName.trim() || !lastName.trim() || !phone.trim()) return
+    if (doSport === null || hasInsurance === null) return
     setSaving(true)
     try {
+      const profileType = computeProfile(doSport, hasInsurance)
+
+      const contact = await api
+        .post('/contacts', {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          ...(email.trim() ? { email: email.trim() } : {}),
+          status: 'LEAD',
+        })
+        .then((r) => r.data)
+
       await api.post('/pipeline/deals', {
-        title,
-        value: value ? Number(value) : undefined,
+        title: `${firstName.trim()} ${lastName.trim()}`,
         stageId: stages[0]?.id,
+        contactId: contact.id,
+        customFields: {
+          profileType,
+          sport: doSport,
+          insured: hasInsurance,
+          source: 'MANUAL',
+          leadCreatedAt: new Date().toISOString(),
+        },
       })
+
       queryClient.invalidateQueries({ queryKey: ['pipeline'] })
       setOpen(false)
-      setTitle('')
-      setValue('')
+      resetForm()
     } finally {
       setSaving(false)
     }
   }
+
+  const canSubmit =
+    firstName.trim() &&
+    lastName.trim() &&
+    phone.trim() &&
+    doSport !== null &&
+    hasInsurance !== null
 
   return (
     <div className="flex flex-col gap-3">
@@ -142,11 +210,13 @@ export function PipelineHeader({
             </div>
           </div>
 
-          {/* ── New deal button — always visible ───────────────────── */}
-          <Button onClick={() => setOpen(true)} size="sm" className="md:text-sm">
-            <Plus className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">Nuevo deal</span>
-          </Button>
+          {/* ── New deal button — SUPER_ADMIN only ─────────────────── */}
+          {isSuperAdmin && (
+            <Button onClick={() => setOpen(true)} size="sm" className="md:text-sm">
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Nuevo deal</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -199,37 +269,145 @@ export function PipelineHeader({
         )}
       </div>
 
-      {/* Create deal dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Create deal dialog ─────────────────────────────────────────── */}
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Crear deal</DialogTitle>
+            <DialogTitle>Nuevo deal</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Título</Label>
-              <Input
-                placeholder="ej. Empresa ABC - Plan Premium"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+            {/* Name row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Nombre <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Juan"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Apellido <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Pérez"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Valor (USD)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              />
+
+            {/* Contact row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Teléfono <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="+593 99 000 0000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Correo</Label>
+                <Input
+                  type="email"
+                  placeholder="juan@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Survey */}
+            <div className="rounded-xl border border-[#25324b]/10 bg-[#f8f9fb] p-4 space-y-4">
+              {/* Q1 */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-[#25324b]">
+                  ¿El cliente hace deporte o actividad física?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDoSport(true)}
+                    className={cn(
+                      'flex-1 rounded-lg border py-2 text-sm font-medium transition-all',
+                      doSport === true
+                        ? 'border-green-400 bg-green-50 text-green-700'
+                        : 'border-[#25324b]/15 bg-white text-[#25324b]/70 hover:border-green-300',
+                    )}
+                  >
+                    ✅ Sí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDoSport(false)}
+                    className={cn(
+                      'flex-1 rounded-lg border py-2 text-sm font-medium transition-all',
+                      doSport === false
+                        ? 'border-red-300 bg-red-50 text-red-700'
+                        : 'border-[#25324b]/15 bg-white text-[#25324b]/70 hover:border-red-200',
+                    )}
+                  >
+                    ❌ No
+                  </button>
+                </div>
+              </div>
+
+              {/* Q2 */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-[#25324b]">
+                  ¿El cliente tiene seguro de salud actualmente?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHasInsurance(true)}
+                    className={cn(
+                      'flex-1 rounded-lg border py-2 text-sm font-medium transition-all',
+                      hasInsurance === true
+                        ? 'border-green-400 bg-green-50 text-green-700'
+                        : 'border-[#25324b]/15 bg-white text-[#25324b]/70 hover:border-green-300',
+                    )}
+                  >
+                    ✅ Sí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasInsurance(false)}
+                    className={cn(
+                      'flex-1 rounded-lg border py-2 text-sm font-medium transition-all',
+                      hasInsurance === false
+                        ? 'border-red-300 bg-red-50 text-red-700'
+                        : 'border-[#25324b]/15 bg-white text-[#25324b]/70 hover:border-red-200',
+                    )}
+                  >
+                    ❌ No
+                  </button>
+                </div>
+              </div>
+
+              {/* Computed profile badge */}
+              {profile && (
+                <div className={cn(
+                  'flex items-center gap-2 rounded-lg border px-3 py-2',
+                  PROFILES[profile].className,
+                )}>
+                  <span className="text-xs font-semibold uppercase tracking-wide">
+                    Perfil {profile}
+                  </span>
+                  <span className="text-xs">—</span>
+                  <span className="text-xs font-medium">{PROFILES[profile].label}</span>
+                </div>
+              )}
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => { setOpen(false); resetForm() }}>
               Cancelar
             </Button>
-            <Button onClick={handleCreate} disabled={saving || !title.trim()}>
-              Crear
+            <Button onClick={handleCreate} disabled={saving || !canSubmit}>
+              {saving ? 'Creando...' : 'Crear deal'}
             </Button>
           </DialogFooter>
         </DialogContent>

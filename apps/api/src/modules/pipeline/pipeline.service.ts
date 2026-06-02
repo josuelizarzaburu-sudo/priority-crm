@@ -329,7 +329,23 @@ export class PipelineService {
   }
 
   async deleteDeal(id: string, organizationId: string) {
-    await this.getDeal(id, organizationId)
-    return this.prisma.deal.delete({ where: { id } })
+    const deal = await this.getDeal(id, organizationId)
+    const contactId = deal.contactId
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.activity.deleteMany({ where: { dealId: id } })
+      await tx.deal.delete({ where: { id } })
+
+      if (contactId) {
+        const otherDeals = await tx.deal.count({ where: { contactId } })
+        if (otherDeals === 0) {
+          await tx.activity.updateMany({ where: { contactId }, data: { contactId: null } })
+          await tx.conversation.updateMany({ where: { contactId }, data: { contactId: null } })
+          await tx.contact.delete({ where: { id: contactId } })
+        }
+      }
+    })
+
+    return { id, deleted: true }
   }
 }

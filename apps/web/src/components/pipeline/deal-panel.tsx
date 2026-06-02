@@ -148,6 +148,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [newContactRelationship, setNewContactRelationship] = useState('esposa')
   const [newContactBirthDate, setNewContactBirthDate] = useState('')
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
 
@@ -278,6 +280,20 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       setShowLostInput(false)
       setClosingReason('')
       onClose()
+    },
+  })
+
+  const deleteDealMutation = useMutation({
+    mutationFn: () => api.delete(`/pipeline/deals/${dealId}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pipeline'] })
+      qc.invalidateQueries({ queryKey: ['my-deals'] })
+      toast({ title: 'Deal eliminado' })
+      onClose()
+    },
+    onError: () => {
+      toast({ title: 'Error al eliminar el deal', variant: 'destructive' })
+      setShowDeleteConfirm(false)
     },
   })
 
@@ -1047,6 +1063,52 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
               </div>
 
               <Separator />
+
+              {/* ── Zona de peligro — SUPER_ADMIN only ──────────────────── */}
+              {userRole === 'SUPER_ADMIN' && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Zona de peligro
+                    </p>
+                    {!showDeleteConfirm ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => setShowDeleteConfirm(true)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar deal
+                      </Button>
+                    ) : (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
+                        <p className="text-sm font-medium text-red-800">¿Estás seguro?</p>
+                        <p className="text-xs text-red-600">Esta acción eliminará el deal y su contacto asociado. No se puede deshacer.</p>
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={() => deleteDealMutation.mutate()}
+                            disabled={deleteDealMutation.isPending}
+                          >
+                            {deleteDealMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={deleteDealMutation.isPending}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* ── Historial de actividades ─────────────────────────────── */}
               <div className="space-y-2">

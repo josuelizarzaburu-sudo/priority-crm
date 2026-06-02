@@ -47,6 +47,7 @@ export function PipelineClient() {
         setFilterUserId={setFilterUserId}
         users={users}
         isAdminOrManager={isAdminOrManager}
+        userRole={userRole}
       />
       <KanbanBoard
         viewMode={viewMode}

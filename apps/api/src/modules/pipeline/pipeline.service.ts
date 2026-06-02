@@ -175,11 +175,15 @@ export class PipelineService {
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
 
-    // Belt-and-suspenders: if value is missing but prima is set, sync it now
-    const prima = (deal.customFields as any)?.prima
+    // Belt-and-suspenders: if value is missing, sync from insuranceData.netPremium or prima
+    const cfPrima      = (deal.customFields as any)?.prima
+    const cfNetPremium = (deal.customFields as any)?.insuranceData?.netPremium
+    const syncValue    = typeof cfNetPremium === 'number' && cfNetPremium > 0 ? cfNetPremium
+                       : typeof cfPrima      === 'number' && cfPrima      > 0 ? cfPrima
+                       : undefined
     const valuePatch =
-      dto.status === 'WON' && typeof prima === 'number' && prima > 0 && !deal.value
-        ? { value: prima }
+      dto.status === 'WON' && syncValue !== undefined && !deal.value
+        ? { value: syncValue }
         : {}
 
     const updated = await this.prisma.deal.update({
@@ -233,9 +237,12 @@ export class PipelineService {
 
     const data: any = { ...dto }
 
-    // Sync prima → value so reports always see the right revenue figure
-    const prima = (dto.customFields as any)?.prima
-    if (typeof prima === 'number' && prima >= 0) {
+    // Sync revenue field: insuranceData.netPremium takes precedence over legacy prima
+    const netPremium = (dto.customFields as any)?.insuranceData?.netPremium
+    const prima      = (dto.customFields as any)?.prima
+    if (typeof netPremium === 'number' && netPremium >= 0) {
+      data.value = netPremium
+    } else if (typeof prima === 'number' && prima >= 0) {
       data.value = prima
     }
 

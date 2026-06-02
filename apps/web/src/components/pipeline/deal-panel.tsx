@@ -69,12 +69,36 @@ interface AdditionalContact {
   birthDate?: string
 }
 
-interface InsuranceData {
+interface InsuranceEntry {
+  id: string
   holderName?: string
   plan?: string
   paymentFrequency?: string
+  aseguradora?: string
   issueDate?: string
   netPremium?: number
+}
+
+function toInsuranceEntries(raw: unknown): InsuranceEntry[] {
+  if (Array.isArray(raw)) return raw as InsuranceEntry[]
+  if (raw && typeof raw === 'object') {
+    return [{ id: 'legacy', ...(raw as Record<string, unknown>) }] as InsuranceEntry[]
+  }
+  return []
+}
+
+function formatPaymentFrequency(val?: string): string | undefined {
+  if (!val) return undefined
+  const map: Record<string, string> = {
+    'pago-contado': 'Pago contado',
+    'debito-mensual': 'Débito mensual',
+    'diferido-especial': 'Diferido especial',
+    'mensual': 'Mensual',
+    'trimestral': 'Trimestral',
+    'semestral': 'Semestral',
+    'anual': 'Anual',
+  }
+  return map[val] ?? val.charAt(0).toUpperCase() + val.slice(1)
 }
 
 interface DealDetail {
@@ -159,11 +183,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   // ── Insurance data state ──────────────────────────────────────────────────
   const [editingInsuranceData, setEditingInsuranceData] = useState(false)
-  const [insHolderName, setInsHolderName] = useState('')
-  const [insPlan, setInsPlan] = useState('')
-  const [insPaymentFrequency, setInsPaymentFrequency] = useState('mensual')
-  const [insIssueDate, setInsIssueDate] = useState('')
-  const [insNetPremium, setInsNetPremium] = useState('')
+  const [draftInsurance, setDraftInsurance] = useState<InsuranceEntry[]>([])
 
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -190,14 +210,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     setComplementaryContent((deal?.customFields?.complementaryNotes as string) ?? '')
   }, [deal?.id, deal?.customFields?.complementaryNotes])
 
-  // Sync insurance form when deal loads
+  // Sync insurance draft when deal loads
   useEffect(() => {
-    const ins = (deal?.customFields?.insuranceData ?? {}) as InsuranceData
-    setInsHolderName(ins.holderName ?? '')
-    setInsPlan(ins.plan ?? '')
-    setInsPaymentFrequency(ins.paymentFrequency ?? 'mensual')
-    setInsIssueDate(ins.issueDate ?? '')
-    setInsNetPremium(ins.netPremium != null ? String(ins.netPremium) : '')
+    setDraftInsurance(toInsuranceEntries(deal?.customFields?.insuranceData))
   }, [deal?.id, deal?.customFields?.insuranceData])
 
   function invalidate() {
@@ -344,15 +359,27 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     toast({ title: 'Notas guardadas' })
   }
 
+  function addInsuranceEntry() {
+    setDraftInsurance(prev => [...prev, {
+      id: Date.now().toString(),
+      holderName: '',
+      plan: '',
+      paymentFrequency: 'debito-mensual',
+      aseguradora: '',
+      issueDate: '',
+    }])
+  }
+
+  function removeInsuranceEntry(idx: number) {
+    setDraftInsurance(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateInsuranceEntry(idx: number, field: keyof InsuranceEntry, value: string | number) {
+    setDraftInsurance(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e))
+  }
+
   function saveInsuranceData() {
-    const insuranceData: InsuranceData = {
-      ...(insHolderName.trim() ? { holderName: insHolderName.trim() } : {}),
-      ...(insPlan.trim() ? { plan: insPlan.trim() } : {}),
-      ...(insPaymentFrequency ? { paymentFrequency: insPaymentFrequency } : {}),
-      ...(insIssueDate ? { issueDate: insIssueDate } : {}),
-      ...(insNetPremium ? { netPremium: parseFloat(insNetPremium) } : {}),
-    }
-    patchCustomFields.mutate({ insuranceData })
+    patchCustomFields.mutate({ insuranceData: draftInsurance })
     setEditingInsuranceData(false)
     toast({ title: 'Datos del seguro guardados' })
   }
@@ -360,9 +387,10 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
   const isLocked = !!(deal?.customFields?.locked)
+  const isGanadoLocked = (deal?.stageId === WON_STAGE_ID || isLocked) && userRole !== 'SUPER_ADMIN'
   const additionalContacts = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
   const complementaryNotesUpdatedAt = deal?.customFields?.complementaryNotesUpdatedAt as string | undefined
-  const insuranceData = (deal?.customFields?.insuranceData as InsuranceData) ?? {}
+  const insuranceEntries = toInsuranceEntries(deal?.customFields?.insuranceData)
 
   return (
     <>
@@ -422,12 +450,20 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           ) : deal ? (
             <div className="space-y-5 p-5">
 
+              {/* ── Lock banner ──────────────────────────────────────────── */}
+              {isGanadoLocked && (
+                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300">
+                  <span className="text-base">🔒</span>
+                  <span className="font-medium">Este deal está cerrado — solo lectura</span>
+                </div>
+              )}
+
               {/* ── Lead Status ─────────────────────────────────────────── */}
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Estado del lead
                 </p>
-                <Select value={leadStatus} onValueChange={handleLeadStatusChange} disabled={isClosed}>
+                <Select value={leadStatus} onValueChange={handleLeadStatusChange} disabled={isClosed || isGanadoLocked}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
@@ -513,7 +549,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   )}
 
                   {/* Phone / email — inline edit */}
-                  {deal.contact && editingContact ? (
+                  {deal.contact && editingContact && !isGanadoLocked ? (
                     <div className="space-y-2 px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -555,12 +591,14 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         </span>
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium">{deal.contact?.phone ?? '—'}</span>
-                          <button
-                            className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                            onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
-                          >
-                            <Pencil className="h-3 w-3 text-muted-foreground" />
-                          </button>
+                          {!isGanadoLocked && (
+                            <button
+                              className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                              onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
+                            >
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2 group">
@@ -569,12 +607,14 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         </span>
                         <div className="flex items-center gap-1.5">
                           <span className="truncate font-medium max-w-[160px]">{deal.contact?.email ?? '—'}</span>
-                          <button
-                            className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
-                            onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
-                          >
-                            <Pencil className="h-3 w-3 text-muted-foreground" />
-                          </button>
+                          {!isGanadoLocked && (
+                            <button
+                              className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                              onClick={() => { setEditPhone(deal.contact?.phone ?? ''); setEditEmail(deal.contact?.email ?? ''); setEditingContact(true) }}
+                            >
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </>
@@ -589,7 +629,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       type="date"
                       value={(deal.customFields?.birthDate as string) ?? ''}
                       onChange={(e) => patchCustomFields.mutate({ birthDate: e.target.value || null })}
-                      className="rounded border bg-background px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isGanadoLocked}
+                      className="rounded border bg-background px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -603,7 +644,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       min="1"
                       value={(deal.customFields?.insuredPersonsCount as number) ?? ''}
                       onChange={(e) => patchCustomFields.mutate({ insuredPersonsCount: e.target.value ? parseInt(e.target.value) : null })}
-                      className="w-16 rounded border bg-background px-2 py-0.5 text-right text-sm outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isGanadoLocked}
+                      className="w-16 rounded border bg-background px-2 py-0.5 text-right text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -629,7 +671,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">Contactos adicionales</span>
-                    {!addingContact && (
+                    {!addingContact && !isGanadoLocked && (
                       <button
                         onClick={() => setAddingContact(true)}
                         className="flex items-center gap-1 text-xs text-primary hover:underline"
@@ -650,12 +692,14 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           </p>
                         )}
                       </div>
-                      <button
-                        onClick={() => removeAdditionalContact(c.id)}
-                        className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
-                      </button>
+                      {!isGanadoLocked && (
+                        <button
+                          onClick={() => removeAdditionalContact(c.id)}
+                          className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                        </button>
+                      )}
                     </div>
                   ))}
 
@@ -730,6 +774,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   placeholder="Bloc de notas libre — escribe, edita y borra lo que necesites..."
                   value={complementaryContent}
                   onChange={(e) => setComplementaryContent(e.target.value)}
+                  disabled={isGanadoLocked}
                   className="min-h-[140px] text-sm"
                 />
                 <div className="flex items-center justify-between gap-3">
@@ -744,7 +789,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     variant="outline"
                     onClick={saveComplementaryContent}
-                    disabled={patchCustomFields.isPending}
+                    disabled={patchCustomFields.isPending || isGanadoLocked}
                   >
                     Guardar
                   </Button>
@@ -793,12 +838,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           value={followUpDate}
                           min={new Date().toISOString().slice(0, 16)}
                           onChange={(e) => setFollowUpDate(e.target.value)}
-                          className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                          disabled={isGanadoLocked}
+                          className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={!followUpDate || saveFollowUp.isPending}
+                          disabled={!followUpDate || saveFollowUp.isPending || isGanadoLocked}
                           onClick={() => saveFollowUp.mutate(new Date(followUpDate).toISOString())}
                         >
                           <Bell className="h-3.5 w-3.5" />
@@ -822,7 +868,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     className="justify-start gap-2"
                     onClick={() => logActivity.mutate({ type: 'CALL', description: 'Llamada registrada' })}
-                    disabled={logActivity.isPending}
+                    disabled={logActivity.isPending || isGanadoLocked}
                   >
                     <Phone className="h-3.5 w-3.5 text-blue-500" /> Llamé
                   </Button>
@@ -831,7 +877,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     className="justify-start gap-2"
                     onClick={() => logActivity.mutate({ type: 'NOTE', description: 'WhatsApp enviado' })}
-                    disabled={logActivity.isPending}
+                    disabled={logActivity.isPending || isGanadoLocked}
                   >
                     <MessageSquare className="h-3.5 w-3.5 text-green-500" /> WhatsApp
                   </Button>
@@ -840,7 +886,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     className="justify-start gap-2 border-green-200 text-green-700 hover:bg-green-50 disabled:opacity-50"
                     onClick={() => closeDealMutation.mutate({ status: 'WON' })}
-                    disabled={closeDealMutation.isPending || isClosed}
+                    disabled={closeDealMutation.isPending || isClosed || isGanadoLocked}
                   >
                     <Trophy className="h-3.5 w-3.5" /> Ganado
                   </Button>
@@ -849,7 +895,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     className="justify-start gap-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
                     onClick={handleLost}
-                    disabled={closeDealMutation.isPending || isClosed}
+                    disabled={closeDealMutation.isPending || isClosed || isGanadoLocked}
                   >
                     <XCircle className="h-3.5 w-3.5" /> Perdido
                   </Button>
@@ -906,7 +952,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     <Select
                       value={deal.assignedToId ?? ''}
                       onValueChange={(v) => v && assignDeal.mutate(v)}
-                      disabled={assignDeal.isPending}
+                      disabled={assignDeal.isPending || isGanadoLocked}
                     >
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Sin asignar" />
@@ -929,7 +975,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Datos del seguro
                   </p>
-                  {!isClosed && !isLocked && !editingInsuranceData && (
+                  {!isClosed && !isGanadoLocked && !editingInsuranceData && (
                     <button
                       className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted"
                       onClick={() => setEditingInsuranceData(true)}
@@ -940,58 +986,104 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 </div>
 
                 {editingInsuranceData ? (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Titular del plan</label>
-                      <Input
-                        value={insHolderName}
-                        onChange={(e) => setInsHolderName(e.target.value)}
-                        placeholder="Nombre y apellido"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Plan contratado</label>
-                      <Input
-                        value={insPlan}
-                        onChange={(e) => setInsPlan(e.target.value)}
-                        placeholder="Ej: Sky, Star, Pro"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Forma de pago</label>
-                      <Select value={insPaymentFrequency} onValueChange={setInsPaymentFrequency}>
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mensual">Mensual</SelectItem>
-                          <SelectItem value="trimestral">Trimestral</SelectItem>
-                          <SelectItem value="semestral">Semestral</SelectItem>
-                          <SelectItem value="anual">Anual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Fecha de emisión</label>
-                      <input
-                        type="date"
-                        value={insIssueDate}
-                        onChange={(e) => setInsIssueDate(e.target.value)}
-                        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Prima neta (USD)</label>
-                      <Input
-                        type="number"
-                        value={insNetPremium}
-                        onChange={(e) => setInsNetPremium(e.target.value)}
-                        placeholder="0.00"
-                        className="h-8 text-sm"
-                      />
-                    </div>
+                  <div className="space-y-3">
+                    {draftInsurance.map((entry, idx) => (
+                      <div key={entry.id} className="relative rounded-md border p-3 space-y-2">
+                        {draftInsurance.length > 1 && (
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-muted-foreground">Cliente {idx + 1}</span>
+                            <button
+                              onClick={() => removeInsuranceEntry(idx)}
+                              className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-red-500"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Titular del plan</label>
+                          <Input
+                            value={entry.holderName ?? ''}
+                            onChange={(e) => updateInsuranceEntry(idx, 'holderName', e.target.value)}
+                            placeholder="Nombre y apellido"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Plan contratado</label>
+                          <Input
+                            value={entry.plan ?? ''}
+                            onChange={(e) => updateInsuranceEntry(idx, 'plan', e.target.value)}
+                            placeholder="Ej: Sky, Star, Pro"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Aseguradora</label>
+                            <Select
+                              value={entry.aseguradora ?? ''}
+                              onValueChange={(v) => updateInsuranceEntry(idx, 'aseguradora', v)}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="BMI">BMI</SelectItem>
+                                <SelectItem value="Saludsa">Saludsa</SelectItem>
+                                <SelectItem value="Cuasanitas">Cuasanitas</SelectItem>
+                                <SelectItem value="Humana">Humana</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Forma de pago</label>
+                            <Select
+                              value={entry.paymentFrequency ?? 'debito-mensual'}
+                              onValueChange={(v) => updateInsuranceEntry(idx, 'paymentFrequency', v)}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pago-contado">Pago contado</SelectItem>
+                                <SelectItem value="debito-mensual">Débito mensual</SelectItem>
+                                <SelectItem value="diferido-especial">Diferido especial</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Fecha de emisión</label>
+                            <input
+                              type="date"
+                              value={entry.issueDate ?? ''}
+                              onChange={(e) => updateInsuranceEntry(idx, 'issueDate', e.target.value)}
+                              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Prima neta (USD)</label>
+                            <Input
+                              type="number"
+                              value={entry.netPremium != null ? String(entry.netPremium) : ''}
+                              onChange={(e) => updateInsuranceEntry(idx, 'netPremium', e.target.value ? parseFloat(e.target.value) : 0)}
+                              placeholder="0.00"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={addInsuranceEntry}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Agregar cliente
+                    </button>
+
                     <div className="flex gap-1.5">
                       <Button
                         size="sm"
@@ -1005,30 +1097,45 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         size="sm"
                         variant="ghost"
                         className="h-7 px-2 text-xs"
-                        onClick={() => setEditingInsuranceData(false)}
+                        onClick={() => {
+                          setEditingInsuranceData(false)
+                          setDraftInsurance(toInsuranceEntries(deal?.customFields?.insuranceData))
+                        }}
                       >
                         Cancelar
                       </Button>
                     </div>
                   </div>
+                ) : insuranceEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin datos del seguro.</p>
                 ) : (
-                  <div className="divide-y rounded-md border text-sm">
-                    {([
-                      ['Titular', insuranceData.holderName],
-                      ['Plan', insuranceData.plan],
-                      ['Forma de pago', insuranceData.paymentFrequency
-                        ? insuranceData.paymentFrequency.charAt(0).toUpperCase() + insuranceData.paymentFrequency.slice(1)
-                        : undefined],
-                      ['Fecha de emisión', insuranceData.issueDate
-                        ? format(new Date(insuranceData.issueDate), "d MMM yyyy", { locale: es })
-                        : undefined],
-                      ['Prima neta', insuranceData.netPremium != null
-                        ? formatCurrency(insuranceData.netPremium)
-                        : undefined],
-                    ] as [string, string | undefined][]).map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between px-3 py-2">
-                        <span className="text-muted-foreground">{label}</span>
-                        <span className="font-medium">{value ?? '—'}</span>
+                  <div className="space-y-2">
+                    {insuranceEntries.map((entry, idx) => (
+                      <div key={entry.id} className="rounded-md border text-sm">
+                        {insuranceEntries.length > 1 && (
+                          <div className="border-b px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                            Cliente {idx + 1}
+                          </div>
+                        )}
+                        <div className="divide-y">
+                          {([
+                            ['Titular', entry.holderName],
+                            ['Plan', entry.plan],
+                            ['Aseguradora', entry.aseguradora],
+                            ['Forma de pago', formatPaymentFrequency(entry.paymentFrequency)],
+                            ['Fecha de emisión', entry.issueDate
+                              ? format(new Date(entry.issueDate), "d MMM yyyy", { locale: es })
+                              : undefined],
+                            ['Prima neta', entry.netPremium != null
+                              ? formatCurrency(entry.netPremium)
+                              : undefined],
+                          ] as [string, string | undefined][]).map(([label, value]) => (
+                            <div key={label} className="flex items-center justify-between px-3 py-2">
+                              <span className="text-muted-foreground">{label}</span>
+                              <span className="font-medium">{value ?? '—'}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1046,6 +1153,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   placeholder="Escribe una nota..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
+                  disabled={isGanadoLocked}
                   className="min-h-[80px] text-sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && noteText.trim()) {
@@ -1057,7 +1165,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   size="sm"
                   className="w-full"
                   onClick={() => noteText.trim() && saveNote.mutate(noteText.trim())}
-                  disabled={saveNote.isPending || !noteText.trim()}
+                  disabled={saveNote.isPending || !noteText.trim() || isGanadoLocked}
                 >
                   {saveNote.isPending ? 'Guardando...' : 'Guardar nota'}
                 </Button>

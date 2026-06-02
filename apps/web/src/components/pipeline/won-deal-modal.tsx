@@ -25,6 +25,7 @@ export interface WonInsuranceData {
   paymentFrequency: string
   issueDate?: string
   holderName?: string
+  aseguradora?: string
 }
 
 interface WonDealModalProps {
@@ -37,18 +38,20 @@ interface WonDealModalProps {
 export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModalProps) {
   const [netPremium, setNetPremium] = useState('')
   const [plan, setPlan] = useState('')
-  const [paymentFrequency, setPaymentFrequency] = useState('mensual')
+  const [paymentFrequency, setPaymentFrequency] = useState('debito-mensual')
   const [issueDate, setIssueDate] = useState('')
   const [holderName, setHolderName] = useState('')
+  const [aseguradora, setAseguradora] = useState('')
 
   // Reset every time the modal opens
   useEffect(() => {
     if (open) {
       setNetPremium('')
       setPlan('')
-      setPaymentFrequency('mensual')
+      setPaymentFrequency('debito-mensual')
       setIssueDate('')
       setHolderName('')
+      setAseguradora('')
     }
   }, [open])
 
@@ -62,6 +65,7 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
       paymentFrequency,
       ...(issueDate ? { issueDate } : {}),
       ...(holderName.trim() ? { holderName: holderName.trim() } : {}),
+      ...(aseguradora ? { aseguradora } : {}),
     })
   }
 
@@ -98,10 +102,9 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mensual">Mensual</SelectItem>
-                  <SelectItem value="trimestral">Trimestral</SelectItem>
-                  <SelectItem value="semestral">Semestral</SelectItem>
-                  <SelectItem value="anual">Anual</SelectItem>
+                  <SelectItem value="pago-contado">Pago contado</SelectItem>
+                  <SelectItem value="debito-mensual">Débito mensual</SelectItem>
+                  <SelectItem value="diferido-especial">Diferido especial</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -128,13 +131,28 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Fecha de emisión</Label>
-              <Input
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-              />
+              <Label>Aseguradora</Label>
+              <Select value={aseguradora} onValueChange={setAseguradora}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BMI">BMI</SelectItem>
+                  <SelectItem value="Saludsa">Saludsa</SelectItem>
+                  <SelectItem value="Cuasanitas">Cuasanitas</SelectItem>
+                  <SelectItem value="Humana">Humana</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Fecha de emisión</Label>
+            <Input
+              type="date"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+            />
           </div>
         </div>
 

@@ -15,5 +15,6 @@ export class MoveDealDto {
     paymentFrequency?: string
     issueDate?: string
     holderName?: string
+    aseguradora?: string
   }
 }

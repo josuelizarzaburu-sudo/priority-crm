@@ -175,12 +175,20 @@ export class PipelineService {
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
 
-    // Belt-and-suspenders: if value is missing, sync from insuranceData.netPremium or prima
-    const cfPrima      = (deal.customFields as any)?.prima
-    const cfNetPremium = (deal.customFields as any)?.insuranceData?.netPremium
-    const syncValue    = typeof cfNetPremium === 'number' && cfNetPremium > 0 ? cfNetPremium
-                       : typeof cfPrima      === 'number' && cfPrima      > 0 ? cfPrima
-                       : undefined
+    // Belt-and-suspenders: if value is missing, sync from insuranceData (array or object) or prima
+    const cfPrima     = (deal.customFields as any)?.prima
+    const rawIns      = (deal.customFields as any)?.insuranceData
+    let cfNetPremium: number | undefined
+    if (Array.isArray(rawIns)) {
+      const total = rawIns.reduce((s: number, e: any) => s + (typeof e.netPremium === 'number' ? e.netPremium : 0), 0)
+      if (total > 0) cfNetPremium = total
+    } else if (rawIns && typeof rawIns === 'object') {
+      const np = rawIns.netPremium
+      if (typeof np === 'number' && np > 0) cfNetPremium = np
+    }
+    const syncValue   = cfNetPremium !== undefined ? cfNetPremium
+                      : typeof cfPrima === 'number' && cfPrima > 0 ? cfPrima
+                      : undefined
     const valuePatch =
       dto.status === 'WON' && syncValue !== undefined && !deal.value
         ? { value: syncValue }
@@ -237,11 +245,15 @@ export class PipelineService {
 
     const data: any = { ...dto }
 
-    // Sync revenue field: insuranceData.netPremium takes precedence over legacy prima
-    const netPremium = (dto.customFields as any)?.insuranceData?.netPremium
-    const prima      = (dto.customFields as any)?.prima
-    if (typeof netPremium === 'number' && netPremium >= 0) {
-      data.value = netPremium
+    // Sync revenue field from insurance data (array) or legacy prima
+    const rawInsurance = (dto.customFields as any)?.insuranceData
+    const prima = (dto.customFields as any)?.prima
+    if (Array.isArray(rawInsurance)) {
+      const total = rawInsurance.reduce((s: number, e: any) => s + (typeof e.netPremium === 'number' ? e.netPremium : 0), 0)
+      if (total > 0) data.value = total
+    } else if (rawInsurance && typeof rawInsurance === 'object') {
+      const netPremium = rawInsurance.netPremium
+      if (typeof netPremium === 'number' && netPremium >= 0) data.value = netPremium
     } else if (typeof prima === 'number' && prima >= 0) {
       data.value = prima
     }
@@ -300,9 +312,10 @@ export class PipelineService {
     const extraFields: Record<string, unknown> = {}
 
     if (isMovingToWon && dto.insuranceData) {
+      const newEntry = { id: Date.now().toString(), ...dto.insuranceData }
       extraFields.customFields = {
         ...(deal.customFields as Record<string, unknown>),
-        insuranceData: dto.insuranceData,
+        insuranceData: [newEntry],
         locked: true,
       }
       extraFields.value = dto.insuranceData.netPremium

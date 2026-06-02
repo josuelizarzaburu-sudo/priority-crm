@@ -102,12 +102,18 @@ function dealWonDate(d: Deal): Date {
   return d.closedAt ? new Date(d.closedAt) : new Date(d.updatedAt)
 }
 
-// Canonical revenue value: DB value field → insuranceData.netPremium → legacy prima → 0
+// Canonical revenue value: DB value field → insuranceData array sum → legacy object → prima → 0
 function dealValue(d: Deal): number {
   if (typeof d.value === 'number') return d.value
   const cf = d.customFields
-  const netPremium = (cf?.insuranceData as any)?.netPremium
-  if (typeof netPremium === 'number') return netPremium
+  const ins = cf?.insuranceData
+  if (Array.isArray(ins)) {
+    const total = ins.reduce((s, e: any) => s + (typeof e?.netPremium === 'number' ? e.netPremium : 0), 0)
+    if (total > 0) return total
+  } else if (ins && typeof ins === 'object') {
+    const netPremium = (ins as any).netPremium
+    if (typeof netPremium === 'number') return netPremium
+  }
   if (typeof cf?.prima === 'number') return cf.prima as number
   return 0
 }

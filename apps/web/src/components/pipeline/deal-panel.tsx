@@ -1146,7 +1146,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                               Seguro de {INSURANCE_TYPE_LABELS[opp.insuranceType] ?? opp.insuranceType}
                             </span>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              📅 {format(new Date(opp.contactDate + 'T12:00:00'), "d MMM yyyy", { locale: es })}
+                              📅 {format(new Date(opp.contactDate), "d MMM yyyy, HH:mm", { locale: es })}
                             </p>
                             {opp.note && (
                               <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{opp.note}</p>
@@ -1189,12 +1189,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Fecha de contacto</label>
+                          <label className="text-xs text-muted-foreground">Fecha y hora de contacto</label>
                           <input
-                            type="date"
+                            type="datetime-local"
                             value={newOppContactDate}
                             onChange={(e) => setNewOppContactDate(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
+                            min={new Date().toISOString().slice(0, 16)}
                             className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                           />
                         </div>

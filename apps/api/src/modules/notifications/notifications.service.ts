@@ -507,8 +507,9 @@ export class NotificationsService {
       const existing = await this.queue.getJob(jobId)
       if (existing) await existing.remove()
 
-      // Fire at noon Ecuador time (UTC-5) on the contact date
-      const fireAt = new Date(`${data.contactDate}T12:00:00-05:00`)
+      // contactDate is "YYYY-MM-DDTHH:MM" from datetime-local — treat as Ecuador time (UTC-5)
+      const isoNoTz = data.contactDate.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '').slice(0, 16)
+      const fireAt = new Date(`${isoNoTz}:00-05:00`)
       const delay = fireAt.getTime() - Date.now()
       if (delay <= 0) {
         this.logger.warn(`Future opportunity ${jobId} — contact date already passed, not scheduling`)

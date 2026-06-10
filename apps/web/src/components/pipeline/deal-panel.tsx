@@ -234,6 +234,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const savedComplementaryRef = useRef<string>('')
 
 
   const { toast } = useToast()
@@ -264,8 +266,27 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   // Sync complementary notes content when deal loads
   useEffect(() => {
-    setComplementaryContent((deal?.customFields?.complementaryNotes as string) ?? '')
+    const saved = (deal?.customFields?.complementaryNotes as string) ?? ''
+    setComplementaryContent(saved)
+    savedComplementaryRef.current = saved
   }, [deal?.id, deal?.customFields?.complementaryNotes])
+
+  // Autosave debounce — fires 2 s after the user stops typing
+  useEffect(() => {
+    if (complementaryContent === savedComplementaryRef.current) return
+    const timer = setTimeout(() => {
+      setAutoSaveStatus('saving')
+      saveComplementaryMutation.mutate(complementaryContent)
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [complementaryContent]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-clear "✓ Guardado" after 3 s
+  useEffect(() => {
+    if (autoSaveStatus !== 'saved') return
+    const timer = setTimeout(() => setAutoSaveStatus('idle'), 3000)
+    return () => clearTimeout(timer)
+  }, [autoSaveStatus])
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['pipeline', 'deal', dealId] })
@@ -442,13 +463,21 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     patchCustomFields.mutate({ additionalContacts: existing.filter((c) => c.id !== id) })
   }
 
-  function saveComplementaryContent() {
-    patchCustomFields.mutate({
-      complementaryNotes: complementaryContent,
-      complementaryNotesUpdatedAt: new Date().toISOString(),
-    })
-    toast({ title: 'Notas guardadas' })
-  }
+  const saveComplementaryMutation = useMutation({
+    mutationFn: (content: string) =>
+      api.put(`/pipeline/deals/${dealId}`, {
+        customFields: {
+          ...deal?.customFields,
+          complementaryNotes: content,
+          complementaryNotesUpdatedAt: new Date().toISOString(),
+        },
+      }).then((r) => r.data),
+    onSuccess: () => {
+      setAutoSaveStatus('saved')
+      invalidate()
+    },
+    onError: () => setAutoSaveStatus('error'),
+  })
 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
   const isClosed = deal?.status !== 'OPEN'
@@ -883,18 +912,30 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   className="min-h-[140px] text-sm"
                 />
                 <div className="flex items-center justify-between gap-3">
-                  {complementaryNotesUpdatedAt ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      Última edición: {format(new Date(complementaryNotesUpdatedAt), "d MMM yyyy, HH:mm", { locale: es })}
-                    </p>
-                  ) : (
-                    <span />
-                  )}
+                  <div className="text-[11px]">
+                    {autoSaveStatus === 'saving' && (
+                      <span className="text-muted-foreground">Guardando...</span>
+                    )}
+                    {autoSaveStatus === 'saved' && (
+                      <span className="text-green-600">✓ Guardado</span>
+                    )}
+                    {autoSaveStatus === 'error' && (
+                      <span className="text-red-500">Error al guardar</span>
+                    )}
+                    {autoSaveStatus === 'idle' && complementaryNotesUpdatedAt && (
+                      <span className="text-muted-foreground">
+                        Última edición: {format(new Date(complementaryNotesUpdatedAt), "d MMM yyyy, HH:mm", { locale: es })}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={saveComplementaryContent}
-                    disabled={patchCustomFields.isPending || isGanadoLocked}
+                    onClick={() => {
+                      setAutoSaveStatus('saving')
+                      saveComplementaryMutation.mutate(complementaryContent)
+                    }}
+                    disabled={saveComplementaryMutation.isPending || isGanadoLocked}
                   >
                     Guardar
                   </Button>

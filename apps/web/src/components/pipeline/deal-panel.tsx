@@ -79,6 +79,21 @@ interface InsuranceEntry {
   netPremium?: number
 }
 
+interface FutureOpportunity {
+  id: string
+  insuranceType: 'AUTO' | 'VIDA' | 'PATRIMONIO' | 'SALUD'
+  contactDate: string
+  note: string
+  createdAt: string
+}
+
+const INSURANCE_TYPE_LABELS: Record<string, string> = {
+  AUTO: 'Auto',
+  VIDA: 'Vida',
+  PATRIMONIO: 'Patrimonio',
+  SALUD: 'Salud',
+}
+
 function toInsuranceEntries(raw: unknown): InsuranceEntry[] {
   if (Array.isArray(raw)) return raw as InsuranceEntry[]
   if (raw && typeof raw === 'object') {
@@ -210,6 +225,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   // ── Fecha de nacimiento state ─────────────────────────────────────────────
   const [birthDateText, setBirthDateText] = useState('')
   const birthPickerRef = useRef<HTMLInputElement>(null)
+
+  // ── Oportunidades futuras state ───────────────────────────────────────────
+  const [addingOpportunity, setAddingOpportunity] = useState(false)
+  const [newOppInsuranceType, setNewOppInsuranceType] = useState<'AUTO' | 'VIDA' | 'PATRIMONIO' | 'SALUD'>('SALUD')
+  const [newOppContactDate, setNewOppContactDate] = useState('')
+  const [newOppNote, setNewOppNote] = useState('')
 
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
@@ -345,6 +366,29 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     onError: () => {
       toast({ title: 'Error al eliminar el deal', variant: 'destructive' })
       setShowDeleteConfirm(false)
+    },
+  })
+
+  const addOpportunityMutation = useMutation({
+    mutationFn: (data: { insuranceType: string; contactDate: string; note: string }) =>
+      api.post(`/pipeline/deals/${dealId}/future-opportunities`, data).then((r) => r.data),
+    onSuccess: () => {
+      invalidate()
+      setAddingOpportunity(false)
+      setNewOppInsuranceType('SALUD')
+      setNewOppContactDate('')
+      setNewOppNote('')
+      toast({ title: 'Oportunidad agregada' })
+    },
+    onError: () => toast({ title: 'Error al agregar oportunidad', variant: 'destructive' }),
+  })
+
+  const removeOpportunityMutation = useMutation({
+    mutationFn: (oppId: string) =>
+      api.delete(`/pipeline/deals/${dealId}/future-opportunities/${oppId}`).then((r) => r.data),
+    onSuccess: () => {
+      invalidate()
+      toast({ title: 'Oportunidad eliminada' })
     },
   })
 
@@ -1072,6 +1116,131 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   </div>
                 )}
               </div>
+
+              <Separator />
+
+              {/* ── 6. OPORTUNIDADES FUTURAS (solo en etapa Ganado) ──────── */}
+              {deal.stageId === WON_STAGE_ID && (() => {
+                const futureOpps = (deal.customFields?.futureOpportunities as FutureOpportunity[]) ?? []
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Oportunidades futuras
+                      </p>
+                      {!addingOpportunity && (
+                        <button
+                          onClick={() => setAddingOpportunity(true)}
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <Plus className="h-3 w-3" /> Agregar oportunidad
+                        </button>
+                      )}
+                    </div>
+
+                    {futureOpps.map((opp) => (
+                      <div key={opp.id} className="rounded-md border px-3 py-2.5 text-sm">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0">
+                            <span className="font-medium">
+                              Seguro de {INSURANCE_TYPE_LABELS[opp.insuranceType] ?? opp.insuranceType}
+                            </span>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              📅 {format(new Date(opp.contactDate + 'T12:00:00'), "d MMM yyyy", { locale: es })}
+                            </p>
+                            {opp.note && (
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{opp.note}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => removeOpportunityMutation.mutate(opp.id)}
+                            disabled={removeOpportunityMutation.isPending}
+                            className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {futureOpps.length === 0 && !addingOpportunity && (
+                      <p className="text-xs text-muted-foreground">
+                        Sin oportunidades registradas.
+                      </p>
+                    )}
+
+                    {addingOpportunity && (
+                      <div className="space-y-2 rounded-md border p-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Tipo de seguro</label>
+                          <Select
+                            value={newOppInsuranceType}
+                            onValueChange={(v) => setNewOppInsuranceType(v as typeof newOppInsuranceType)}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AUTO">Auto</SelectItem>
+                              <SelectItem value="VIDA">Vida</SelectItem>
+                              <SelectItem value="PATRIMONIO">Patrimonio</SelectItem>
+                              <SelectItem value="SALUD">Salud</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Fecha de contacto</label>
+                          <input
+                            type="date"
+                            value={newOppContactDate}
+                            onChange={(e) => setNewOppContactDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Nota (opcional)</label>
+                          <Textarea
+                            value={newOppNote}
+                            onChange={(e) => setNewOppNote(e.target.value)}
+                            placeholder="Motivo o detalle de la oportunidad..."
+                            className="min-h-[60px] text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() =>
+                              addOpportunityMutation.mutate({
+                                insuranceType: newOppInsuranceType,
+                                contactDate: newOppContactDate,
+                                note: newOppNote,
+                              })
+                            }
+                            disabled={addOpportunityMutation.isPending || !newOppContactDate}
+                          >
+                            <Check className="h-3 w-3" /> Guardar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              setAddingOpportunity(false)
+                              setNewOppInsuranceType('SALUD')
+                              setNewOppContactDate('')
+                              setNewOppNote('')
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <Separator />
 

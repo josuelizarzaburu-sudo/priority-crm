@@ -1,7 +1,7 @@
 import { Process, Processor } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
-import { NotificationsService, LeadNotificationData, FollowUpReminderData } from './notifications.service'
+import { NotificationsService, LeadNotificationData, FollowUpReminderData, FutureOpportunityJobData } from './notifications.service'
 
 @Processor('notifications')
 export class NotificationsProcessor {
@@ -19,5 +19,11 @@ export class NotificationsProcessor {
   async handleFollowUpReminder(job: Job<FollowUpReminderData & { reminderType: '24h' | '2h' }>): Promise<void> {
     this.logger.log(`Sending follow-up ${job.data.reminderType} reminder for deal ${job.data.dealId}`)
     await this.notificationsService.sendFollowUpReminder(job.data)
+  }
+
+  @Process('future-opportunity')
+  async handleFutureOpportunity(job: Job<FutureOpportunityJobData>): Promise<void> {
+    this.logger.log(`Executing future opportunity ${job.data.oppId} for deal ${job.data.dealId}`)
+    await this.notificationsService.executeFutureOpportunity(job.data)
   }
 }

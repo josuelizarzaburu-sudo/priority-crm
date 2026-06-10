@@ -6,6 +6,7 @@ import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
 import { LogActivityDto } from './dto/log-activity.dto'
 import { CloseDealDto } from './dto/close-deal.dto'
+import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 
@@ -365,6 +366,69 @@ export class PipelineService {
         .catch(err => this.logger.error(`Deal-won notification error: ${err}`))
     }
 
+    return updated
+  }
+
+  async addFutureOpportunity(dealId: string, dto: AddFutureOpportunityDto, organizationId: string) {
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, organizationId },
+      include: { contact: { select: { firstName: true, lastName: true, phone: true, email: true } } },
+    })
+    if (!deal) throw new NotFoundException('Deal not found')
+
+    const oppId = Date.now().toString()
+    const existing = (deal.customFields as any)?.futureOpportunities ?? []
+    const newOpp = {
+      id: oppId,
+      insuranceType: dto.insuranceType,
+      contactDate: dto.contactDate,
+      note: dto.note ?? '',
+      createdAt: new Date().toISOString(),
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id: dealId },
+      data: { customFields: { ...(deal.customFields as any), futureOpportunities: [...existing, newOpp] } },
+    })
+
+    const c = deal.contact as any
+    const contactName = c ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}` : deal.title
+
+    this.notifications
+      .scheduleFutureOpportunity({
+        dealId,
+        oppId,
+        orgId: organizationId,
+        contactName,
+        phone: c?.phone ?? '',
+        email: c?.email ?? undefined,
+        insuranceType: dto.insuranceType,
+        note: dto.note ?? '',
+        contactDate: dto.contactDate,
+      })
+      .catch(err => this.logger.error(`Error scheduling future opportunity: ${err}`))
+
+    this.gateway.broadcastDealUpdated(organizationId, updated)
+    return updated
+  }
+
+  async removeFutureOpportunity(dealId: string, oppId: string, organizationId: string) {
+    const deal = await this.prisma.deal.findFirst({ where: { id: dealId, organizationId } })
+    if (!deal) throw new NotFoundException('Deal not found')
+
+    const existing = (deal.customFields as any)?.futureOpportunities ?? []
+    const filtered = existing.filter((o: any) => o.id !== oppId)
+
+    const updated = await this.prisma.deal.update({
+      where: { id: dealId },
+      data: { customFields: { ...(deal.customFields as any), futureOpportunities: filtered } },
+    })
+
+    this.notifications
+      .cancelFutureOpportunity(dealId, oppId)
+      .catch(err => this.logger.error(`Error cancelling future opportunity job: ${err}`))
+
+    this.gateway.broadcastDealUpdated(organizationId, updated)
     return updated
   }
 

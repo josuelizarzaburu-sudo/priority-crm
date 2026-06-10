@@ -8,6 +8,7 @@ import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
 import { LogActivityDto } from './dto/log-activity.dto'
 import { CloseDealDto } from './dto/close-deal.dto'
+import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 
 @ApiTags('Pipeline')
 @ApiBearerAuth()
@@ -81,5 +82,17 @@ export class PipelineController {
   @Delete('deals/:id')
   deleteDeal(@Param('id') id: string, @Req() req: any) {
     return this.pipelineService.deleteDeal(id, req.user.organizationId)
+  }
+
+  @Post('deals/:id/future-opportunities')
+  @ApiOperation({ summary: 'Add a future opportunity to a WON deal' })
+  addFutureOpportunity(@Param('id') id: string, @Body() dto: AddFutureOpportunityDto, @Req() req: any) {
+    return this.pipelineService.addFutureOpportunity(id, dto, req.user.organizationId)
+  }
+
+  @Delete('deals/:id/future-opportunities/:oppId')
+  @ApiOperation({ summary: 'Remove a future opportunity and cancel its scheduled job' })
+  removeFutureOpportunity(@Param('id') id: string, @Param('oppId') oppId: string, @Req() req: any) {
+    return this.pipelineService.removeFutureOpportunity(id, oppId, req.user.organizationId)
   }
 }

@@ -63,6 +63,18 @@ export interface DealWonData {
   closedAt: Date
 }
 
+export interface FutureOpportunityJobData {
+  dealId: string
+  oppId: string
+  orgId: string
+  contactName: string
+  phone: string
+  email?: string
+  insuranceType: string
+  note: string
+  contactDate: string
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name)
@@ -487,6 +499,202 @@ export class NotificationsService {
     )
 
     this.logger.log(`Deal-won notifications sent for deal ${data.dealId} — ${recipients.length} recipients`)
+  }
+
+  async scheduleFutureOpportunity(data: FutureOpportunityJobData): Promise<void> {
+    try {
+      const jobId = `future-opp-${data.dealId}-${data.oppId}`
+      const existing = await this.queue.getJob(jobId)
+      if (existing) await existing.remove()
+
+      // Fire at noon Ecuador time (UTC-5) on the contact date
+      const fireAt = new Date(`${data.contactDate}T12:00:00-05:00`)
+      const delay = fireAt.getTime() - Date.now()
+      if (delay <= 0) {
+        this.logger.warn(`Future opportunity ${jobId} — contact date already passed, not scheduling`)
+        return
+      }
+
+      await this.queue.add('future-opportunity', data, {
+        delay,
+        attempts: 2,
+        removeOnComplete: true,
+        jobId,
+      })
+      this.logger.log(`Future opportunity scheduled: ${jobId} (~${Math.round(delay / 3_600_000)}h from now)`)
+    } catch (err) {
+      this.logger.warn(`scheduleFutureOpportunity skipped (Redis unavailable): ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
+  async cancelFutureOpportunity(dealId: string, oppId: string): Promise<void> {
+    try {
+      const jobId = `future-opp-${dealId}-${oppId}`
+      const job = await this.queue.getJob(jobId)
+      if (job) {
+        await job.remove()
+        this.logger.log(`Future opportunity job cancelled: ${jobId}`)
+      }
+    } catch (err) {
+      this.logger.warn(`cancelFutureOpportunity skipped: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
+  private buildFutureOpportunityHtml(contactName: string, insuranceLabel: string, phone: string, note: string): string {
+    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const rows: [string, string][] = [
+      ['Cliente', this.escape(contactName)],
+      ['Teléfono', this.escape(phone)],
+      ['Oportunidad', `Seguro de ${this.escape(insuranceLabel)}`],
+      ['Nota', this.escape(note || '—')],
+    ]
+    const rowsHtml = rows
+      .map(([k, v]) => `
+      <tr>
+        <td style="padding:10px 24px;color:#6b7585;font-size:13px;width:38%;border-bottom:1px solid #f3f4f6;">${k}</td>
+        <td style="padding:10px 24px;color:#25324b;font-size:13px;font-weight:600;border-bottom:1px solid #f3f4f6;">${v}</td>
+      </tr>`)
+      .join('')
+
+    return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#f4f5f7;font-family:sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#25324b;padding:20px 24px;">
+      <h2 style="margin:0;color:#d3ac76;font-size:17px;font-weight:700;">📞 Oportunidad futura — Priority CRM</h2>
+    </div>
+    <p style="padding:16px 24px 0;margin:0;color:#4a5568;font-size:13px;">
+      Hoy es el día de contactar a <strong>${this.escape(contactName)}</strong>.
+      Se creó un nuevo lead automáticamente en el CRM.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+      ${rowsHtml}
+    </table>
+    <div style="padding:20px 24px;text-align:center;background:#f8f9fa;">
+      <a href="${appUrl}" style="display:inline-block;background:#25324b;color:#fff;padding:10px 28px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">
+        Abrir CRM
+      </a>
+    </div>
+  </div>
+</body>
+</html>`
+  }
+
+  async executeFutureOpportunity(data: FutureOpportunityJobData): Promise<void> {
+    const INSURANCE_LABELS: Record<string, string> = {
+      AUTO: 'Auto', VIDA: 'Vida', PATRIMONIO: 'Patrimonio', SALUD: 'Salud',
+    }
+    const insuranceLabel = INSURANCE_LABELS[data.insuranceType] ?? data.insuranceType
+
+    const [deal, managers] = await Promise.all([
+      this.prisma.deal.findUnique({
+        where: { id: data.dealId },
+        include: {
+          contact: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+          assignedTo: { select: { id: true, name: true, email: true, phone: true } },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: {
+          organizationId: data.orgId,
+          role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
+        },
+        select: { id: true, email: true, phone: true },
+      }),
+    ])
+
+    if (!deal) {
+      this.logger.warn(`executeFutureOpportunity: deal ${data.dealId} not found`)
+      return
+    }
+
+    // Guard: opportunity may have been removed after job was scheduled
+    const opps = (deal.customFields as any)?.futureOpportunities ?? []
+    if (!opps.some((o: any) => o.id === data.oppId)) {
+      this.logger.log(`Future opportunity ${data.oppId} already removed, skipping execution`)
+      return
+    }
+
+    const contactPhone = (deal.contact as any)?.phone ?? data.phone
+
+    const waMsg =
+      `📞 Oportunidad futura — Priority CRM\n\n` +
+      `Hoy es el día de contactar a ${data.contactName}\n` +
+      `📋 Oportunidad: Seguro de ${insuranceLabel}\n` +
+      `📝 Nota: ${data.note || '—'}\n` +
+      `📱 Teléfono: ${contactPhone}\n\n` +
+      `Se creó un nuevo lead automáticamente.\n` +
+      `👉 crm.priorityhealth.ec`
+
+    const subject = `📞 Oportunidad futura — Seguro de ${insuranceLabel} · ${data.contactName}`
+    const html = this.buildFutureOpportunityHtml(data.contactName, insuranceLabel, contactPhone, data.note)
+
+    // Notify vendor
+    if (deal.assignedTo) {
+      if (deal.assignedTo.phone) await this.sendWhatsapp(deal.assignedTo.phone, waMsg)
+      await this.sendEmail(deal.assignedTo.email, subject, html)
+    }
+
+    // Notify managers
+    for (const m of managers) {
+      if (m.phone) await this.sendWhatsapp(m.phone, waMsg)
+      await this.sendEmail(m.email, subject, html)
+    }
+
+    // Create new lead deal in the first pipeline stage
+    const leadStage = await this.prisma.pipelineStage.findFirst({
+      where: { organizationId: data.orgId },
+      orderBy: { position: 'asc' },
+    })
+
+    if (!leadStage) {
+      this.logger.warn(`No pipeline stages found for org ${data.orgId}, skipping lead creation`)
+      return
+    }
+
+    const originalContact = deal.contact as any
+    let newContactId: string | undefined
+
+    if (originalContact) {
+      const newContact = await this.prisma.contact.create({
+        data: {
+          firstName: originalContact.firstName,
+          lastName: originalContact.lastName ?? undefined,
+          phone: originalContact.phone ?? undefined,
+          email: originalContact.email ?? undefined,
+          source: 'CRM',
+          organizationId: data.orgId,
+          createdById: deal.createdById,
+        },
+      })
+      newContactId = newContact.id
+    }
+
+    const lastDeal = await this.prisma.deal.findFirst({
+      where: { stageId: leadStage.id },
+      orderBy: { position: 'desc' },
+    })
+
+    await this.prisma.deal.create({
+      data: {
+        title: `${data.contactName} — ${insuranceLabel} (Oportunidad Futura)`,
+        stageId: leadStage.id,
+        organizationId: data.orgId,
+        createdById: deal.createdById,
+        assignedToId: deal.assignedToId ?? undefined,
+        contactId: newContactId,
+        position: (lastDeal?.position ?? 0) + 1000,
+        notes: `Oportunidad futura — Seguro de ${insuranceLabel}: ${data.note}`,
+        customFields: {
+          source: 'CRM',
+          insuranceType: data.insuranceType,
+          fromFutureOpportunity: true,
+          originalDealId: data.dealId,
+        },
+      },
+    })
+
+    this.logger.log(`New lead created from future opportunity ${data.oppId} (deal ${data.dealId})`)
   }
 
   async sendUnassignedReminder(data: LeadNotificationData): Promise<void> {

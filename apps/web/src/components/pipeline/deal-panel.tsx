@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   X,
@@ -155,6 +155,35 @@ const ACTIVITY_ICON: Record<string, React.ReactNode> = {
   NOTE: <FileText className="h-3.5 w-3.5 text-gray-500" />,
 }
 
+function isoToDisplayDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function displayDateToISO(text: string): string | null {
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) return null
+  const [, dd, mm, yyyy] = match
+  const d = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd))
+  if (
+    d.getFullYear() !== parseInt(yyyy) ||
+    d.getMonth() + 1 !== parseInt(mm) ||
+    d.getDate() !== parseInt(dd) ||
+    parseInt(yyyy) < 1900
+  ) return null
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function calculateAge(isoDate: string): number | null {
+  const birth = new Date(isoDate + 'T00:00:00')
+  if (isNaN(birth.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age >= 0 && age <= 120 ? age : null
+}
+
 export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) {
   const isOpen = !!dealId
   const isAdminOrManager = ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole)
@@ -177,6 +206,10 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showWonModal, setShowWonModal] = useState(false)
+
+  // ── Fecha de nacimiento state ─────────────────────────────────────────────
+  const [birthDateText, setBirthDateText] = useState('')
+  const birthPickerRef = useRef<HTMLInputElement>(null)
 
   // ── Datos complementarios state ───────────────────────────────────────────
   const [complementaryContent, setComplementaryContent] = useState('')
@@ -201,6 +234,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     const fua = deal?.customFields?.followUpAt as string | undefined
     setFollowUpDate(fua ? toDatetimeLocal(fua) : '')
   }, [deal?.id, deal?.customFields?.followUpAt])
+
+  // Sync birth date text when deal loads
+  useEffect(() => {
+    const bd = deal?.customFields?.birthDate as string | undefined
+    setBirthDateText(bd ? isoToDisplayDate(bd) : '')
+  }, [deal?.id, deal?.customFields?.birthDate])
 
   // Sync complementary notes content when deal loads
   useEffect(() => {
@@ -310,6 +349,22 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   })
 
   // ── Helper handlers ───────────────────────────────────────────────────────
+
+  function handleBirthDateTextChange(raw: string) {
+    const digits = raw.replace(/\D/g, '').slice(0, 8)
+    let formatted = ''
+    for (let i = 0; i < digits.length; i++) {
+      if (i === 2 || i === 4) formatted += '/'
+      formatted += digits[i]
+    }
+    setBirthDateText(formatted)
+    if (formatted.length === 10) {
+      const iso = displayDateToISO(formatted)
+      if (iso) patchCustomFields.mutate({ birthDate: iso })
+    } else if (formatted === '') {
+      patchCustomFields.mutate({ birthDate: null })
+    }
+  }
 
   function handleLeadStatusChange(value: string) {
     updateDeal.mutate({ customFields: { ...deal?.customFields, leadStatus: value } })
@@ -588,18 +643,57 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   )}
 
                   {/* Fecha de nacimiento */}
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" /> Fecha de nacimiento
-                    </span>
-                    <input
-                      type="date"
-                      value={(deal.customFields?.birthDate as string) ?? ''}
-                      onChange={(e) => patchCustomFields.mutate({ birthDate: e.target.value || null })}
-                      disabled={isGanadoLocked}
-                      className="rounded border bg-background px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
+                  {(() => {
+                    const isoFromText = birthDateText.length === 10 ? displayDateToISO(birthDateText) : null
+                    const isoForAge = isoFromText ?? (deal.customFields?.birthDate as string | undefined) ?? null
+                    const age = isoForAge ? calculateAge(isoForAge) : null
+                    return (
+                      <div className="px-3 py-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <Calendar className="h-3.5 w-3.5" /> Fecha de nacimiento
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="DD/MM/AAAA"
+                              value={birthDateText}
+                              onChange={(e) => handleBirthDateTextChange(e.target.value)}
+                              disabled={isGanadoLocked}
+                              maxLength={10}
+                              className="w-[108px] rounded border bg-background px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <input
+                              ref={birthPickerRef}
+                              type="date"
+                              value={(deal.customFields?.birthDate as string) ?? ''}
+                              onChange={(e) => {
+                                const iso = e.target.value
+                                patchCustomFields.mutate({ birthDate: iso || null })
+                                setBirthDateText(iso ? isoToDisplayDate(iso) : '')
+                              }}
+                              disabled={isGanadoLocked}
+                              tabIndex={-1}
+                              className="sr-only"
+                            />
+                            <button
+                              type="button"
+                              disabled={isGanadoLocked}
+                              onClick={() => { const el = birthPickerRef.current as (HTMLInputElement & { showPicker?: () => void }) | null; el?.showPicker?.() }}
+                              title="Abrir selector de fecha"
+                              className="flex h-6 w-6 items-center justify-center rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </div>
+                        {age !== null && (
+                          <p className="text-right text-xs text-muted-foreground">Edad: {age} años</p>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Personas en el seguro */}
                   <div className="flex items-center justify-between px-3 py-2">

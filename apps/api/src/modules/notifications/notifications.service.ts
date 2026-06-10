@@ -303,19 +303,19 @@ export class NotificationsService {
       const now = Date.now()
       const msUntil = followUpDate.getTime() - now
 
-      const H24 = 24 * 60 * 60 * 1000
-      const H2  =  2 * 60 * 60 * 1000
+      const H2   =  2 * 60 * 60 * 1000
+      const M10  = 10 * 60 * 1000
 
-      const job24hId = `follow-up-24h-${data.dealId}`
       const job2hId  = `follow-up-2h-${data.dealId}`
+      const job10mId = `follow-up-10m-${data.dealId}`
 
       // Always remove existing jobs before rescheduling
-      const [existing24h, existing2h] = await Promise.all([
-        this.queue.getJob(job24hId),
+      const [existing2h, existing10m] = await Promise.all([
         this.queue.getJob(job2hId),
+        this.queue.getJob(job10mId),
       ])
-      if (existing24h) await existing24h.remove()
       if (existing2h)  await existing2h.remove()
+      if (existing10m) await existing10m.remove()
 
       console.log(`[FollowUp] deal=${data.dealId} msUntil=${msUntil} (${(msUntil / 3600000).toFixed(2)}h)`)
 
@@ -324,41 +324,41 @@ export class NotificationsService {
         return
       }
 
-      if (msUntil < H2) {
-        // Less than 2 h away — send immediately, no job needed
-        console.log(`[FollowUp] < 2h away — sending notification immediately (no BullMQ job)`)
-        await this.sendFollowUpReminder({ ...data, reminderType: '2h' })
+      if (msUntil < M10) {
+        // Less than 10 min away — send immediately, no job needed
+        console.log(`[FollowUp] < 10min away — sending notification immediately (no BullMQ job)`)
+        await this.sendFollowUpReminder({ ...data, reminderType: '10m' })
         return
       }
 
-      if (msUntil < H24) {
-        // Between 2 h and 24 h — only the 2 h job
-        const delay2h = msUntil - H2
-        console.log(`[FollowUp] Between 2h-24h — creating 2h job, delay=${delay2h}ms (~${(delay2h / 3600000).toFixed(2)}h)`)
-        await this.queue.add('follow-up-reminder', { ...data, reminderType: '2h' }, {
-          delay: delay2h,
+      if (msUntil < H2) {
+        // Between 10 min and 2 h — only the 10 min job
+        const delay10m = msUntil - M10
+        console.log(`[FollowUp] Between 10min-2h — creating 10m job, delay=${delay10m}ms`)
+        await this.queue.add('follow-up-reminder', { ...data, reminderType: '10m' }, {
+          delay: delay10m,
           attempts: 1,
           removeOnComplete: true,
-          jobId: job2hId,
+          jobId: job10mId,
         })
         return
       }
 
-      // More than 24 h away — create both jobs
-      const delay24h = msUntil - H24
+      // More than 2 h away — create both jobs
       const delay2h  = msUntil - H2
-      console.log(`[FollowUp] > 24h away — creating 24h job (delay=${delay24h}ms) AND 2h job (delay=${delay2h}ms)`)
-      await this.queue.add('follow-up-reminder', { ...data, reminderType: '24h' }, {
-        delay: delay24h,
-        attempts: 1,
-        removeOnComplete: true,
-        jobId: job24hId,
-      })
+      const delay10m = msUntil - M10
+      console.log(`[FollowUp] > 2h away — creating 2h job (delay=${delay2h}ms) AND 10m job (delay=${delay10m}ms)`)
       await this.queue.add('follow-up-reminder', { ...data, reminderType: '2h' }, {
         delay: delay2h,
         attempts: 1,
         removeOnComplete: true,
         jobId: job2hId,
+      })
+      await this.queue.add('follow-up-reminder', { ...data, reminderType: '10m' }, {
+        delay: delay10m,
+        attempts: 1,
+        removeOnComplete: true,
+        jobId: job10mId,
       })
     } catch (err) {
       // Redis/BullMQ unavailable — follow-up is saved in DB; reminders will not fire
@@ -366,19 +366,19 @@ export class NotificationsService {
     }
   }
 
-  async sendFollowUpReminder(data: FollowUpReminderData & { reminderType: '24h' | '2h' }): Promise<void> {
+  async sendFollowUpReminder(data: FollowUpReminderData & { reminderType: '2h' | '10m' }): Promise<void> {
     const followUpDate = new Date(data.followUpAt)
     const timeStr = this.formatTime(followUpDate)
 
     const waMsg =
-      data.reminderType === '24h'
-        ? `📅 Recordatorio — Priority CRM\nMañana tienes una llamada programada:\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\nPrepárate con anticipación 💪\n👉 crm.priorityhealth.ec`
-        : `⏰ En 2 horas tienes que llamar — Priority CRM\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\n¡No lo dejes pasar!\n👉 crm.priorityhealth.ec`
+      data.reminderType === '2h'
+        ? `📅 Recordatorio — Priority CRM\nEn 2 horas tienes una llamada programada:\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\nPrepárate con anticipación 💪\n👉 crm.priorityhealth.ec`
+        : `⏰ En 10 minutos tienes que llamar — Priority CRM\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\n¡No lo dejes pasar!\n👉 crm.priorityhealth.ec`
 
     const subject =
-      data.reminderType === '24h'
-        ? `📅 Recordatorio de llamada mañana — ${data.contactName}`
-        : `⏰ Llamada en 2 horas — ${data.contactName}`
+      data.reminderType === '2h'
+        ? `📅 Recordatorio de llamada en 2 horas — ${data.contactName}`
+        : `⏰ Llamada en 10 minutos — ${data.contactName}`
 
     const html = this.buildFollowUpHtml(data, timeStr)
 

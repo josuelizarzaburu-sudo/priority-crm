@@ -16,7 +16,7 @@ export class NotificationsProcessor {
   }
 
   @Process('follow-up-reminder')
-  async handleFollowUpReminder(job: Job<FollowUpReminderData & { reminderType: '24h' | '2h' }>): Promise<void> {
+  async handleFollowUpReminder(job: Job<FollowUpReminderData & { reminderType: '2h' | '10m' }>): Promise<void> {
     this.logger.log(`Sending follow-up ${job.data.reminderType} reminder for deal ${job.data.dealId}`)
     await this.notificationsService.sendFollowUpReminder(job.data)
   }

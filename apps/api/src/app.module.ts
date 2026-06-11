@@ -14,6 +14,7 @@ import { AutomationsModule } from './modules/automations/automations.module'
 import { WebhooksModule } from './modules/webhooks/webhooks.module'
 import { LeadsModule } from './modules/leads/leads.module'
 import { PushModule } from './modules/push/push.module'
+import { CalendarModule } from './modules/calendar/calendar.module'
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { PushModule } from './modules/push/push.module'
     WebhooksModule,
     LeadsModule,
     PushModule,
+    CalendarModule,
   ],
 })
 export class AppModule {}

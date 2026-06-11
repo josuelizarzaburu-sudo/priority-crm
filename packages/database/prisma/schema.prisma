@@ -29,6 +29,7 @@ model Organization {
   conversations Conversation[]
   automations Automation[]
   tags        Tag[]
+  calendarEvents CalendarEvent[]
 
   @@map("organizations")
 }
@@ -56,6 +57,8 @@ model User {
   automations    Automation[]
   sentMessages      Message[]
   pushSubscriptions PushSubscription[]
+  createdCalendarEvents    CalendarEvent[]            @relation("CalendarEventCreatedBy")
+  calendarParticipations   CalendarEventParticipant[]
 
   @@map("users")
 }
@@ -303,6 +306,47 @@ model Automation {
 
   @@index([organizationId, trigger])
   @@map("automations")
+}
+
+// ─── Calendar ────────────────────────────────────────────────────────────────
+
+model CalendarEvent {
+  id             String                @id @default(cuid())
+  title          String
+  description    String?
+  startAt        DateTime
+  endAt          DateTime?
+  givenBy        String?
+  modality       CalendarEventModality @default(PRESENCIAL)
+  meetingLink    String?
+  organizationId String
+  createdById    String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                       @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
+  participants CalendarEventParticipant[]
+
+  @@index([organizationId, startAt])
+  @@map("calendar_events")
+}
+
+model CalendarEventParticipant {
+  id      String @id @default(cuid())
+  eventId String
+  userId  String
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("calendar_event_participants")
+}
+
+enum CalendarEventModality {
+  PRESENCIAL
+  VIRTUAL
 }
 
 // ─── Tags ────────────────────────────────────────────────────────────────────

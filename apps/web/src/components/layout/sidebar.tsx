@@ -20,6 +20,7 @@ import {
   Kanban,
   TrendingUp,
   Activity,
+  CalendarDays,
   X,
   LogOut,
 } from 'lucide-react'
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP'] },
   { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ELEVATED },
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ALL_ROLES },
+  { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: ALL_ROLES },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ALL_ROLES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },

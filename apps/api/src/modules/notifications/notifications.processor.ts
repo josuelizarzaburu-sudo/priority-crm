@@ -26,4 +26,10 @@ export class NotificationsProcessor {
     this.logger.log(`Executing future opportunity ${job.data.oppId} for deal ${job.data.dealId}`)
     await this.notificationsService.executeFutureOpportunity(job.data)
   }
+
+  @Process('calendar-event-reminder')
+  async handleCalendarEventReminder(job: Job<{ eventId: string; orgId: string }>): Promise<void> {
+    this.logger.log(`Sending calendar event reminder for event ${job.data.eventId}`)
+    await this.notificationsService.sendCalendarEventReminder(job.data.eventId)
+  }
 }

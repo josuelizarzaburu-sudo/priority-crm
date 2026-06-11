@@ -501,6 +501,122 @@ export class NotificationsService {
     this.logger.log(`Deal-won notifications sent for deal ${data.dealId} — ${recipients.length} recipients`)
   }
 
+  async scheduleCalendarEventReminder(eventId: string, orgId: string, startAt: Date): Promise<void> {
+    try {
+      const jobId = `calendar-event-${eventId}`
+      const existing = await this.queue.getJob(jobId)
+      if (existing) await existing.remove()
+
+      const delay = startAt.getTime() - Date.now() - 24 * 60 * 60 * 1000
+      if (delay <= 0) {
+        this.logger.warn(`Calendar event ${eventId} — less than 24h away, not scheduling`)
+        return
+      }
+
+      await this.queue.add('calendar-event-reminder', { eventId, orgId }, {
+        delay,
+        attempts: 2,
+        removeOnComplete: true,
+        jobId,
+      })
+      this.logger.log(`Calendar event reminder scheduled: ${jobId}`)
+    } catch (err) {
+      this.logger.warn(`scheduleCalendarEventReminder skipped: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
+  async cancelCalendarEventReminder(eventId: string): Promise<void> {
+    try {
+      const job = await this.queue.getJob(`calendar-event-${eventId}`)
+      if (job) await job.remove()
+    } catch (err) {
+      this.logger.warn(`cancelCalendarEventReminder skipped: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
+  private buildCalendarReminderHtml(event: any, startStr: string, endStr: string): string {
+    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const rows: [string, string][] = [
+      ['Evento', this.escape(event.title)],
+      ['Hora inicio', startStr],
+      ['Hora fin', endStr],
+      ['Dictado por', this.escape(event.givenBy || '—')],
+      ['Modalidad', event.modality === 'VIRTUAL' ? 'Virtual' : 'Presencial'],
+      ...(event.modality === 'VIRTUAL' && event.meetingLink
+        ? [['Link', `<a href="${this.escape(event.meetingLink)}">${this.escape(event.meetingLink)}</a>`] as [string, string]]
+        : []),
+      ['Motivo', this.escape(event.description || '—')],
+    ]
+    const rowsHtml = rows.map(([k, v]) => `
+      <tr>
+        <td style="padding:10px 24px;color:#6b7585;font-size:13px;width:38%;border-bottom:1px solid #f3f4f6;">${k}</td>
+        <td style="padding:10px 24px;color:#25324b;font-size:13px;font-weight:600;border-bottom:1px solid #f3f4f6;">${v}</td>
+      </tr>`).join('')
+    return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#f4f5f7;font-family:sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#25324b;padding:20px 24px;">
+      <h2 style="margin:0;color:#d3ac76;font-size:17px;font-weight:700;">📅 Recordatorio de evento — Priority CRM</h2>
+    </div>
+    <p style="padding:16px 24px 0;margin:0;color:#4a5568;font-size:13px;">
+      Mañana tienes programado: <strong>${this.escape(event.title)}</strong>
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rowsHtml}</table>
+    <div style="padding:20px 24px;text-align:center;background:#f8f9fa;">
+      <a href="${appUrl}/calendar" style="display:inline-block;background:#25324b;color:#fff;padding:10px 28px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">
+        Ver calendario
+      </a>
+    </div>
+  </div>
+</body>
+</html>`
+  }
+
+  async sendCalendarEventReminder(eventId: string): Promise<void> {
+    const event = await this.prisma.calendarEvent.findUnique({
+      where: { id: eventId },
+      include: {
+        participants: {
+          include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+        },
+      },
+    })
+    if (!event || event.participants.length === 0) return
+
+    const startStr = this.formatTime(event.startAt)
+    const endStr = event.endAt ? this.formatTime(event.endAt) : '—'
+    const linkLine = event.modality === 'VIRTUAL' && event.meetingLink
+      ? `\n🔗 Link: ${event.meetingLink}`
+      : ''
+
+    const waMsg =
+      `📅 Recordatorio — Priority CRM\n\n` +
+      `Mañana tienes: ${event.title}\n` +
+      `🕐 Hora: ${startStr} — ${endStr}\n` +
+      `👤 Dictado por: ${event.givenBy || '—'}\n` +
+      `📍 Modalidad: ${event.modality === 'VIRTUAL' ? 'Virtual' : 'Presencial'}` +
+      linkLine + '\n' +
+      `📝 Motivo: ${event.description || '—'}\n\n` +
+      `👉 crm.priorityhealth.ec`
+
+    const subject = `📅 Mañana: ${event.title} a las ${startStr}`
+    const html = this.buildCalendarReminderHtml(event, startStr, endStr)
+
+    for (const p of event.participants) {
+      const u = p.user as any
+      if (u.phone) await this.sendWhatsapp(u.phone, waMsg)
+      await this.sendEmail(u.email, subject, html)
+      await this.push.sendToUser(u.id, {
+        title: `📅 Mañana: ${event.title}`,
+        body: `A las ${startStr}`,
+        url: '/calendar',
+      })
+    }
+
+    this.logger.log(`Calendar reminders sent for event ${eventId} — ${event.participants.length} recipients`)
+  }
+
   async scheduleFutureOpportunity(data: FutureOpportunityJobData): Promise<void> {
     try {
       const jobId = `future-opp-${data.dealId}-${data.oppId}`

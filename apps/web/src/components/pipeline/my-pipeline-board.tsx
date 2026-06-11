@@ -143,8 +143,8 @@ export function MyPipelineBoard() {
   }, [localDeals])
 
   function getStageDeals(stageId: string) {
-    return metrics.open
-      .filter((d) => d.stageId === stageId)
+    return localDeals
+      .filter((d) => d.stageId === stageId && d.status !== DealStatus.LOST)
       .sort((a, b) => a.position - b.position)
   }
 

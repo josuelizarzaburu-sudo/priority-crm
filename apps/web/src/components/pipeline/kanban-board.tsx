@@ -113,7 +113,7 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
 
   function getStageDeals(stageId: string) {
     let result = searchFiltered.filter(
-      (d) => d.stageId === stageId && d.status === DealStatus.OPEN,
+      (d) => d.stageId === stageId && d.status !== DealStatus.LOST,
     )
     if (filterUserId) {
       result = result.filter((d) => d.assignedToId === filterUserId)

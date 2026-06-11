@@ -52,18 +52,26 @@ export class PipelineService {
   }
 
   async getMyDeals(userId: string, organizationId: string) {
-    return this.prisma.deal.findMany({
+    const deals = await this.prisma.deal.findMany({
       where: { organizationId, assignedToId: userId },
       orderBy: { position: 'asc' },
       include: {
         stage: true,
         contact: { select: { id: true, firstName: true, lastName: true, company: true } },
-        activities: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
+        activities: { orderBy: { createdAt: 'desc' } },
       },
     })
+
+    const won = deals.filter((d) => d.status === 'WON')
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const wonThisMonth = won.filter((d) => d.closedAt && d.closedAt >= startOfMonth)
+    console.log(
+      `[getMyDeals] userId=${userId} total=${deals.length} WON=${won.length} WON_this_month=${wonThisMonth.length}`,
+      wonThisMonth.map((d) => ({ id: d.id, status: d.status, closedAt: d.closedAt, stageId: d.stageId })),
+    )
+
+    return deals
   }
 
   async getUnassignedDeals(organizationId: string, role: string) {
@@ -323,9 +331,11 @@ export class PipelineService {
       extraFields.value = totalPremium
     }
 
+    const wonFields = isMovingToWon ? { status: 'WON' as const, closedAt: new Date() } : {}
+
     const updated = await this.prisma.deal.update({
       where: { id },
-      data: { stageId: dto.stageId, position: dto.position, ...extraFields },
+      data: { stageId: dto.stageId, position: dto.position, ...wonFields, ...extraFields },
       include: {
         stage: true,
         contact: { select: { id: true, firstName: true, lastName: true, phone: true } },

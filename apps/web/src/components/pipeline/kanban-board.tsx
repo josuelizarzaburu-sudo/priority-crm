@@ -96,7 +96,11 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
 
   const { data: dealsData } = useQuery({
     queryKey: ['pipeline', 'deals'],
-    queryFn: () => api.get('/pipeline/deals').then((r) => r.data),
+    queryFn: () =>
+      api.get('/pipeline/deals').then((r) => {
+        console.log('API response deals:', r.data)
+        return r.data
+      }),
   })
 
   useEffect(() => {
@@ -110,6 +114,9 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
   const searchFiltered = searchQuery
     ? deals.filter((d) => d.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : deals
+
+  console.log('All deals:', deals.map((d) => ({ id: d.id, title: d.title, status: d.status, stageId: d.stageId })))
+  console.log('Deals in Ganado stage:', deals.filter((d) => d.stageId === 'cmohtra9r000bz5t3q407kx05'))
 
   function getStageDeals(stageId: string) {
     let result = searchFiltered.filter(

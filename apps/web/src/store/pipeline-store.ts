@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
+import { DealStatus } from '@priority-crm/shared'
 
 interface PipelineState {
   stages: PipelineStage[]
@@ -25,7 +26,14 @@ export const usePipelineStore = create<PipelineState>((set) => ({
   moveDeal: (dealId, targetStageId, position) =>
     set((state) => ({
       deals: state.deals.map((d) =>
-        d.id === dealId ? { ...d, stageId: targetStageId, position } : d,
+        d.id === dealId
+          ? {
+              ...d,
+              stageId: targetStageId,
+              position,
+              status: targetStageId === 'cmohtra9r000bz5t3q407kx05' ? DealStatus.WON : d.status,
+            }
+          : d,
       ),
     })),
 }))

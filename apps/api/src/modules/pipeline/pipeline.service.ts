@@ -39,7 +39,7 @@ export class PipelineService {
   async getDeals(organizationId: string, userId: string, role: string) {
     const where: any = { organizationId }
     if (role === 'SALES_REP') where.assignedToId = userId
-    return this.prisma.deal.findMany({
+    const deals = await this.prisma.deal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -49,6 +49,8 @@ export class PipelineService {
         activities: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
       },
     })
+    console.log('Deals from DB:', deals.map((d) => ({ id: d.id, status: d.status, stageId: d.stageId })))
+    return deals
   }
 
   async getMyDeals(userId: string, organizationId: string) {
@@ -208,6 +210,7 @@ export class PipelineService {
       data: {
         status: dto.status as any,
         closedAt: new Date(),
+        ...(dto.status === 'WON' ? { stageId: this.WON_STAGE_ID } : {}),
         ...valuePatch,
         ...(dto.closingReason ? { notes: dto.closingReason } : {}),
       },

@@ -47,7 +47,7 @@ export class PipelineController {
 
   @Post('deals')
   createDeal(@Body() dto: CreateDealDto, @Req() req: any) {
-    return this.pipelineService.createDeal(dto, req.user.organizationId, req.user.id)
+    return this.pipelineService.createDeal(dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
   @Put('deals/:id')

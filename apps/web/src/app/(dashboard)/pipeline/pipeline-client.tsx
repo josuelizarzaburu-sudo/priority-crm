@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
 import { KanbanBoard } from '@/components/pipeline/kanban-board'
-import { PipelineHeader } from '@/components/pipeline/pipeline-header'
+import { PipelineHeader, type OriginFilter } from '@/components/pipeline/pipeline-header'
 import { DealPanel } from '@/components/pipeline/deal-panel'
 import { api } from '@/lib/api'
 
@@ -30,6 +30,7 @@ export function PipelineClient() {
   const viewMode = viewModeOverride ?? (isAdminOrManager ? 'all' : 'mine')
 
   const [filterUserId, setFilterUserId] = useState<string | null>(null)
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('ALL')
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
   const { data: users = [] } = useQuery<TeamMember[]>({
@@ -45,6 +46,8 @@ export function PipelineClient() {
         setViewMode={setViewModeOverride}
         filterUserId={filterUserId}
         setFilterUserId={setFilterUserId}
+        originFilter={originFilter}
+        setOriginFilter={setOriginFilter}
         users={users}
         isAdminOrManager={isAdminOrManager}
         userRole={userRole}
@@ -52,6 +55,7 @@ export function PipelineClient() {
       <KanbanBoard
         viewMode={viewMode}
         filterUserId={filterUserId}
+        originFilter={originFilter}
         currentUserId={currentUserId}
         userRole={userRole}
         onSelectDeal={setSelectedDealId}

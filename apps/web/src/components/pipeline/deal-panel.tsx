@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+import { LeadOriginBadge } from './lead-origin-badge'
 
 const WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
 
@@ -572,14 +573,20 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 </Select>
               </div>
 
-              {/* Lead Profile Badge */}
+              {/* Lead Profile + Origin Badges */}
               {(() => {
                 const profile = getProfile(deal.customFields)
-                if (!profile) return null
+                const leadOrigin = deal.customFields?.leadOrigin as string | undefined
+                if (!profile && !leadOrigin) return null
                 return (
-                  <div className={cn('flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium w-fit', profile.className)}>
-                    <span>{profile.emoji}</span>
-                    <span>{profile.label}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {profile && (
+                      <div className={cn('flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium w-fit', profile.className)}>
+                        <span>{profile.emoji}</span>
+                        <span>{profile.label}</span>
+                      </div>
+                    )}
+                    <LeadOriginBadge leadOrigin={leadOrigin} className="px-3 py-1.5 text-sm" />
                   </div>
                 )
               })()}

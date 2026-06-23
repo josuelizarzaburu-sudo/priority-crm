@@ -97,6 +97,7 @@ export class LeadsService {
         customFields: {
           insuranceType: dto.insuranceType,
           source: dto.source ?? LeadSource.WEB,
+          leadOrigin: 'PRIORITY_HEALTH',
           leadCreatedAt: new Date().toISOString(),
           sport,
           insured,

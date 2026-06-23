@@ -239,15 +239,27 @@ export class PipelineService {
     return updated
   }
 
-  async createDeal(dto: CreateDealDto, organizationId: string, createdById: string) {
+  async createDeal(dto: CreateDealDto, organizationId: string, createdById: string, role: string) {
     const lastDeal = await this.prisma.deal.findFirst({
       where: { stageId: dto.stageId },
       orderBy: { position: 'desc' },
     })
     const position = (lastDeal?.position ?? 0) + 1000
 
+    const customFields: Record<string, unknown> = { ...(dto.customFields as any) }
+    let assignedToId = dto.assignedToId
+
+    if (role === 'SALES_REP') {
+      // Sales reps can only create deals for their own book of business —
+      // origin and assignment are enforced server-side, not trusted from the client.
+      customFields.leadOrigin = 'PROPIO'
+      assignedToId = createdById
+    } else {
+      customFields.leadOrigin = customFields.leadOrigin === 'PROPIO' ? 'PROPIO' : 'PRIORITY_HEALTH'
+    }
+
     return this.prisma.deal.create({
-      data: { ...dto, customFields: dto.customFields as any, organizationId, createdById, position },
+      data: { ...dto, assignedToId, customFields: customFields as any, organizationId, createdById, position },
       include: { stage: true, contact: { select: { id: true, firstName: true, lastName: true } } },
     })
   }

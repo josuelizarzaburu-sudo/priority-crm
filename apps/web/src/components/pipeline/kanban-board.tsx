@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GripVertical, DollarSign, Bell, Lock } from 'lucide-react'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+import { LeadOriginBadge } from './lead-origin-badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePipelineStore } from '@/store'
@@ -11,6 +12,7 @@ import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
 import { DealStatus } from '@priority-crm/shared'
+import type { OriginFilter } from './pipeline-header'
 
 type ProfileType = 'A' | 'B' | 'C' | 'D'
 
@@ -29,6 +31,7 @@ function getProfile(customFields?: Record<string, unknown> | null) {
 interface KanbanBoardProps {
   viewMode: 'mine' | 'all'
   filterUserId: string | null
+  originFilter: OriginFilter
   currentUserId: string
   userRole: string
   onSelectDeal: (id: string) => void
@@ -45,7 +48,7 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
+export function KanbanBoard({ viewMode, filterUserId, originFilter, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
@@ -126,6 +129,9 @@ export function KanbanBoard({ viewMode, filterUserId, currentUserId, userRole, o
       result = result.filter((d) => d.assignedToId === filterUserId)
     } else if (viewMode === 'mine') {
       result = result.filter((d) => d.assignedToId === currentUserId)
+    }
+    if (originFilter !== 'ALL') {
+      result = result.filter((d) => (d as any).customFields?.leadOrigin === originFilter)
     }
     return result.sort((a, b) => a.position - b.position)
   }
@@ -374,14 +380,21 @@ function DealCard({
           )}
         </div>
 
-        {/* Lead profile badge */}
+        {/* Lead profile + origin badges */}
         {(() => {
-          const profile = getProfile((deal as any).customFields)
-          if (!profile) return null
+          const cf = (deal as any).customFields
+          const profile = getProfile(cf)
+          const leadOrigin = cf?.leadOrigin as string | undefined
+          if (!profile && !leadOrigin) return null
           return (
-            <div className={cn('mt-2 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', profile.className)}>
-              <span>{profile.emoji}</span>
-              <span>{profile.label}</span>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {profile && (
+                <div className={cn('flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', profile.className)}>
+                  <span>{profile.emoji}</span>
+                  <span>{profile.label}</span>
+                </div>
+              )}
+              <LeadOriginBadge leadOrigin={leadOrigin} />
             </div>
           )
         })()}

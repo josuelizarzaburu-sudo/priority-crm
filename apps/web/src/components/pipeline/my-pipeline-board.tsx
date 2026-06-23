@@ -19,9 +19,12 @@ import {
 import {
   Flame, Thermometer, Snowflake, DollarSign, TrendingUp,
   CheckCircle2, LayoutDashboard, Clock, CalendarDays, Activity,
-  GripVertical, Lock,
+  GripVertical, Lock, Plus,
 } from 'lucide-react'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+import { CreateDealDialog } from './create-deal-dialog'
+import { LeadOriginBadge } from './lead-origin-badge'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -92,6 +95,7 @@ export function MyPipelineBoard() {
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
   const [showWonModal, setShowWonModal] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const [stagesQuery, dealsQuery] = useQueries({
     queries: [
@@ -228,9 +232,17 @@ export function MyPipelineBoard() {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Mi Pipeline</h1>
-        <p className="text-sm text-muted-foreground">Solo tus deals asignados, {userName}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Mi Pipeline</h1>
+          <p className="text-sm text-muted-foreground">Solo tus deals asignados, {userName}</p>
+        </div>
+        {userRole === 'SALES_REP' && (
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo deal
+          </Button>
+        )}
       </div>
 
       {/* Metrics */}
@@ -301,6 +313,8 @@ export function MyPipelineBoard() {
         userRole={userRole}
         users={[]}
       />
+
+      <CreateDealDialog open={createOpen} onOpenChange={setCreateOpen} />
 
       <WonDealModal
         open={showWonModal}
@@ -491,6 +505,8 @@ function DealCardDisplay({
             </span>
           )}
         </div>
+
+        <LeadOriginBadge leadOrigin={deal.customFields?.leadOrigin as string | undefined} />
 
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="h-3 w-3 shrink-0" />

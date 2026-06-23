@@ -805,6 +805,7 @@ export class NotificationsService {
         customFields: {
           source: 'CRM',
           insuranceType: data.insuranceType,
+          leadOrigin: (deal.customFields as any)?.leadOrigin ?? 'PRIORITY_HEALTH',
           fromFutureOpportunity: true,
           originalDealId: data.dealId,
         },

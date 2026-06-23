@@ -982,7 +982,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         <input
                           type="datetime-local"
                           value={followUpDate}
-                          min={new Date().toISOString().slice(0, 16)}
+                          min={toDatetimeLocal(new Date().toISOString())}
                           onChange={(e) => setFollowUpDate(e.target.value)}
                           disabled={isGanadoLocked}
                           className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1235,7 +1235,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                             type="datetime-local"
                             value={newOppContactDate}
                             onChange={(e) => setNewOppContactDate(e.target.value)}
-                            min={new Date().toISOString().slice(0, 16)}
+                            min={toDatetimeLocal(new Date().toISOString())}
                             className="w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                           />
                         </div>

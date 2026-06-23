@@ -42,10 +42,10 @@ interface PipelineHeaderProps {
 type ProfileType = 'A' | 'B' | 'C' | 'D'
 
 const PROFILES: Record<ProfileType, { label: string; className: string }> = {
-  A: { label: 'Deportista con seguro',  className: 'bg-green-100 text-green-700 border-green-200' },
-  B: { label: 'Deportista sin seguro',  className: 'bg-orange-100 text-orange-700 border-orange-200' },
-  C: { label: 'Sin deporte con seguro', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-  D: { label: 'Sin deporte sin seguro', className: 'bg-violet-100 text-violet-700 border-violet-200' },
+  A: { label: 'Deportista con seguro',   className: 'bg-green-100 text-green-700 border-green-200' },
+  B: { label: 'Con seguro, sin deporte', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  C: { label: 'Deportista sin seguro',   className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  D: { label: 'Sin seguro, sin deporte', className: 'bg-violet-100 text-violet-700 border-violet-200' },
 }
 
 function computeProfile(sport: boolean, insured: boolean): ProfileType {

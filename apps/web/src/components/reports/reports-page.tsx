@@ -49,9 +49,9 @@ type ProfileType = 'A' | 'B' | 'C' | 'D'
 
 const PROFILES: Record<ProfileType, string> = {
   A: 'Deportista con seguro',
-  B: 'Deportista sin seguro',
-  C: 'Sin deporte con seguro',
-  D: 'Sin deporte sin seguro',
+  B: 'Con seguro, sin deporte',
+  C: 'Deportista sin seguro',
+  D: 'Sin seguro, sin deporte',
 }
 
 interface Deal {

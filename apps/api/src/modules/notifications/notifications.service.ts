@@ -9,26 +9,22 @@ import { PushService } from '../push/push.service'
 
 const FROM = 'Priority CRM <leads@priorityhealth.ec>'
 
-const PROFILE_INFO: Record<string, { label: string; pitch: string; waDescription: string }> = {
+const PROFILE_INFO: Record<string, { label: string; pitch: string }> = {
   A: {
     label: 'Deportista con seguro',
-    pitch: 'ya tiene seguro, mostrar cómo Vitality le premia por ejercitarse',
-    waDescription: 'Ya tiene seguro y hace deporte — mostrar cómo Vitality le premia',
+    pitch: 'Ya tiene seguro y entrena. Mostrarle cómo Vitality convierte su disciplina en cashback y premios, sin pagar extra.',
   },
   B: {
-    label: 'Deportista sin seguro',
-    pitch: 'proteger su estilo de vida activo + premios por su deporte',
-    waDescription: 'Tiene seguro pero no hace deporte — motivar cambio de hábitos',
+    label: 'Con seguro, sin deporte',
+    pitch: 'Tiene seguro pero no se ejercita. Vitality empieza desde cero (caminar, chequeo anual, hábitos) y convierte su seguro en inversión con cashback.',
   },
   C: {
-    label: 'Sin deporte con seguro',
-    pitch: 'motivar cambio de hábitos, premios por empezar a ejercitarse',
-    waDescription: 'Hace deporte pero sin seguro — proteger su estilo de vida activo',
+    label: 'Deportista sin seguro',
+    pitch: 'Entrena pero no tiene seguro. Proteger su estilo de vida activo con respaldo médico, y su deporte le suma cashback y premios.',
   },
   D: {
-    label: 'Sin deporte sin seguro',
-    pitch: 'cambio de vida completo, Vitality como motivador',
-    waDescription: 'Sin deporte ni seguro — cambio de vida completo con Vitality',
+    label: 'Sin seguro, sin deporte',
+    pitch: 'Sin seguro ni hábito. Protección desde el día uno y Vitality lo acompaña con metas pequeñas y premios desde la semana uno.',
   },
 }
 
@@ -150,9 +146,13 @@ export class NotificationsService {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
 
+  private getAppUrl(): string {
+    return this.config.get<string>('APP_URL') || 'https://crm.priorityhealth.ec'
+  }
+
   private buildHtml(data: LeadNotificationData, withPitch: boolean): string {
     const profile = PROFILE_INFO[data.profileType] ?? { label: data.profileType, pitch: '' }
-    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const appUrl = this.getAppUrl()
 
     const rows: [string, string][] = [
       ['Nombre', this.escape(data.contactName)],
@@ -204,7 +204,7 @@ export class NotificationsService {
   }
 
   private buildFollowUpHtml(data: FollowUpReminderData, timeStr: string): string {
-    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const appUrl = this.getAppUrl()
     const rows: [string, string][] = [
       ['Cliente', this.escape(data.contactName)],
       ['Teléfono', this.escape(data.phone)],
@@ -290,9 +290,9 @@ export class NotificationsService {
         `👤 Cliente: ${data.contactName}\n` +
         `📱 Teléfono: ${data.phone}\n` +
         `📧 Email: ${data.email ?? '—'}\n` +
-        `🏷️ Perfil: ${profile?.waDescription ?? data.profileType}\n` +
+        `🏷️ Perfil: ${data.profileType} — ${profile?.label ?? data.profileType}\n` +
         `Entra al CRM para gestionar este lead.\n` +
-        `👉 crm.priorityhealth.ec`
+        `👉 ${this.getAppUrl()}`
       await this.sendWhatsapp(agent.phone, waMsg)
     }
   }
@@ -372,8 +372,8 @@ export class NotificationsService {
 
     const waMsg =
       data.reminderType === '2h'
-        ? `📅 Recordatorio — Priority CRM\nEn 2 horas tienes una llamada programada:\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\nPrepárate con anticipación 💪\n👉 crm.priorityhealth.ec`
-        : `⏰ En 10 minutos tienes que llamar — Priority CRM\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\n¡No lo dejes pasar!\n👉 crm.priorityhealth.ec`
+        ? `📅 Recordatorio — Priority CRM\nEn 2 horas tienes una llamada programada:\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\nPrepárate con anticipación 💪\n👉 ${this.getAppUrl()}`
+        : `⏰ En 10 minutos tienes que llamar — Priority CRM\n👤 Cliente: ${data.contactName}\n📱 Teléfono: ${data.phone}\n🕐 Hora: ${timeStr}\n¡No lo dejes pasar!\n👉 ${this.getAppUrl()}`
 
     const subject =
       data.reminderType === '2h'
@@ -422,7 +422,7 @@ export class NotificationsService {
   }
 
   private buildDealWonHtml(data: DealWonData): string {
-    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const appUrl = this.getAppUrl()
     const dateStr = this.formatTime(data.closedAt)
 
     const rows: [string, string][] = [
@@ -482,7 +482,7 @@ export class NotificationsService {
       `💼 Vendedor: ${data.vendorName}\n` +
       `📋 Plan: ${data.plan ?? '—'}\n` +
       `💰 Prima neta: ${data.netPremium ? `$${data.netPremium}` : '—'}\n` +
-      `👉 crm.priorityhealth.ec`
+      `👉 ${this.getAppUrl()}`
 
     for (const r of recipients) {
       await this.sendEmail(r.email, subject, html)
@@ -535,7 +535,7 @@ export class NotificationsService {
   }
 
   private buildCalendarReminderHtml(event: any, startStr: string, endStr: string): string {
-    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const appUrl = this.getAppUrl()
     const rows: [string, string][] = [
       ['Evento', this.escape(event.title)],
       ['Hora inicio', startStr],
@@ -598,7 +598,7 @@ export class NotificationsService {
       `📍 Modalidad: ${event.modality === 'VIRTUAL' ? 'Virtual' : 'Presencial'}` +
       linkLine + '\n' +
       `📝 Motivo: ${event.description || '—'}\n\n` +
-      `👉 crm.priorityhealth.ec`
+      `👉 ${this.getAppUrl()}`
 
     const subject = `📅 Mañana: ${event.title} a las ${startStr}`
     const html = this.buildCalendarReminderHtml(event, startStr, endStr)
@@ -658,7 +658,7 @@ export class NotificationsService {
   }
 
   private buildFutureOpportunityHtml(contactName: string, insuranceLabel: string, phone: string, note: string): string {
-    const appUrl = this.config.get('APP_URL', 'https://crm.priority.com')
+    const appUrl = this.getAppUrl()
     const rows: [string, string][] = [
       ['Cliente', this.escape(contactName)],
       ['Teléfono', this.escape(phone)],
@@ -741,7 +741,7 @@ export class NotificationsService {
       `📝 Nota: ${data.note || '—'}\n` +
       `📱 Teléfono: ${contactPhone}\n\n` +
       `Se creó un nuevo lead automáticamente.\n` +
-      `👉 crm.priorityhealth.ec`
+      `👉 ${this.getAppUrl()}`
 
     const subject = `📞 Oportunidad futura — Seguro de ${insuranceLabel} · ${data.contactName}`
     const html = this.buildFutureOpportunityHtml(data.contactName, insuranceLabel, contactPhone, data.note)

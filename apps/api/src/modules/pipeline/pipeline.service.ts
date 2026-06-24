@@ -76,6 +76,18 @@ export class PipelineService {
     return deals
   }
 
+  async getCommissionsReport(organizationId: string, role: string) {
+    if (role === 'SALES_REP') throw new ForbiddenException('No tienes acceso al reporte de comisiones')
+    return this.prisma.deal.findMany({
+      where: { organizationId, status: 'WON' },
+      orderBy: { closedAt: 'desc' },
+      include: {
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
+    })
+  }
+
   async getUnassignedDeals(organizationId: string, role: string) {
     if (role === 'SALES_REP') throw new ForbiddenException('Agents cannot view unassigned deals')
     return this.prisma.deal.findMany({

@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Activity,
   CalendarDays,
+  DollarSign,
   X,
   LogOut,
 } from 'lucide-react'
@@ -31,6 +32,7 @@ const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
 const NAV_ITEMS = [
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
+  { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ELEVATED },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SALES_REP'] },
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP'] },

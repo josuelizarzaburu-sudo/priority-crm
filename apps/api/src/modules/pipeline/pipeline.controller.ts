@@ -35,6 +35,12 @@ export class PipelineController {
     return this.pipelineService.getUnassignedDeals(req.user.organizationId, req.user.role)
   }
 
+  @Get('commissions')
+  @ApiOperation({ summary: 'Won deals commission report — SUPER_ADMIN/OWNER/MANAGER only' })
+  getCommissions(@Req() req: any) {
+    return this.pipelineService.getCommissionsReport(req.user.organizationId, req.user.role)
+  }
+
   @Get('deals')
   getDeals(@Req() req: any) {
     return this.pipelineService.getDeals(req.user.organizationId, req.user.id, req.user.role)

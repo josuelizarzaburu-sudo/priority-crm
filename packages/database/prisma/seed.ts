@@ -16,7 +16,17 @@ async function main() {
       name: 'Admin User',
       email: 'admin@acme.com',
       password,
-      role: 'ADMIN',
+      role: 'SUPER_ADMIN',
+      organizationId: org.id,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Vendor User',
+      email: 'vendor@acme.com',
+      password,
+      role: 'SALES_REP',
       organizationId: org.id,
     },
   })

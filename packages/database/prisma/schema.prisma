@@ -30,6 +30,7 @@ model Organization {
   automations Automation[]
   tags        Tag[]
   calendarEvents CalendarEvent[]
+  trainingVideos TrainingVideo[]
 
   @@map("organizations")
 }
@@ -59,6 +60,8 @@ model User {
   pushSubscriptions PushSubscription[]
   createdCalendarEvents    CalendarEvent[]            @relation("CalendarEventCreatedBy")
   calendarParticipations   CalendarEventParticipant[]
+  createdTrainingVideos   TrainingVideo[]      @relation("TrainingVideoCreatedBy")
+  trainingVideoViews      TrainingVideoView[]
 
   @@map("users")
 }
@@ -363,4 +366,47 @@ model Tag {
 
   @@unique([name, organizationId])
   @@map("tags")
+}
+
+// ─── Training ────────────────────────────────────────────────────────────────
+
+model TrainingVideo {
+  id              String           @id @default(cuid())
+  title           String
+  description     String?
+  youtubeUrl      String
+  category        TrainingCategory
+  durationMinutes Int?
+  organizationId  String
+  createdById     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                @relation("TrainingVideoCreatedBy", fields: [createdById], references: [id])
+  views        TrainingVideoView[]
+
+  @@index([organizationId, category])
+  @@map("training_videos")
+}
+
+enum TrainingCategory {
+  CRM_USAGE
+  QUOTING_TOOLS
+  VITALITY
+  SALES_TECHNIQUES
+  OTHER
+}
+
+model TrainingVideoView {
+  id       String   @id @default(cuid())
+  videoId  String
+  userId   String
+  viewedAt DateTime @default(now())
+
+  video TrainingVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@map("training_video_views")
 }

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
 import { KanbanBoard } from '@/components/pipeline/kanban-board'
-import { PipelineHeader, type OriginFilter } from '@/components/pipeline/pipeline-header'
+import { PipelineHeader, type OriginFilter, type InsuranceFilter } from '@/components/pipeline/pipeline-header'
 import { DealPanel } from '@/components/pipeline/deal-panel'
 import { api } from '@/lib/api'
 
@@ -31,6 +31,7 @@ export function PipelineClient() {
 
   const [filterUserId, setFilterUserId] = useState<string | null>(null)
   const [originFilter, setOriginFilter] = useState<OriginFilter>('ALL')
+  const [insuranceFilter, setInsuranceFilter] = useState<InsuranceFilter>('ALL')
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
   const { data: users = [] } = useQuery<TeamMember[]>({
@@ -48,6 +49,8 @@ export function PipelineClient() {
         setFilterUserId={setFilterUserId}
         originFilter={originFilter}
         setOriginFilter={setOriginFilter}
+        insuranceFilter={insuranceFilter}
+        setInsuranceFilter={setInsuranceFilter}
         users={users}
         isAdminOrManager={isAdminOrManager}
         userRole={userRole}
@@ -56,6 +59,7 @@ export function PipelineClient() {
         viewMode={viewMode}
         filterUserId={filterUserId}
         originFilter={originFilter}
+        insuranceFilter={insuranceFilter}
         currentUserId={currentUserId}
         userRole={userRole}
         onSelectDeal={setSelectedDealId}

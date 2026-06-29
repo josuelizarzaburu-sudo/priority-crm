@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Car, HeartPulse } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -21,6 +21,7 @@ interface TeamMember {
 }
 
 export type OriginFilter = 'ALL' | 'PRIORITY_HEALTH' | 'PROPIO'
+export type InsuranceFilter = 'ALL' | 'SALUD' | 'AUTO'
 
 interface PipelineHeaderProps {
   viewMode: 'mine' | 'all'
@@ -29,6 +30,8 @@ interface PipelineHeaderProps {
   setFilterUserId: (id: string | null) => void
   originFilter: OriginFilter
   setOriginFilter: (origin: OriginFilter) => void
+  insuranceFilter: InsuranceFilter
+  setInsuranceFilter: (f: InsuranceFilter) => void
   users: TeamMember[]
   isAdminOrManager: boolean
   userRole: string
@@ -41,6 +44,8 @@ export function PipelineHeader({
   setFilterUserId,
   originFilter,
   setOriginFilter,
+  insuranceFilter,
+  setInsuranceFilter,
   users,
   isAdminOrManager,
   userRole,
@@ -127,6 +132,45 @@ export function PipelineHeader({
               </Select>
             )}
 
+            {/* Insurance type filter */}
+            <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15">
+              <button
+                className={cn(
+                  'px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  insuranceFilter === 'ALL'
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+                )}
+                onClick={() => setInsuranceFilter('ALL')}
+              >
+                Todos
+              </button>
+              <button
+                className={cn(
+                  'flex items-center gap-1 border-l border-[#25324b]/15 px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  insuranceFilter === 'SALUD'
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+                )}
+                onClick={() => setInsuranceFilter('SALUD')}
+              >
+                <HeartPulse className="h-3.5 w-3.5" />
+                Salud
+              </button>
+              <button
+                className={cn(
+                  'flex items-center gap-1 border-l border-[#25324b]/15 px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  insuranceFilter === 'AUTO'
+                    ? 'bg-[#25324b] text-[#d3ac76]'
+                    : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+                )}
+                onClick={() => setInsuranceFilter('AUTO')}
+              >
+                <Car className="h-3.5 w-3.5" />
+                Auto
+              </button>
+            </div>
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -212,6 +256,21 @@ export function PipelineHeader({
             </SelectContent>
           </Select>
         )}
+
+        {/* Compact insurance type select */}
+        <Select
+          value={insuranceFilter}
+          onValueChange={(v) => setInsuranceFilter(v as InsuranceFilter)}
+        >
+          <SelectTrigger className="h-8 flex-1 text-xs">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos</SelectItem>
+            <SelectItem value="SALUD">Salud</SelectItem>
+            <SelectItem value="AUTO">Auto</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <CreateDealDialog open={open} onOpenChange={setOpen} showOriginSelector />

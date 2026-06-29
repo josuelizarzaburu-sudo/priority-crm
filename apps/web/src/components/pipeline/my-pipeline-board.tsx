@@ -19,7 +19,7 @@ import {
 import {
   Flame, Thermometer, Snowflake, DollarSign, TrendingUp,
   CheckCircle2, LayoutDashboard, Clock, CalendarDays, Activity,
-  GripVertical, Lock, Plus,
+  GripVertical, Lock, Plus, Car, HeartPulse,
 } from 'lucide-react'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
 import { CreateDealDialog } from './create-deal-dialog'
@@ -84,6 +84,8 @@ const HEAT_META: Record<Heat, { label: string; icon: React.ElementType; classNam
   cold: { label: 'Frío',     icon: Snowflake,   className: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-950/30' },
 }
 
+type InsuranceFilter = 'ALL' | 'SALUD' | 'AUTO'
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function MyPipelineBoard() {
@@ -96,6 +98,7 @@ export function MyPipelineBoard() {
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
   const [showWonModal, setShowWonModal] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [insuranceFilter, setInsuranceFilter] = useState<InsuranceFilter>('ALL')
 
   const [stagesQuery, dealsQuery] = useQueries({
     queries: [
@@ -148,7 +151,14 @@ export function MyPipelineBoard() {
 
   function getStageDeals(stageId: string) {
     return localDeals
-      .filter((d) => d.stageId === stageId && d.status !== DealStatus.LOST)
+      .filter((d) => {
+        if (d.stageId !== stageId || d.status === DealStatus.LOST) return false
+        if (insuranceFilter !== 'ALL') {
+          const iType = (d.customFields?.insuranceType as string | undefined)?.toUpperCase()
+          if (iType !== insuranceFilter) return false
+        }
+        return true
+      })
       .sort((a, b) => a.position - b.position)
   }
 
@@ -232,17 +242,57 @@ export function MyPipelineBoard() {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Mi Pipeline</h1>
           <p className="text-sm text-muted-foreground">Solo tus deals asignados, {userName}</p>
         </div>
-        {userRole === 'SALES_REP' && (
-          <Button onClick={() => setCreateOpen(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo deal
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Insurance type filter */}
+          <div className="flex overflow-hidden rounded-lg border border-[#25324b]/15 text-xs sm:text-sm">
+            <button
+              className={cn(
+                'flex items-center gap-1 px-3 py-1.5 font-medium transition-colors',
+                insuranceFilter === 'ALL'
+                  ? 'bg-[#25324b] text-[#d3ac76]'
+                  : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+              )}
+              onClick={() => setInsuranceFilter('ALL')}
+            >
+              Todos
+            </button>
+            <button
+              className={cn(
+                'flex items-center gap-1 border-l border-[#25324b]/15 px-3 py-1.5 font-medium transition-colors',
+                insuranceFilter === 'SALUD'
+                  ? 'bg-[#25324b] text-[#d3ac76]'
+                  : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+              )}
+              onClick={() => setInsuranceFilter('SALUD')}
+            >
+              <HeartPulse className="h-3.5 w-3.5" />
+              Salud
+            </button>
+            <button
+              className={cn(
+                'flex items-center gap-1 border-l border-[#25324b]/15 px-3 py-1.5 font-medium transition-colors',
+                insuranceFilter === 'AUTO'
+                  ? 'bg-[#25324b] text-[#d3ac76]'
+                  : 'text-[#25324b]/60 hover:bg-[#25324b]/5',
+              )}
+              onClick={() => setInsuranceFilter('AUTO')}
+            >
+              <Car className="h-3.5 w-3.5" />
+              Auto
+            </button>
+          </div>
+          {(userRole === 'SALES_REP' || userRole === 'SUPER_ADMIN') && (
+            <Button onClick={() => setCreateOpen(true)} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo deal
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Metrics */}

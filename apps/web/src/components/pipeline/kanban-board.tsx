@@ -12,7 +12,7 @@ import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
 import { DealStatus } from '@priority-crm/shared'
-import type { OriginFilter } from './pipeline-header'
+import type { OriginFilter, InsuranceFilter } from './pipeline-header'
 
 type ProfileType = 'A' | 'B' | 'C' | 'D'
 
@@ -32,6 +32,7 @@ interface KanbanBoardProps {
   viewMode: 'mine' | 'all'
   filterUserId: string | null
   originFilter: OriginFilter
+  insuranceFilter: InsuranceFilter
   currentUserId: string
   userRole: string
   onSelectDeal: (id: string) => void
@@ -48,7 +49,7 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-export function KanbanBoard({ viewMode, filterUserId, originFilter, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
+export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFilter, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
@@ -132,6 +133,11 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, currentUserI
     }
     if (originFilter !== 'ALL') {
       result = result.filter((d) => (d as any).customFields?.leadOrigin === originFilter)
+    }
+    if (insuranceFilter !== 'ALL') {
+      result = result.filter(
+        (d) => ((d as any).customFields?.insuranceType as string | undefined)?.toUpperCase() === insuranceFilter,
+      )
     }
     return result.sort((a, b) => a.position - b.position)
   }

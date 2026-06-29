@@ -238,6 +238,10 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const savedComplementaryRef = useRef<string>('')
 
+  // ── Datos del vehículo (AUTO) state ───────────────────────────────────────
+  const [editingAutoData, setEditingAutoData] = useState(false)
+  const [autoDataEdit, setAutoDataEdit] = useState<Record<string, string>>({})
+
 
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -271,6 +275,22 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     setComplementaryContent(saved)
     savedComplementaryRef.current = saved
   }, [deal?.id, deal?.customFields?.complementaryNotes])
+
+  // Sync auto data when deal loads
+  useEffect(() => {
+    const ad = (deal?.customFields?.autoData as Record<string, string | null | undefined>) ?? {}
+    setAutoDataEdit({
+      marca: ad.marca ?? '',
+      modelo: ad.modelo ?? '',
+      anio: ad.anio ?? '',
+      placa: ad.placa ?? '',
+      ciudad: ad.ciudad ?? '',
+      cedulaRuc: ad.cedulaRuc ?? '',
+      edad: ad.edad ?? '',
+      estadoCivil: ad.estadoCivil ?? '',
+      sexo: ad.sexo ?? '',
+    })
+  }, [deal?.id, deal?.customFields?.autoData])
 
   // Autosave debounce — fires 2 s after the user stops typing
   useEffect(() => {
@@ -478,6 +498,19 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       invalidate()
     },
     onError: () => setAutoSaveStatus('error'),
+  })
+
+  const saveAutoDataMutation = useMutation({
+    mutationFn: (data: Record<string, string>) =>
+      api.put(`/pipeline/deals/${dealId}`, {
+        customFields: { ...deal?.customFields, autoData: { ...(deal?.customFields?.autoData as object ?? {}), ...data } },
+      }).then((r) => r.data),
+    onSuccess: () => {
+      setEditingAutoData(false)
+      invalidate()
+      toast({ title: 'Datos del vehículo guardados' })
+    },
+    onError: () => toast({ title: 'Error al guardar', variant: 'destructive' }),
   })
 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
@@ -905,6 +938,96 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
               </div>
 
               <Separator />
+
+              {/* ── DATOS DEL VEHÍCULO (solo para deals AUTO) ───────────── */}
+              {deal.customFields?.insuranceType === 'AUTO' && (() => {
+                const ad = (deal.customFields?.autoData as Record<string, string | null | undefined>) ?? {}
+                const canEdit = isAdminOrManager
+                const AUTO_FIELDS: { key: string; label: string; type?: 'select'; options?: string[] }[] = [
+                  { key: 'marca', label: 'Marca' },
+                  { key: 'modelo', label: 'Modelo' },
+                  { key: 'anio', label: 'Año' },
+                  { key: 'placa', label: 'Placa' },
+                  { key: 'ciudad', label: 'Ciudad' },
+                  { key: 'cedulaRuc', label: 'Cédula / RUC' },
+                  { key: 'edad', label: 'Edad' },
+                  { key: 'estadoCivil', label: 'Estado civil', type: 'select', options: ['soltero', 'casado', 'divorciado', 'viudo', 'unión libre'] },
+                  { key: 'sexo', label: 'Sexo', type: 'select', options: ['masculino', 'femenino'] },
+                ]
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Datos del vehículo
+                      </p>
+                      {canEdit && !editingAutoData && !isGanadoLocked && (
+                        <button
+                          onClick={() => setEditingAutoData(true)}
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <Pencil className="h-3 w-3" /> Editar
+                        </button>
+                      )}
+                    </div>
+
+                    {editingAutoData ? (
+                      <div className="space-y-2 rounded-md border p-3">
+                        {AUTO_FIELDS.map(({ key, label, type, options }) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <span className="w-28 shrink-0 text-xs text-muted-foreground">{label}</span>
+                            {type === 'select' ? (
+                              <Select
+                                value={autoDataEdit[key] ?? ''}
+                                onValueChange={(v) => setAutoDataEdit(prev => ({ ...prev, [key]: v }))}
+                              >
+                                <SelectTrigger className="h-7 flex-1 text-xs">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {options!.map(opt => (
+                                    <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                value={autoDataEdit[key] ?? ''}
+                                onChange={(e) => setAutoDataEdit(prev => ({ ...prev, [key]: e.target.value }))}
+                                className="h-7 flex-1 text-xs"
+                                placeholder="—"
+                              />
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex gap-1.5 pt-1">
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => saveAutoDataMutation.mutate(autoDataEdit)}
+                            disabled={saveAutoDataMutation.isPending}
+                          >
+                            <Check className="h-3 w-3" /> Guardar
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingAutoData(false)}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="divide-y rounded-md border text-sm">
+                        {AUTO_FIELDS.map(({ key, label }) => (
+                          <div key={key} className="flex items-center justify-between px-3 py-2">
+                            <span className="text-muted-foreground">{label}</span>
+                            <span className="font-medium capitalize">{ad[key] ?? '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {deal.customFields?.insuranceType === 'AUTO' && <Separator />}
 
               {/* ── 2. DATOS COMPLEMENTARIOS ────────────────────────────── */}
               <div className="space-y-2">

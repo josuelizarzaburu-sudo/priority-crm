@@ -1,25 +1,73 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type Redis from 'ioredis'
+import Anthropic from '@anthropic-ai/sdk'
 import { LeadsService } from '../leads/leads.service'
 import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 
 export const WHATSAPP_REDIS = 'WHATSAPP_REDIS'
 
-type BotStep = 'sport' | 'insured' | 'nombre' | 'completado'
+type BotStep =
+  | 'menu'
+  // salud
+  | 'sport'
+  | 'insured'
+  | 'nombre'
+  | 'completado'
+  // auto
+  | 'auto_vehiculo'
+  | 'auto_propietario'
+  | 'auto_repregunta'
+  | 'auto_completado'
+
+interface AutoData {
+  marca?: string | null
+  modelo?: string | null
+  anio?: string | null
+  placa?: string | null
+  ciudad?: string | null
+  nombrePropietario?: string | null
+  cedulaRuc?: string | null
+  edad?: string | null
+  estadoCivil?: string | null
+  sexo?: string | null
+}
 
 interface BotSession {
   step: BotStep
+  insuranceType?: 'SALUD' | 'AUTO'
+  // salud fields
   sport?: boolean
   insured?: boolean
   firstName?: string
   lastName?: string
+  // auto fields
+  autoData?: AutoData
 }
 
-const SESSION_TTL_SECONDS = 86400 // 24 h
+const SESSION_TTL_SECONDS = 86400
 
-const MSG_BIENVENIDA =
-  'Hola! Soy el asistente de Priority Health 👋 Pensando siempre en tu bienestar. Te haré 2 preguntas rápidas.'
+const REQUIRED_AUTO_FIELDS: (keyof AutoData)[] = [
+  'marca', 'modelo', 'anio', 'placa', 'ciudad', 'nombrePropietario', 'cedulaRuc',
+]
+
+const FIELD_LABELS: Record<string, string> = {
+  marca: 'marca del vehículo',
+  modelo: 'modelo',
+  anio: 'año del vehículo',
+  placa: 'número de placa',
+  ciudad: 'ciudad donde circula',
+  nombrePropietario: 'nombre completo del propietario',
+  cedulaRuc: 'cédula o RUC',
+}
+
+// ─── Messages ──────────────────────────────────────────────────────────────────
+
+const MSG_MENU =
+  '¡Hola! 👋 Soy el asistente de Priority. ¿Qué tipo de seguro te interesa?\n1️⃣ Seguro de Salud\n2️⃣ Seguro de Auto'
+
+const MSG_SALUD_INICIO =
+  '¡Genial! 😊 Te haré 2 preguntas rápidas para conocer tu perfil.'
 
 const MSG_SPORT =
   '¿Practicas deporte o actividad física regularmente?\n1️⃣ Sí, me ejercito\n2️⃣ No hago ejercicio'
@@ -29,7 +77,18 @@ const MSG_INSURED =
 
 const MSG_NOMBRE = '¡Perfecto! ¿Me puedes dar tu nombre completo?'
 
-const MSG_COMPLETADO = '¡Con gusto! 😊 Recuerda que un asesor de Priority Health se pondrá en contacto contigo muy pronto. ¡Que tengas un excelente día!'
+const MSG_COMPLETADO_SALUD =
+  '¡Con gusto! 😊 Recuerda que un asesor de Priority Health se pondrá en contacto contigo muy pronto. ¡Que tengas un excelente día!'
+
+const MSG_AUTO_VEHICULO =
+  '¡Genial! Para cotizar tu seguro de auto necesito algunos datos. Puedes enviármelos en un solo mensaje 😊\n\n' +
+  '🚗 De tu vehículo:\n- Marca y modelo\n- Año\n- Placa\n- Ciudad donde circula'
+
+const MSG_AUTO_PROPIETARIO =
+  '¡Perfecto! Ahora del propietario:\n- Nombre completo\n- Cédula o RUC\n- Edad, estado civil y sexo (esto ayuda a conseguirte el mejor precio)'
+
+const MSG_AUTO_COMPLETADO = (nombre: string) =>
+  `¡Listo ${nombre}! 🎉 Ya tengo todo para cotizarte. Uno de nuestros asesores te preparará la mejor opción entre las aseguradoras AIG, Zurich, Atlántida, Sweaden y Latina, y te la envía hoy mismo. 🚀`
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -52,9 +111,9 @@ export class WhatsappBotService {
     console.log('Processing message from:', phone)
 
     if (this.isRestart(text)) {
-      console.log('Restart keyword detected — clearing session for', phone)
+      console.log('Restart keyword — clearing session for', phone)
       await this.redis.del(this.sessionKey(phone))
-      await this.handleInicio(phone)
+      await this.handleMenu(phone)
       return
     }
 
@@ -62,13 +121,17 @@ export class WhatsappBotService {
     console.log('Bot state:', JSON.stringify(session))
 
     if (!session) {
-      console.log('No session found — starting flow for', phone)
-      await this.handleInicio(phone)
+      console.log('No session — starting menu for', phone)
+      await this.handleMenu(phone)
       return
     }
 
-    console.log('Sending response for step:', session.step)
+    console.log('Dispatching for step:', session.step)
     switch (session.step) {
+      case 'menu':
+        await this.handleMenuAnswer(phone, session, text)
+        break
+      // ── salud ─────────────────────────────────────────────────────────────
       case 'sport':
         await this.handleSport(phone, session, text)
         break
@@ -79,19 +142,49 @@ export class WhatsappBotService {
         await this.handleNombre(phone, session, text)
         break
       case 'completado':
-        await this.sendMessage(phone, MSG_COMPLETADO)
+        await this.sendMessage(phone, MSG_COMPLETADO_SALUD)
+        break
+      // ── auto ──────────────────────────────────────────────────────────────
+      case 'auto_vehiculo':
+        await this.handleAutoVehiculo(phone, session, text)
+        break
+      case 'auto_propietario':
+        await this.handleAutoPropietario(phone, session, text)
+        break
+      case 'auto_repregunta':
+        await this.handleAutoRepregunta(phone, session, text)
+        break
+      case 'auto_completado':
+        await this.sendMessage(phone, MSG_AUTO_COMPLETADO(session.autoData?.nombrePropietario?.split(' ')[0] ?? ''))
         break
     }
-    console.log('Response sent for step:', session.step)
   }
 
-  // ─── Steps ────────────────────────────────────────────────────────────────────
+  // ─── Menu ─────────────────────────────────────────────────────────────────
 
-  private async handleInicio(phone: string): Promise<void> {
-    await this.saveSession(phone, { step: 'sport' })
-    await this.sendMessage(phone, MSG_BIENVENIDA)
-    await this.sendMessage(phone, MSG_SPORT)
+  private async handleMenu(phone: string): Promise<void> {
+    await this.saveSession(phone, { step: 'menu' })
+    await this.sendMessage(phone, MSG_MENU)
   }
+
+  private async handleMenuAnswer(phone: string, _session: BotSession, text: string): Promise<void> {
+    const choice = this.parseMenuChoice(text)
+    if (choice === null) {
+      await this.sendMessage(phone, MSG_MENU)
+      return
+    }
+
+    if (choice === 1) {
+      await this.saveSession(phone, { step: 'sport', insuranceType: 'SALUD' })
+      await this.sendMessage(phone, MSG_SALUD_INICIO)
+      await this.sendMessage(phone, MSG_SPORT)
+    } else {
+      await this.saveSession(phone, { step: 'auto_vehiculo', insuranceType: 'AUTO' })
+      await this.sendMessage(phone, MSG_AUTO_VEHICULO)
+    }
+  }
+
+  // ─── Salud steps (unchanged logic) ────────────────────────────────────────
 
   private async handleSport(phone: string, session: BotSession, text: string): Promise<void> {
     const answer = this.parseYesNo(text)
@@ -99,7 +192,6 @@ export class WhatsappBotService {
       await this.sendMessage(phone, MSG_SPORT)
       return
     }
-
     session.sport = answer
     session.step = 'insured'
     await this.saveSession(phone, session)
@@ -112,7 +204,6 @@ export class WhatsappBotService {
       await this.sendMessage(phone, MSG_INSURED)
       return
     }
-
     session.insured = answer
     session.step = 'nombre'
     await this.saveSession(phone, session)
@@ -125,17 +216,154 @@ export class WhatsappBotService {
     session.lastName = lastName
     session.step = 'completado'
     await this.saveSession(phone, session)
-
-    await this.createLead(phone, session)
+    await this.createSaludLead(phone, session)
     await this.sendMessage(
       phone,
       `¡Gracias ${firstName}! Un asesor de Priority Health se pondrá en contacto contigo lo más pronto posible 🎯`,
     )
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  // ─── Auto steps ───────────────────────────────────────────────────────────
 
-  // Returns true for "1/sí/si", false for "2/no", null if unrecognized
+  private async handleAutoVehiculo(phone: string, session: BotSession, text: string): Promise<void> {
+    const extracted = await this.extractAutoData(text)
+    session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
+    session.step = 'auto_propietario'
+    await this.saveSession(phone, session)
+    await this.sendMessage(phone, MSG_AUTO_PROPIETARIO)
+  }
+
+  private async handleAutoPropietario(phone: string, session: BotSession, text: string): Promise<void> {
+    const extracted = await this.extractAutoData(text)
+    session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
+    await this.checkAndCloseAuto(phone, session)
+  }
+
+  private async handleAutoRepregunta(phone: string, session: BotSession, text: string): Promise<void> {
+    const extracted = await this.extractAutoData(text)
+    session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
+    await this.checkAndCloseAuto(phone, session)
+  }
+
+  private async checkAndCloseAuto(phone: string, session: BotSession): Promise<void> {
+    const missing = REQUIRED_AUTO_FIELDS.filter(f => !session.autoData?.[f])
+
+    if (missing.length === 0) {
+      session.step = 'auto_completado'
+      await this.saveSession(phone, session)
+      await this.createAutoLead(phone, session)
+      const firstName = session.autoData?.nombrePropietario?.split(' ')[0] ?? ''
+      await this.sendMessage(phone, MSG_AUTO_COMPLETADO(firstName))
+    } else {
+      session.step = 'auto_repregunta'
+      await this.saveSession(phone, session)
+      await this.sendMessage(phone, this.buildMissingFieldsMsg(missing))
+    }
+  }
+
+  // ─── Claude extraction ────────────────────────────────────────────────────
+
+  private async extractAutoData(text: string): Promise<Partial<AutoData>> {
+    const apiKey = this.config.get<string>('ANTHROPIC_API_KEY')
+    if (!apiKey) {
+      this.logger.warn('ANTHROPIC_API_KEY not set — skipping Claude extraction')
+      return {}
+    }
+
+    try {
+      const client = new Anthropic({ apiKey })
+      const msg = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        system:
+          'Eres un extractor de datos para cotización de seguros de auto en Ecuador. ' +
+          'Extrae SOLO los datos presentes en el mensaje del usuario y devuelve un JSON válido sin texto adicional ' +
+          'con estos campos (null si no está presente): ' +
+          'marca, modelo, anio, placa, ciudad, nombrePropietario, cedulaRuc, edad, estadoCivil, sexo. ' +
+          'No inventes datos.',
+        messages: [{ role: 'user', content: text }],
+      })
+
+      const raw = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '{}'
+      const json = raw.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '')
+      return JSON.parse(json) as Partial<AutoData>
+    } catch (err) {
+      this.logger.error('Claude extraction error', err)
+      return {}
+    }
+  }
+
+  // ─── Lead creation ────────────────────────────────────────────────────────
+
+  private async createSaludLead(phone: string, session: BotSession): Promise<void> {
+    if (!session.firstName) return
+    const sport = session.sport ?? false
+    const insured = session.insured ?? false
+    let profileType: string
+    if (sport && insured) profileType = 'A'
+    else if (sport && !insured) profileType = 'B'
+    else if (!sport && insured) profileType = 'C'
+    else profileType = 'D'
+
+    try {
+      await this.leadsService.ingestLead({
+        firstName: session.firstName,
+        lastName: session.lastName,
+        phone,
+        insuranceType: InsuranceType.SALUD,
+        source: LeadSource.WHATSAPP,
+        sport,
+        insured,
+        profileType,
+      })
+      this.logger.log(`Salud lead created via WhatsApp bot for ${phone} — profile ${profileType}`)
+    } catch (err) {
+      this.logger.error(`Failed to create salud lead for ${phone}`, err)
+    }
+  }
+
+  private async createAutoLead(phone: string, session: BotSession): Promise<void> {
+    const ad = session.autoData ?? {}
+    const nombreCompleto = ad.nombrePropietario ?? ''
+    const parts = nombreCompleto.trim().split(/\s+/).filter(Boolean)
+    const firstName = parts[0] ?? phone
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : undefined
+
+    try {
+      await this.leadsService.ingestLead({
+        firstName,
+        lastName,
+        phone,
+        insuranceType: InsuranceType.AUTO,
+        source: LeadSource.WHATSAPP,
+        autoData: {
+          marca: ad.marca ?? null,
+          modelo: ad.modelo ?? null,
+          anio: ad.anio ?? null,
+          placa: ad.placa ?? null,
+          ciudad: ad.ciudad ?? null,
+          nombrePropietario: nombreCompleto || undefined,
+          cedulaRuc: ad.cedulaRuc ?? null,
+          edad: ad.edad ?? null,
+          estadoCivil: ad.estadoCivil ?? null,
+          sexo: ad.sexo ?? null,
+        },
+      })
+      this.logger.log(`Auto lead created via WhatsApp bot for ${phone}`)
+    } catch (err) {
+      this.logger.error(`Failed to create auto lead for ${phone}`, err)
+    }
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  private parseMenuChoice(text: string): 1 | 2 | null {
+    const t = text.trim().toLowerCase()
+    if (t === '1' || t === '1️⃣' || t.includes('salud')) return 1
+    if (t === '2' || t === '2️⃣' || t.includes('auto')) return 2
+    return null
+  }
+
   private parseYesNo(text: string): boolean | null {
     const t = text.trim().toLowerCase()
     if (t === '1' || t === 'sí' || t === 'si' || t === 'yes' || t === '1️⃣') return true
@@ -150,39 +378,24 @@ export class WhatsappBotService {
     return { firstName, lastName }
   }
 
-  private calcProfileType(sport: boolean, insured: boolean): string {
-    if (sport && insured) return 'A'
-    if (sport && !insured) return 'B'
-    if (!sport && insured) return 'C'
-    return 'D'
-  }
-
-  // ─── Lead creation ────────────────────────────────────────────────────────────
-
-  private async createLead(phone: string, session: BotSession): Promise<void> {
-    if (!session.firstName) return
-
-    const sport = session.sport ?? false
-    const insured = session.insured ?? false
-
-    try {
-      await this.leadsService.ingestLead({
-        firstName: session.firstName,
-        lastName: session.lastName,
-        phone,
-        insuranceType: InsuranceType.SALUD,
-        source: LeadSource.WHATSAPP,
-        sport,
-        insured,
-        profileType: this.calcProfileType(sport, insured),
-      })
-      this.logger.log(`Lead created via WhatsApp bot for ${phone} — profile ${this.calcProfileType(sport, insured)}`)
-    } catch (err) {
-      this.logger.error(`Failed to create lead for ${phone}`, err)
+  private filterNulls(data: Partial<AutoData>): Partial<AutoData> {
+    const result: Partial<AutoData> = {}
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== null && v !== undefined && v !== '') {
+        result[k as keyof AutoData] = v as string
+      }
     }
+    return result
   }
 
-  // ─── Redis ────────────────────────────────────────────────────────────────────
+  private buildMissingFieldsMsg(missing: string[]): string {
+    const labels = missing.map(f => FIELD_LABELS[f] ?? f)
+    const list = labels.map(l => `· ${l}`).join('\n')
+    const plural = missing.length === 1
+    return `¡Gracias! Solo me falt${plural ? 'a' : 'an'} ${plural ? 'este dato' : 'estos datos'}:\n${list}\n\nPor favor compártelos para continuar 😊`
+  }
+
+  // ─── Redis ────────────────────────────────────────────────────────────────
 
   private sessionKey(phone: string) {
     return `whatsapp:session:${phone}`
@@ -206,7 +419,7 @@ export class WhatsappBotService {
     }
   }
 
-  // ─── WhatsApp send ────────────────────────────────────────────────────────────
+  // ─── WhatsApp send ────────────────────────────────────────────────────────
 
   async sendMessage(to: string, body: string): Promise<void> {
     const token = this.config.get('META_WHATSAPP_TOKEN')

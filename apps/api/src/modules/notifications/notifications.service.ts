@@ -37,6 +37,7 @@ export interface LeadNotificationData {
   profileType: string
   source: string
   arrivalTime: Date
+  notes?: string
 }
 
 export interface FollowUpReminderData {
@@ -285,12 +286,15 @@ export class NotificationsService {
 
     if (agent.phone) {
       const profile = PROFILE_INFO[data.profileType]
+      const profileLine = data.notes
+        ? data.notes
+        : `🏷️ Perfil: ${data.profileType} — ${profile?.label ?? data.profileType}`
       const waMsg =
         `🎯 Nuevo lead asignado — Priority CRM\n` +
         `👤 Cliente: ${data.contactName}\n` +
         `📱 Teléfono: ${data.phone}\n` +
         `📧 Email: ${data.email ?? '—'}\n` +
-        `🏷️ Perfil: ${data.profileType} — ${profile?.label ?? data.profileType}\n` +
+        `${profileLine}\n` +
         `Entra al CRM para gestionar este lead.\n` +
         `👉 ${this.getAppUrl()}`
       await this.sendWhatsapp(agent.phone, waMsg)

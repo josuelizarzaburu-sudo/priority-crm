@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 const schema = z.object({
@@ -17,8 +18,19 @@ const schema = z.object({
   phone: z.string().min(8, 'Ingresa un teléfono válido'),
   email: z.string().email('Ingresa un email válido').optional().or(z.literal('')),
   insuranceType: z.enum(['SALUD', 'AUTO'], { required_error: 'Selecciona el tipo de seguro' }),
-  sport: z.boolean().default(false),
-  insured: z.boolean().default(false),
+  sport: z.boolean().optional(),
+  insured: z.boolean().optional(),
+  autoData: z.object({
+    marca: z.string().optional(),
+    modelo: z.string().optional(),
+    anio: z.string().optional(),
+    placa: z.string().optional(),
+    ciudad: z.string().optional(),
+    cedulaRuc: z.string().optional(),
+    edad: z.string().optional(),
+    estadoCivil: z.string().optional(),
+    sexo: z.string().optional(),
+  }).optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -56,14 +68,34 @@ export function QuoteForm() {
   const selectedInsurance = watch('insuranceType')
   const selectedSport = watch('sport')
   const selectedInsured = watch('insured')
+  const isAuto = selectedInsurance === 'AUTO'
 
   async function onSubmit(values: FormValues) {
     setError(null)
     try {
+      const body: Record<string, unknown> = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        phone: values.phone,
+        email: values.email,
+        insuranceType: values.insuranceType,
+        source: 'WEB',
+      }
+
+      if (isAuto) {
+        body.autoData = {
+          ...values.autoData,
+          nombrePropietario: `${values.firstName}${values.lastName ? ` ${values.lastName}` : ''}`,
+        }
+      } else {
+        body.sport = values.sport
+        body.insured = values.insured
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, source: 'WEB' }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Server error')
       setSubmitted(true)
@@ -138,56 +170,10 @@ export function QuoteForm() {
             </div>
           </div>
 
-          {/* Sport */}
-          <div className="space-y-2">
-            <Label>¿Practicas deporte regularmente? *</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {SPORT_OPTIONS.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={String(value)}
-                  type="button"
-                  onClick={() => setValue('sport', value, { shouldValidate: true })}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
-                    selectedSport === value
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border text-muted-foreground',
-                  )}
-                >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-sm font-medium">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Insured */}
-          <div className="space-y-2">
-            <Label>¿Ya cuentas con un seguro? *</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {INSURED_OPTIONS.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={String(value)}
-                  type="button"
-                  onClick={() => setValue('insured', value, { shouldValidate: true })}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
-                    selectedInsured === value
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border text-muted-foreground',
-                  )}
-                >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-sm font-medium">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Contact info */}
           <div className="space-y-1.5">
             <Label htmlFor="phone">Teléfono / WhatsApp *</Label>
-            <Input id="phone" type="tel" placeholder="+52 55 1234 5678" {...register('phone')} />
+            <Input id="phone" type="tel" placeholder="+593 99 123 4567" {...register('phone')} />
             {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
           </div>
 
@@ -196,6 +182,125 @@ export function QuoteForm() {
             <Input id="email" type="email" placeholder="juan@ejemplo.com" {...register('email')} />
             {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
+
+          {/* ── SALUD fields ──────────────────────────────────────────────── */}
+          {!isAuto && (
+            <>
+              <div className="space-y-2">
+                <Label>¿Practicas deporte regularmente? *</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {SPORT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      onClick={() => setValue('sport', value, { shouldValidate: true })}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
+                        selectedSport === value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border text-muted-foreground',
+                      )}
+                    >
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>¿Ya cuentas con un seguro? *</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {INSURED_OPTIONS.map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      onClick={() => setValue('insured', value, { shouldValidate: true })}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all hover:border-primary/60',
+                        selectedInsured === value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border text-muted-foreground',
+                      )}
+                    >
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── AUTO fields ───────────────────────────────────────────────── */}
+          {isAuto && (
+            <div className="space-y-4">
+              <p className="text-sm font-medium text-muted-foreground">🚗 Datos del vehículo</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Marca *</Label>
+                  <Input placeholder="Toyota" {...register('autoData.marca')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Modelo *</Label>
+                  <Input placeholder="Corolla" {...register('autoData.modelo')} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Año *</Label>
+                  <Input placeholder="2020" {...register('autoData.anio')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Placa *</Label>
+                  <Input placeholder="ABC-1234" {...register('autoData.placa')} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ciudad donde circula *</Label>
+                <Input placeholder="Quito" {...register('autoData.ciudad')} />
+              </div>
+
+              <p className="text-sm font-medium text-muted-foreground pt-1">🪪 Datos del propietario</p>
+              <div className="space-y-1.5">
+                <Label>Cédula o RUC *</Label>
+                <Input placeholder="1234567890" {...register('autoData.cedulaRuc')} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Edad</Label>
+                  <Input placeholder="35" {...register('autoData.edad')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Estado civil</Label>
+                  <Select onValueChange={(v) => setValue('autoData.estadoCivil', v)}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="soltero">Soltero/a</SelectItem>
+                      <SelectItem value="casado">Casado/a</SelectItem>
+                      <SelectItem value="divorciado">Divorciado/a</SelectItem>
+                      <SelectItem value="viudo">Viudo/a</SelectItem>
+                      <SelectItem value="unión libre">Unión libre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Sexo</Label>
+                  <Select onValueChange={(v) => setValue('autoData.sexo', v)}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="femenino">Femenino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>

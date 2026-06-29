@@ -1,6 +1,19 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsNotEmpty, IsBoolean } from 'class-validator'
-import { Transform } from 'class-transformer'
+import { IsString, IsEmail, IsOptional, IsEnum, IsNotEmpty, IsBoolean, ValidateNested } from 'class-validator'
+import { Transform, Type } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
+
+export class AutoDataDto {
+  @ApiProperty({ required: false }) @IsOptional() @IsString() marca?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() modelo?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() anio?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() placa?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() ciudad?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() nombrePropietario?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() cedulaRuc?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() edad?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() estadoCivil?: string | null
+  @ApiProperty({ required: false }) @IsOptional() @IsString() sexo?: string | null
+}
 
 export enum InsuranceType {
   SALUD = 'SALUD',
@@ -71,4 +84,10 @@ export class IngestLeadDto {
   @IsString()
   @IsOptional()
   notes?: string
+
+  @ApiProperty({ required: false, description: 'Datos del vehículo para cotización de auto' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AutoDataDto)
+  autoData?: AutoDataDto
 }

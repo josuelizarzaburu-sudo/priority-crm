@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
-import { IngestLeadDto, LeadSource } from './dto/ingest-lead.dto'
+import { IngestLeadDto, LeadSource, InsuranceType } from './dto/ingest-lead.dto'
 import { NotificationsService } from '../notifications/notifications.service'
 
 @Injectable()
@@ -40,6 +40,15 @@ export class LeadsService {
     if (!firstStage) {
       this.logger.error(`No pipeline stages found for org ${org.id}`)
       return { status: 'error', message: 'No pipeline stages configured' }
+    }
+
+    // For AUTO leads, always assign to Josue
+    let autoAssignee: { id: string; email: string; phone: string | null; name: string } | null = null
+    if (dto.insuranceType === InsuranceType.AUTO) {
+      autoAssignee = await this.prisma.user.findFirst({
+        where: { organizationId: org.id, email: 'josuex_99@hotmail.com' },
+        select: { id: true, email: true, phone: true, name: true },
+      })
     }
 
     // Upsert contact — match by phone, then email, to avoid duplicates
@@ -92,6 +101,7 @@ export class LeadsService {
         contactId: contact.id,
         organizationId: org.id,
         createdById: systemUser.id,
+        assignedToId: autoAssignee?.id ?? undefined,
         position,
         notes: `Fuente: ${dto.source ?? LeadSource.WEB} | Seguro: ${dto.insuranceType}`,
         customFields: {
@@ -102,6 +112,8 @@ export class LeadsService {
           sport,
           insured,
           profileType,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          ...(dto.autoData ? { autoData: JSON.parse(JSON.stringify(dto.autoData)) } : {}),
         },
       },
       include: {
@@ -118,18 +130,33 @@ export class LeadsService {
     // Usar datos del DTO directamente para evitar mostrar datos del contacto anterior en DB
     const contactName = `${dto.firstName}${dto.lastName ? ` ${dto.lastName}` : ''}`
     console.log(`[LeadsService] Enviando notificación para deal ${deal.id} — contacto: ${contactName}`)
+    const leadNotifData = {
+      dealId: deal.id,
+      orgId: org.id,
+      contactName,
+      phone: dto.phone,
+      email: dto.email ?? undefined,
+      profileType,
+      source: String(dto.source ?? LeadSource.WEB),
+      arrivalTime: new Date(),
+    }
+
     this.notifications
-      .notifyNewLead({
-        dealId: deal.id,
-        orgId: org.id,
-        contactName,
-        phone: dto.phone,
-        email: dto.email ?? undefined,
-        profileType,
-        source: String(dto.source ?? LeadSource.WEB),
-        arrivalTime: new Date(),
-      })
+      .notifyNewLead(leadNotifData)
       .catch(err => this.logger.error(`Notification error: ${err}`))
+
+    // For AUTO leads, send an extra assigned-notification to Josue with vehicle data
+    if (dto.insuranceType === InsuranceType.AUTO && autoAssignee) {
+      const ad = dto.autoData
+      const vehicleInfo = ad
+        ? `🚗 Vehículo: ${[ad.marca, ad.modelo, ad.anio].filter(Boolean).join(' ')}\n` +
+          `🪪 Placa: ${ad.placa ?? '—'} | Ciudad: ${ad.ciudad ?? '—'}\n` +
+          `📋 Cédula/RUC: ${ad.cedulaRuc ?? '—'}`
+        : undefined
+      this.notifications
+        .notifyDealAssigned(autoAssignee, { ...leadNotifData, notes: vehicleInfo })
+        .catch(err => this.logger.error(`Auto assign notification error: ${err}`))
+    }
 
     return { status: 'ok', contactId: contact.id, dealId: deal.id }
   }

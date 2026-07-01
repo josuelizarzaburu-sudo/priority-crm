@@ -37,6 +37,7 @@ import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
 import { LeadOriginBadge } from './lead-origin-badge'
+import { WhatsappChat } from './whatsapp-chat'
 
 const WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
 
@@ -242,6 +243,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const [editingAutoData, setEditingAutoData] = useState(false)
   const [autoDataEdit, setAutoDataEdit] = useState<Record<string, string>>({})
 
+  // ── Panel tab ─────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'info' | 'whatsapp'>('info')
 
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -256,6 +259,14 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     queryKey: ['pipeline', 'stages'],
     queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
   })
+
+  const { data: waMessages = [] } = useQuery<{ direction: string; read: boolean }[]>({
+    queryKey: ['wa-messages', dealId],
+    queryFn: () => api.get(`/whatsapp-chat/deals/${dealId}/messages`).then((r) => r.data),
+    enabled: !!dealId,
+    refetchInterval: 10000,
+  })
+  const unreadWaCount = waMessages.filter((m) => m.direction === 'INBOUND' && !m.read).length
 
   // Sync follow-up input when deal loads or changes
   useEffect(() => {
@@ -569,6 +580,46 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           loading={moveStage.isPending}
         />
 
+        {/* ── Tab bar ──────────────────────────────────────────────────── */}
+        <div className="flex border-b">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              activeTab === 'info'
+                ? 'border-b-2 border-[#25324b] text-[#25324b]'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Info
+          </button>
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className={cn(
+              'relative flex-1 py-2 text-sm font-medium transition-colors',
+              activeTab === 'whatsapp'
+                ? 'border-b-2 border-[#25324b] text-[#25324b]'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            WhatsApp
+            {unreadWaCount > 0 && (
+              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {unreadWaCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ── WhatsApp tab ─────────────────────────────────────────────── */}
+        {activeTab === 'whatsapp' && dealId && (
+          <div className="flex flex-1 flex-col overflow-hidden p-3">
+            <WhatsappChat dealId={dealId} contactPhone={deal?.contact?.phone} />
+          </div>
+        )}
+
+        {/* ── Info tab ─────────────────────────────────────────────────── */}
+        {activeTab === 'info' && (
         <ScrollArea className="flex-1">
           {isLoading ? (
             <div className="space-y-3 p-5">
@@ -1546,6 +1597,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
             </div>
           ) : null}
         </ScrollArea>
+        )}
       </div>
     </>
   )

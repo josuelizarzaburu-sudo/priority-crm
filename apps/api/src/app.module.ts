@@ -16,6 +16,7 @@ import { LeadsModule } from './modules/leads/leads.module'
 import { PushModule } from './modules/push/push.module'
 import { CalendarModule } from './modules/calendar/calendar.module'
 import { TrainingModule } from './modules/training/training.module'
+import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { TrainingModule } from './modules/training/training.module'
     PushModule,
     CalendarModule,
     TrainingModule,
+    WhatsappChatModule,
   ],
 })
 export class AppModule {}

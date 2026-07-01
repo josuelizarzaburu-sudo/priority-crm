@@ -62,6 +62,7 @@ model User {
   calendarParticipations   CalendarEventParticipant[]
   createdTrainingVideos   TrainingVideo[]      @relation("TrainingVideoCreatedBy")
   trainingVideoViews      TrainingVideoView[]
+  sentWhatsappMessages    WhatsappMessage[]
 
   @@map("users")
 }
@@ -173,8 +174,9 @@ model Deal {
   contact      Contact?      @relation(fields: [contactId], references: [id])
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("DealCreatedBy", fields: [createdById], references: [id])
-  assignedTo   User?         @relation("DealAssignedTo", fields: [assignedToId], references: [id])
-  activities   Activity[]
+  assignedTo       User?            @relation("DealAssignedTo", fields: [assignedToId], references: [id])
+  activities       Activity[]
+  whatsappMessages WhatsappMessage[]
 
   @@index([organizationId])
   @@index([stageId, position])
@@ -409,4 +411,45 @@ model TrainingVideoView {
 
   @@unique([videoId, userId])
   @@map("training_video_views")
+}
+
+// ─── WhatsApp Chat ────────────────────────────────────────────────────────────
+
+model WhatsappMessage {
+  id                String         @id @default(cuid())
+  dealId            String
+  direction         WaMsgDirection
+  messageType       WaMsgType      @default(TEXT)
+  content           String         @default("")
+  mediaUrl          String?
+  mediaFileName     String?
+  sentByUserId      String?
+  whatsappMessageId String?
+  status            WaMsgStatus    @default(SENT)
+  read              Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+
+  deal   Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  sentBy User? @relation(fields: [sentByUserId], references: [id])
+
+  @@index([dealId, createdAt])
+  @@map("whatsapp_messages")
+}
+
+enum WaMsgDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WaMsgType {
+  TEXT
+  DOCUMENT
+  IMAGE
+}
+
+enum WaMsgStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }

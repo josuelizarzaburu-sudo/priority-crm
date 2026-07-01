@@ -2,8 +2,11 @@ import { Controller, Post, Get, Body, Logger, Res, Req } from '@nestjs/common'
 import { ApiTags, ApiOperation } from '@nestjs/swagger'
 import { WebhooksService } from './webhooks.service'
 import { LeadsService } from '../leads/leads.service'
-import { WhatsappBotService } from '../whatsapp/whatsapp-bot.service'
+import { WhatsappBotService, RedisUnavailableError } from '../whatsapp/whatsapp-bot.service'
+import { WhatsappChatService } from '../whatsapp-chat/whatsapp-chat.service'
 import { IngestLeadDto, LeadSource } from '../leads/dto/ingest-lead.dto'
+
+const SUPPORTED_MEDIA_TYPES = new Set(['image', 'document', 'video', 'audio'])
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -14,6 +17,7 @@ export class WebhooksController {
     private readonly webhooksService: WebhooksService,
     private readonly leadsService: LeadsService,
     private readonly whatsappBot: WhatsappBotService,
+    private readonly whatsappChatService: WhatsappChatService,
   ) {}
 
   @Get('whatsapp')
@@ -51,16 +55,92 @@ export class WebhooksController {
     }
 
     const msg = entry.messages[0]
-    if (msg.type !== 'text') {
-      console.log('Ignoring non-text message, type:', msg.type)
+    const phone: string = msg.from
+    const waId: string = msg.id
+
+    // Bug #6: use allSettled so a Redis error doesn't swallow the dealId result
+    const [sessionResult, dealResult] = await Promise.allSettled([
+      this.whatsappBot.getSessionStep(phone),
+      this.whatsappChatService.findDealByPhone(phone),
+    ])
+
+    const redisDown =
+      sessionResult.status === 'rejected' &&
+      sessionResult.reason instanceof RedisUnavailableError
+
+    const sessionStep = sessionResult.status === 'fulfilled' ? sessionResult.value : null
+    const dealId = dealResult.status === 'fulfilled' ? dealResult.value : null
+
+    console.log('Processing message from:', phone, '| type:', msg.type, '| sessionStep:', sessionStep, '| dealId:', dealId, '| redisDown:', redisDown)
+
+    // Bug #6: when Redis is down we can't tell whether the bot is mid-flow;
+    // route to bot to avoid dropping a message the bot should be handling
+    if (redisDown) {
+      if (msg.type === 'text') {
+        await this.whatsappBot.processMessage(phone, msg.text?.body ?? '')
+      }
       return
     }
 
-    const phone: string = msg.from
-    const text: string = msg.text?.body ?? ''
-    console.log('Processing message from:', phone, '| text:', text)
+    const botDone = sessionStep === 'completado' || sessionStep === 'auto_completado'
 
-    await this.whatsappBot.processMessage(phone, text)
+    if (msg.type === 'text') {
+      const text: string = msg.text?.body ?? ''
+
+      // Active bot session (not done) → let bot handle
+      if (!botDone && sessionStep !== null) {
+        await this.whatsappBot.processMessage(phone, text)
+        return
+      }
+
+      // No session and no deal → new lead, start bot
+      if (sessionStep === null && !dealId) {
+        await this.whatsappBot.processMessage(phone, text)
+        return
+      }
+
+      if (dealId) {
+        // Bot done OR has deal without active session → save for vendor, no auto-reply
+        await this.whatsappChatService.saveInbound({
+          dealId,
+          content: text,
+          messageType: 'TEXT',
+          whatsappMessageId: waId,
+        })
+      } else {
+        // Bug #1: botDone=true but no deal (e.g. lead creation failed) → clear
+        // the stale session and restart the bot so the customer gets a response
+        await this.whatsappBot.clearSession(phone)
+        await this.whatsappBot.processMessage(phone, text)
+      }
+    } else {
+      // Bug #4: ignore unsupported types before trying to treat them as media
+      if (!SUPPORTED_MEDIA_TYPES.has(msg.type)) {
+        console.log(`Ignoring unsupported message type: ${msg.type}`)
+        return
+      }
+
+      // Non-text media: save to chat inbox if deal exists
+      const mediaType = msg.type === 'image' ? 'IMAGE' : 'DOCUMENT'
+      const media = msg.image ?? msg.document ?? msg.video ?? msg.audio
+      // Bug #3: store proxy URL so the frontend fetches via authenticated endpoint
+      const mediaUrl = media?.id ? `/whatsapp-chat/media/${media.id}` : undefined
+      const mediaFileName = msg.document?.filename ?? `${msg.type}_${waId}`
+      const caption = msg.image?.caption ?? msg.document?.caption ?? ''
+
+      if (dealId) {
+        await this.whatsappChatService.saveInbound({
+          dealId,
+          content: caption,
+          messageType: mediaType as 'IMAGE' | 'DOCUMENT',
+          mediaUrl,
+          mediaFileName,
+          whatsappMessageId: waId,
+        })
+      } else {
+        console.log('Non-text message from unknown contact, no deal found — ignoring')
+      }
+    }
   }
 
   @Post('email/inbound')

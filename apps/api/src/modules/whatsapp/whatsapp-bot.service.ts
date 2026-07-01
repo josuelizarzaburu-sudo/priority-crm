@@ -7,6 +7,10 @@ import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 
 export const WHATSAPP_REDIS = 'WHATSAPP_REDIS'
 
+export class RedisUnavailableError extends Error {
+  constructor() { super('Redis unavailable') }
+}
+
 type BotStep =
   | 'menu'
   // salud
@@ -399,6 +403,32 @@ export class WhatsappBotService {
 
   private sessionKey(phone: string) {
     return `whatsapp:session:${phone}`
+  }
+
+  // Throws RedisUnavailableError on Redis failure so callers can distinguish
+  // "no session" (null) from "can't tell" (error)
+  async getSessionStep(phone: string): Promise<BotStep | null> {
+    let raw: string | null
+    try {
+      raw = await this.redis.get(this.sessionKey(phone))
+    } catch (err) {
+      this.logger.error(`Redis GET error for ${phone}`, err)
+      throw new RedisUnavailableError()
+    }
+    if (!raw) return null
+    try {
+      return (JSON.parse(raw) as BotSession).step ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async clearSession(phone: string): Promise<void> {
+    try {
+      await this.redis.del(this.sessionKey(phone))
+    } catch (err) {
+      this.logger.error(`Redis DEL error for ${phone}`, err)
+    }
   }
 
   private async getSession(phone: string): Promise<BotSession | null> {

@@ -16,11 +16,16 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { RolesGuard } from '../auth/guards/roles.guard'
+import { Roles } from '../auth/decorators/roles.decorator'
 import { WhatsappChatService } from './whatsapp-chat.service'
+
+const WA_ROLES = ['SUPER_ADMIN', 'MANAGER'] as const
 
 @ApiTags('WhatsApp Chat')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...WA_ROLES)
 @Controller('whatsapp-chat')
 export class WhatsappChatController {
   constructor(private readonly service: WhatsappChatService) {}

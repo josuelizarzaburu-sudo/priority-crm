@@ -260,13 +260,17 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
     queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
   })
 
+  const canAccessWhatsApp = userRole === 'SUPER_ADMIN' || userRole === 'MANAGER'
+
   const { data: waMessages = [] } = useQuery<{ direction: string; read: boolean }[]>({
     queryKey: ['wa-messages', dealId],
     queryFn: () => api.get(`/whatsapp-chat/deals/${dealId}/messages`).then((r) => r.data),
-    enabled: !!dealId,
-    refetchInterval: 10000,
+    enabled: !!dealId && canAccessWhatsApp,
+    refetchInterval: canAccessWhatsApp ? 10000 : false,
   })
-  const unreadWaCount = waMessages.filter((m) => m.direction === 'INBOUND' && !m.read).length
+  const unreadWaCount = canAccessWhatsApp
+    ? waMessages.filter((m) => m.direction === 'INBOUND' && !m.read).length
+    : 0
 
   // Sync follow-up input when deal loads or changes
   useEffect(() => {
@@ -580,46 +584,48 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           loading={moveStage.isPending}
         />
 
-        {/* ── Tab bar ──────────────────────────────────────────────────── */}
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab('info')}
-            className={cn(
-              'flex-1 py-2 text-sm font-medium transition-colors',
-              activeTab === 'info'
-                ? 'border-b-2 border-[#25324b] text-[#25324b]'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Info
-          </button>
-          <button
-            onClick={() => setActiveTab('whatsapp')}
-            className={cn(
-              'relative flex-1 py-2 text-sm font-medium transition-colors',
-              activeTab === 'whatsapp'
-                ? 'border-b-2 border-[#25324b] text-[#25324b]'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            WhatsApp
-            {unreadWaCount > 0 && (
-              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                {unreadWaCount}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* ── Tab bar — solo visible para SUPER_ADMIN y MANAGER ───────── */}
+        {canAccessWhatsApp && (
+          <div className="flex border-b">
+            <button
+              onClick={() => setActiveTab('info')}
+              className={cn(
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                activeTab === 'info'
+                  ? 'border-b-2 border-[#25324b] text-[#25324b]'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Info
+            </button>
+            <button
+              onClick={() => setActiveTab('whatsapp')}
+              className={cn(
+                'relative flex-1 py-2 text-sm font-medium transition-colors',
+                activeTab === 'whatsapp'
+                  ? 'border-b-2 border-[#25324b] text-[#25324b]'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              WhatsApp
+              {unreadWaCount > 0 && (
+                <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {unreadWaCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* ── WhatsApp tab ─────────────────────────────────────────────── */}
-        {activeTab === 'whatsapp' && dealId && (
+        {canAccessWhatsApp && activeTab === 'whatsapp' && dealId && (
           <div className="flex flex-1 flex-col overflow-hidden p-3">
             <WhatsappChat dealId={dealId} contactPhone={deal?.contact?.phone} />
           </div>
         )}
 
         {/* ── Info tab ─────────────────────────────────────────────────── */}
-        {activeTab === 'info' && (
+        {(!canAccessWhatsApp || activeTab === 'info') && (
         <ScrollArea className="flex-1">
           {isLoading ? (
             <div className="space-y-3 p-5">

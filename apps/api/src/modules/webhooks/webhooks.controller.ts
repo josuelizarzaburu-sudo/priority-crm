@@ -58,7 +58,7 @@ export class WebhooksController {
     const phone: string = msg.from
     const waId: string = msg.id
 
-    // Bug #6: use allSettled so a Redis error doesn't swallow the dealId result
+    // Bug #6: allSettled so a Redis error doesn't swallow the dealId result
     const [sessionResult, dealResult] = await Promise.allSettled([
       this.whatsappBot.getSessionStep(phone),
       this.whatsappChatService.findDealByPhone(phone),
@@ -73,8 +73,7 @@ export class WebhooksController {
 
     console.log('Processing message from:', phone, '| type:', msg.type, '| sessionStep:', sessionStep, '| dealId:', dealId, '| redisDown:', redisDown)
 
-    // Bug #6: when Redis is down we can't tell whether the bot is mid-flow;
-    // route to bot to avoid dropping a message the bot should be handling
+    // Bug #6: Redis down — can't determine session state, fall back to bot
     if (redisDown) {
       if (msg.type === 'text') {
         await this.whatsappBot.processMessage(phone, msg.text?.body ?? '')
@@ -82,12 +81,37 @@ export class WebhooksController {
       return
     }
 
+    // ── Interactive button reply (reentry menu response) ───────────────────
+    if (msg.type === 'interactive') {
+      const buttonId: string | undefined = msg.interactive?.button_reply?.id
+      console.log('Interactive button reply from:', phone, '| buttonId:', buttonId)
+
+      if (buttonId === 'continue_advisor') {
+        // Client chose manual mode: set flag and forward to vendor inbox
+        await this.whatsappBot.setManualMode(phone)
+        if (dealId) {
+          await this.whatsappChatService.saveInbound({
+            dealId,
+            content: 'Continuar con asesor',
+            messageType: 'TEXT',
+            whatsappMessageId: waId,
+          })
+        }
+      } else if (buttonId === 'new_quote') {
+        // Client wants a new quote: clear session and start fresh bot flow
+        await this.whatsappBot.clearSession(phone)
+        await this.whatsappBot.processMessage(phone, '')
+      }
+      return
+    }
+
     const botDone = sessionStep === 'completado' || sessionStep === 'auto_completado'
 
+    // ── Text messages ──────────────────────────────────────────────────────
     if (msg.type === 'text') {
       const text: string = msg.text?.body ?? ''
 
-      // Active bot session (not done) → let bot handle
+      // Active bot session (not done) → bot handles
       if (!botDone && sessionStep !== null) {
         await this.whatsappBot.processMessage(phone, text)
         return
@@ -99,47 +123,64 @@ export class WebhooksController {
         return
       }
 
-      if (dealId) {
-        // Bot done OR has deal without active session → save for vendor, no auto-reply
+      // Bug #1: botDone but no deal (lead creation failed) → clear stale session,
+      // restart bot so the customer gets a response
+      if (!dealId) {
+        await this.whatsappBot.clearSession(phone)
+        await this.whatsappBot.processMessage(phone, text)
+        return
+      }
+
+      // Has a deal, no active mid-flow bot (sessionStep null or botDone)
+      // Check manual mode: if active, forward to vendor and refresh 24 h TTL
+      const inManualMode = await this.whatsappBot.isManualMode(phone)
+      if (inManualMode) {
+        await this.whatsappBot.setManualMode(phone) // refresh TTL on activity
         await this.whatsappChatService.saveInbound({
           dealId,
           content: text,
           messageType: 'TEXT',
           whatsappMessageId: waId,
         })
-      } else {
-        // Bug #1: botDone=true but no deal (e.g. lead creation failed) → clear
-        // the stale session and restart the bot so the customer gets a response
-        await this.whatsappBot.clearSession(phone)
-        await this.whatsappBot.processMessage(phone, text)
-      }
-    } else {
-      // Bug #4: ignore unsupported types before trying to treat them as media
-      if (!SUPPORTED_MEDIA_TYPES.has(msg.type)) {
-        console.log(`Ignoring unsupported message type: ${msg.type}`)
         return
       }
 
-      // Non-text media: save to chat inbox if deal exists
+      // Not in manual mode → show reentry menu so the client can choose
+      // (re-sending on every text message is intentional: reminds them to use buttons)
+      await this.whatsappBot.sendReentryMenu(phone)
+      return
+    }
+
+    // ── Non-text media ─────────────────────────────────────────────────────
+    // Bug #4: ignore unsupported types (sticker, reaction, location, contacts)
+    if (!SUPPORTED_MEDIA_TYPES.has(msg.type)) {
+      console.log(`Ignoring unsupported message type: ${msg.type}`)
+      return
+    }
+
+    // Supported media: always forward to vendor inbox if a deal exists
+    // (media cannot trigger the bot flow; manual mode refresh applies too)
+    if (dealId) {
       const mediaType = msg.type === 'image' ? 'IMAGE' : 'DOCUMENT'
       const media = msg.image ?? msg.document ?? msg.video ?? msg.audio
-      // Bug #3: store proxy URL so the frontend fetches via authenticated endpoint
+      // Bug #3: proxy URL so the frontend fetches via authenticated endpoint
       const mediaUrl = media?.id ? `/whatsapp-chat/media/${media.id}` : undefined
       const mediaFileName = msg.document?.filename ?? `${msg.type}_${waId}`
       const caption = msg.image?.caption ?? msg.document?.caption ?? ''
 
-      if (dealId) {
-        await this.whatsappChatService.saveInbound({
-          dealId,
-          content: caption,
-          messageType: mediaType as 'IMAGE' | 'DOCUMENT',
-          mediaUrl,
-          mediaFileName,
-          whatsappMessageId: waId,
-        })
-      } else {
-        console.log('Non-text message from unknown contact, no deal found — ignoring')
-      }
+      const inManualMode = await this.whatsappBot.isManualMode(phone)
+      if (inManualMode) await this.whatsappBot.setManualMode(phone) // refresh TTL
+
+      await this.whatsappChatService.saveInbound({
+        dealId,
+        content: caption,
+        messageType: mediaType as 'IMAGE' | 'DOCUMENT',
+        mediaUrl,
+        mediaFileName,
+        whatsappMessageId: waId,
+      })
+    } else {
+      console.log('Non-text message from unknown contact, no deal found — ignoring')
     }
   }
 

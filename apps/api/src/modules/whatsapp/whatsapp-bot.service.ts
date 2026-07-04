@@ -431,6 +431,68 @@ export class WhatsappBotService {
     }
   }
 
+  // ─── Manual mode (client chose "Continuar con asesor") ───────────────────
+  // Flag lives separately from the bot session so it survives session expiry.
+  // TTL is refreshed on every message while in manual mode (24 h of inactivity).
+
+  private manualKey(phone: string) { return `whatsapp:manual:${phone}` }
+  private readonly MANUAL_TTL_SECONDS = 86400 // 24 h
+
+  async isManualMode(phone: string): Promise<boolean> {
+    try {
+      return (await this.redis.exists(this.manualKey(phone))) === 1
+    } catch (err) {
+      this.logger.error(`Redis EXISTS (manual) error for ${phone}`, err)
+      return false
+    }
+  }
+
+  async setManualMode(phone: string): Promise<void> {
+    try {
+      await this.redis.set(this.manualKey(phone), '1', 'EX', this.MANUAL_TTL_SECONDS)
+    } catch (err) {
+      this.logger.error(`Redis SET (manual) error for ${phone}`, err)
+    }
+  }
+
+  // ─── Reentry menu (interactive buttons) ──────────────────────────────────
+
+  async sendReentryMenu(to: string): Promise<void> {
+    const token = this.config.get<string>('META_WHATSAPP_TOKEN')
+    const phoneId = this.config.get<string>('META_WHATSAPP_PHONE_ID')
+    if (!token || !phoneId) {
+      this.logger.warn('META_WHATSAPP_TOKEN or META_WHATSAPP_PHONE_ID not set — skipping reentry menu')
+      return
+    }
+    try {
+      const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text: '¡Hola de nuevo! 👋 ¿En qué te podemos ayudar?' },
+            action: {
+              buttons: [
+                { type: 'reply', reply: { id: 'continue_advisor', title: 'Continuar con asesor' } },
+                { type: 'reply', reply: { id: 'new_quote', title: 'Cotizar nuevo seguro' } },
+              ],
+            },
+          },
+        }),
+      })
+      if (!res.ok) {
+        const errText = await res.text()
+        this.logger.error(`Reentry menu send failed: ${errText}`)
+      }
+    } catch (err) {
+      this.logger.error('Reentry menu send error', err)
+    }
+  }
+
   private async getSession(phone: string): Promise<BotSession | null> {
     try {
       const raw = await this.redis.get(this.sessionKey(phone))

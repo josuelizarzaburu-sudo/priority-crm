@@ -34,7 +34,11 @@ export interface LeadNotificationData {
   contactName: string
   phone: string
   email?: string
-  profileType: string
+  profileType?: string | null
+  insuranceType?: string
+  sport?: boolean
+  insured?: boolean
+  autoData?: Record<string, string | null | undefined>
   source: string
   arrivalTime: Date
   notes?: string
@@ -151,30 +155,53 @@ export class NotificationsService {
     return this.config.get<string>('APP_URL') || 'https://crm.priorityhealth.ec'
   }
 
+  private readonly VALID_PROFILES = new Set(['A', 'B', 'C', 'D'])
+
   private buildHtml(data: LeadNotificationData, withPitch: boolean): string {
-    const profile = PROFILE_INFO[data.profileType] ?? { label: data.profileType, pitch: '' }
+    const isAuto = data.insuranceType === 'AUTO'
+    const hasProfile = !!data.profileType && this.VALID_PROFILES.has(data.profileType)
+    const isSaludVitality = !isAuto && hasProfile
+    const isSaludTradicional = !isAuto && !hasProfile
+    const profile = hasProfile ? (PROFILE_INFO[data.profileType!] ?? { label: data.profileType!, pitch: '' }) : null
     const appUrl = this.getAppUrl()
 
-    const rows: [string, string][] = [
-      ['Nombre', this.escape(data.contactName)],
-      ['Teléfono', this.escape(data.phone)],
-      ['Email', this.escape(data.email ?? '—')],
-      ['Perfil', `${data.profileType} — ${profile.label}`],
-      ['Fuente', this.escape(data.source)],
-      ['Hora de llegada', this.formatTime(data.arrivalTime)],
-    ]
-
-    const rowsHtml = rows
-      .map(
-        ([k, v]) => `
-      <tr>
+    const row = (k: string, v: string): string =>
+      `<tr>
         <td style="padding:10px 24px;color:#6b7585;font-size:13px;width:38%;border-bottom:1px solid #f3f4f6;">${k}</td>
         <td style="padding:10px 24px;color:#25324b;font-size:13px;font-weight:600;border-bottom:1px solid #f3f4f6;">${v}</td>
-      </tr>`,
-      )
-      .join('')
+      </tr>`
 
-    const pitchHtml = withPitch
+    const baseRows =
+      row('Nombre', this.escape(data.contactName)) +
+      row('Teléfono', this.escape(data.phone)) +
+      row('Email', this.escape(data.email ?? '—'))
+
+    let typeRows = ''
+    if (isSaludVitality && profile) {
+      typeRows =
+        row('Perfil', `${data.profileType} — ${profile.label}`) +
+        row('Deporte', data.sport ? 'Sí' : 'No') +
+        row('Seguro actual', data.insured ? 'Sí' : 'No')
+    } else if (isAuto && data.autoData) {
+      const ad = data.autoData
+      const vehiculo = [ad.marca, ad.modelo, ad.anio].filter(Boolean).join(' ')
+      if (vehiculo) typeRows += row('Vehículo', this.escape(vehiculo))
+      if (ad.placa) typeRows += row('Placa', this.escape(ad.placa))
+      if (ad.ciudad) typeRows += row('Ciudad', this.escape(ad.ciudad))
+      if (ad.nombrePropietario) typeRows += row('Propietario', this.escape(ad.nombrePropietario))
+      if (ad.cedulaRuc) typeRows += row('Cédula / RUC', this.escape(ad.cedulaRuc))
+      if (ad.edad) typeRows += row('Edad', this.escape(ad.edad))
+      if (ad.estadoCivil) typeRows += row('Estado civil', this.escape(ad.estadoCivil))
+      if (ad.sexo) typeRows += row('Sexo', this.escape(ad.sexo))
+    } else if (isSaludTradicional && data.notes) {
+      typeRows = row('Aseguradora de interés', this.escape(data.notes))
+    }
+
+    const footerRows =
+      row('Fuente', this.escape(data.source)) +
+      row('Hora de llegada', this.formatTime(data.arrivalTime))
+
+    const pitchHtml = withPitch && isSaludVitality && profile?.pitch
       ? `<tr>
           <td colspan="2" style="padding:16px 24px;background:#fef9f0;border-top:2px solid #d3ac76;">
             <strong style="color:#25324b;font-size:13px;">🎯 Pitch recomendado — Perfil ${data.profileType}:</strong>
@@ -191,7 +218,7 @@ export class NotificationsService {
       <h2 style="margin:0;color:#fff;font-size:17px;font-weight:700;">Priority CRM</h2>
     </div>
     <table style="width:100%;border-collapse:collapse;">
-      ${rowsHtml}
+      ${baseRows}${typeRows}${footerRows}
       ${pitchHtml}
     </table>
     <div style="padding:20px 24px;text-align:center;background:#f8f9fa;">
@@ -285,16 +312,22 @@ export class NotificationsService {
     })
 
     if (agent.phone) {
-      const profile = PROFILE_INFO[data.profileType]
-      const profileLine = data.notes
-        ? data.notes
-        : `🏷️ Perfil: ${data.profileType} — ${profile?.label ?? data.profileType}`
+      const hasProfile = !!data.profileType && this.VALID_PROFILES.has(data.profileType)
+      const profile = hasProfile ? PROFILE_INFO[data.profileType!] : undefined
+      let profileLine: string
+      if (data.notes) {
+        profileLine = data.notes
+      } else if (hasProfile && profile) {
+        profileLine = `🏷️ Perfil: ${data.profileType} — ${profile.label}`
+      } else {
+        profileLine = ''
+      }
       const waMsg =
         `🎯 Nuevo lead asignado — Priority CRM\n` +
         `👤 Cliente: ${data.contactName}\n` +
         `📱 Teléfono: ${data.phone}\n` +
         `📧 Email: ${data.email ?? '—'}\n` +
-        `${profileLine}\n` +
+        (profileLine ? `${profileLine}\n` : '') +
         `Entra al CRM para gestionar este lead.\n` +
         `👉 ${this.getAppUrl()}`
       await this.sendWhatsapp(agent.phone, waMsg)

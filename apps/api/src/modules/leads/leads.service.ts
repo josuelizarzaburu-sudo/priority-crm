@@ -87,11 +87,17 @@ export class LeadsService {
 
     const sport = dto.sport ?? false
     const insured = dto.insured ?? false
-    let profileType: string
-    if (sport && insured) profileType = 'A'
-    else if (sport && !insured) profileType = 'B'
-    else if (!sport && insured) profileType = 'C'
-    else profileType = 'D'
+
+    // profileType only applies to Salud Vitality — when sport AND insured were explicitly answered
+    const hasSurvey = dto.insuranceType === InsuranceType.SALUD &&
+      dto.sport !== undefined && dto.insured !== undefined
+    let profileType: string | null = null
+    if (hasSurvey) {
+      if (sport && insured) profileType = 'A'
+      else if (sport && !insured) profileType = 'B'
+      else if (!sport && insured) profileType = 'C'
+      else profileType = 'D'
+    }
 
     const insuranceLabel = dto.insuranceType === 'SALUD' ? 'Salud' : 'Auto'
     const deal = await this.prisma.deal.create({
@@ -111,7 +117,7 @@ export class LeadsService {
           leadCreatedAt: new Date().toISOString(),
           sport,
           insured,
-          profileType,
+          ...(profileType ? { profileType } : {}),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           ...(dto.autoData ? { autoData: JSON.parse(JSON.stringify(dto.autoData)) } : {}),
         },
@@ -127,7 +133,6 @@ export class LeadsService {
     console.log('Deal contact:', deal.contact)
     console.log('Calling notifyNewLead...')
 
-    // Usar datos del DTO directamente para evitar mostrar datos del contacto anterior en DB
     const contactName = `${dto.firstName}${dto.lastName ? ` ${dto.lastName}` : ''}`
     console.log(`[LeadsService] Enviando notificación para deal ${deal.id} — contacto: ${contactName}`)
     const leadNotifData = {
@@ -137,6 +142,11 @@ export class LeadsService {
       phone: dto.phone,
       email: dto.email ?? undefined,
       profileType,
+      insuranceType: dto.insuranceType as string,
+      sport: hasSurvey ? sport : undefined,
+      insured: hasSurvey ? insured : undefined,
+      autoData: dto.autoData ? { ...dto.autoData } : undefined,
+      notes: dto.notes,
       source: String(dto.source ?? LeadSource.WEB),
       arrivalTime: new Date(),
     }

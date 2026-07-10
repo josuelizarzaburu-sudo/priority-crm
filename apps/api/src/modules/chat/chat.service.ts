@@ -43,7 +43,7 @@ Para AUTO:
 - Placa del vehículo
 - Marca y modelo del auto
 
-Cuando tengas TODOS los datos del tipo correspondiente, crea el lead.
+Cuando tengas nombre y teléfono del cliente, crea el lead INMEDIATAMENTE — no esperes más confirmaciones. El interés se puede especificar con lo que ya sabes de la conversación.
 
 FORMATO DE RESPUESTA — siempre responde con JSON válido:
 

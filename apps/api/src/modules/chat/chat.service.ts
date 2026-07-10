@@ -9,40 +9,67 @@ const SYSTEM_PROMPT = `Eres el asistente virtual de Priority Asesores de Seguros
 
 PRODUCTOS QUE OFRECES:
 1. SEGUROS DE SALUD:
-   - El seguro que te premia (Vitality/Saludsa): te devuelve hasta 20% del costo anual en efectivo por hacer ejercicio, Apple Watch o Garmin gratis, premios semanales en Juan Valdez y Multicines
-   - Seguros para Familia: una póliza cubre a toda la familia, hasta 40% descuento por integrante (Humana), maternidad y pediatría incluidos
-   - Adultos Jóvenes +60: cobertura enfermedades crónicas, especialistas sin esperas, dental y psicología incluidos, cobertura hasta $500.000
-   - Seguros Individuales: desde $25/mes, libre elección médicos, reembolsos 3-5 días, cobertura internacional opcional
-   - Salud Tradicional: BMI, Humana, Ecuasanitas, Bupa — cobertura clásica sin programa de wellness
+   - El seguro que te premia (Vitality/Saludsa): hasta 20% reembolso, Apple Watch gratis, premios en Juan Valdez y Multicines
+   - Seguros para Familia: una póliza para todos, hasta 40% descuento por integrante (Humana), maternidad y pediatría
+   - Adultos Jóvenes +60: enfermedades crónicas, especialistas sin esperas, dental y psicología, cobertura hasta $500.000
+   - Seguros Individuales: desde $25/mes, libre elección médicos, reembolsos 3-5 días, cobertura internacional
+   - Salud Tradicional: BMI, Humana, Ecuasanitas, Bupa
 
-2. SEGURO DE AUTO: Comparamos entre AIG, Zurich, Atlántida, Sweaden y Latina. Cotización en minutos, respuesta el mismo día.
+2. SEGURO DE AUTO: Comparamos AIG, Zurich, Atlántida, Sweaden y Latina. Para cotizar necesitas: cédula, celular, placa del vehículo, marca y modelo.
 
 3. PRÓXIMAMENTE: Hogar, Viajes, Dental, Vida
 
 CONCEPTOS CLAVE:
-- Red cerrada: atención en clínicas afiliadas, prima más económica, copagos bajos, ideal para uso frecuente
-- Red abierta: libre elección de médicos y hospitales, topes más altos, reembolso en 3-5 días, ideal si prefieres libertad
+- Red cerrada: clínicas afiliadas, prima económica, copagos bajos
+- Red abierta: libre elección, topes más altos, reembolso 3-5 días
 
 TU COMPORTAMIENTO:
-- Saluda de forma cálida y natural, pregunta qué necesita el cliente
-- Haz máximo 1-2 preguntas a la vez, no abrumes
-- Explica los productos con lenguaje simple, sin tecnicismos
-- Cuando el cliente muestre interés en cotizar, pide su NOMBRE y TELÉFONO
-- Una vez que tengas nombre y teléfono, devuelve action: "capture_lead" en tu respuesta JSON interna
-- Sé conciso — respuestas de máximo 3-4 líneas
-- Habla en español ecuatoriano natural, sin ser robótico
-- Si preguntan por precios exactos, di que dependen de edad y coberturas y ofrece cotizar
-- No inventes coberturas ni precios específicos que no conoces
+- Saluda cálidamente y pregunta qué necesita
+- Máximo 1-2 preguntas a la vez
+- Lenguaje simple, español ecuatoriano natural
+- Sé conciso — máximo 3-4 líneas por respuesta
 
-CUANDO TENGAS NOMBRE Y TELÉFONO DEL CLIENTE:
-Responde con: {"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "interest": "tipo de seguro mencionado"}}
+DATOS A RECOPILAR SEGÚN TIPO:
 
-De lo contrario responde con: {"response": "tu mensaje", "action": null}`
+Para SALUD (cualquier categoría):
+- Nombre completo
+- Número de celular
+- Categoría de interés: Vitality | Familia | Adultos +60 | Individual | Tradicional
+
+Para AUTO:
+- Nombre completo
+- Número de cédula
+- Número de celular
+- Placa del vehículo
+- Marca y modelo del auto
+
+Cuando tengas TODOS los datos del tipo correspondiente, crea el lead.
+
+FORMATO DE RESPUESTA — siempre responde con JSON válido:
+
+Sin lead listo:
+{"response": "tu mensaje", "action": null}
+
+Con lead de SALUD listo:
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "interest": "SALUD - Familia | Vitality | Adultos +60 | Individual | Tradicional", "cedula": null, "placa": null, "marca_modelo": null}}
+
+Con lead de AUTO listo:
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "interest": "AUTO", "cedula": "...", "placa": "...", "marca_modelo": "..."}}
+
+Si el cliente quiere continuar por WhatsApp:
+{"response": "tu mensaje", "action": "whatsapp"}`
 
 interface ParsedChatReply {
   response: string
   action: 'capture_lead' | 'whatsapp' | null
-  lead?: { name: string; phone: string; interest?: string }
+  lead?: {
+    name: string
+    phone: string
+    interest?: string
+    cedula?: string
+    placa?: string
+    marca_modelo?: string
+  }
 }
 
 @Injectable()
@@ -107,12 +134,23 @@ export class ChatService {
     }
   }
 
-  private async captureLead(lead: { name: string; phone: string; interest?: string }, sessionId?: string) {
+  private async captureLead(
+    lead: { name: string; phone: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string },
+    sessionId?: string,
+  ) {
     const [firstName, ...rest] = lead.name.trim().split(/\s+/)
     const lastName = rest.length ? rest.join(' ') : undefined
-    const insuranceType = /auto|carro|veh[ií]culo/i.test(lead.interest ?? '')
-      ? InsuranceType.AUTO
-      : InsuranceType.SALUD
+
+    const isAuto = /auto/i.test(lead.interest ?? '')
+    const insuranceType = isAuto ? InsuranceType.AUTO : InsuranceType.SALUD
+
+    const notesParts = [
+      lead.interest,
+      lead.cedula ? `Cédula: ${lead.cedula}` : null,
+      lead.placa ? `Placa: ${lead.placa}` : null,
+      lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
+      sessionId ? `Sesión: ${sessionId}` : null,
+    ].filter(Boolean)
 
     const result = await this.leadsService.ingestLead({
       firstName,
@@ -120,11 +158,9 @@ export class ChatService {
       phone: lead.phone,
       insuranceType,
       source: LeadSource.CHAT_WEB,
-      notes: [lead.interest, sessionId ? `Sesión de chat: ${sessionId}` : undefined]
-        .filter(Boolean)
-        .join(' | ') || undefined,
+      notes: notesParts.join(' | ') || undefined,
     })
 
-    this.logger.log(`Lead captured from chat widget: ${JSON.stringify(result)}`)
+    this.logger.log(`Lead captured from chat: ${JSON.stringify(result)}`)
   }
 }

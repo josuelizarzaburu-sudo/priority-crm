@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import Anthropic from '@anthropic-ai/sdk'
 import { LeadsService } from '../leads/leads.service'
-import { InsuranceType, LeadSource } from '../leads/dto/ingest-lead.dto'
 import { ChatMessageDto } from './dto/chat.dto'
 
 const SYSTEM_PROMPT = `Eres el asistente virtual de Priority Asesores de Seguros, un broker de seguros en Quito, Ecuador. Tu nombre es Priority Assistant.
@@ -24,38 +23,42 @@ CONCEPTOS CLAVE:
 - Red abierta: libre elección, topes más altos, reembolso 3-5 días
 
 TU COMPORTAMIENTO:
-- Saluda cálidamente y pregunta qué necesita
+- Saluda cálidamente y en tu segunda respuesta como máximo, ya debes estar pidiendo nombre, correo y celular — no expliques todos los productos en detalle antes de pedir estos datos, una mención breve (1-2 líneas) basta para que el cliente sepa que puedes ayudarlo con lo que busca.
+- Prioridad #1: conseguir nombre + correo + celular lo antes posible en la conversación. Con eso YA puedes crear el lead, aunque todavía no sepas el detalle exacto de qué seguro quiere — usa "No especificado" si aún no lo sabes.
 - Máximo 1-2 preguntas a la vez
 - Lenguaje simple, español ecuatoriano natural
 - Sé conciso — máximo 3-4 líneas por respuesta
+- Una vez tengas nombre+celular, dispara capture_lead de inmediato con lo que sepas (correo si te lo dio, interés si lo sabes). Si luego el cliente te da más info (el tipo de seguro exacto, cédula, placa, etc.), vuelve a disparar capture_lead con los datos actualizados — el sistema se encarga de actualizar el mismo lead automáticamente, no se duplica.
 
-DATOS A RECOPILAR SEGÚN TIPO:
+DATOS A RECOPILAR — en este orden de prioridad:
 
-Para SALUD (cualquier categoría):
+Primero, para CUALQUIER tipo de seguro:
 - Nombre completo
+- Correo electrónico
 - Número de celular
+(con estos 3 ya disparas capture_lead, no esperes a saber más)
+
+Después, según vayas conversando, completa lo que puedas:
+
+Para SALUD:
 - Categoría de interés: Vitality | Familia | Adultos +60 | Individual | Tradicional
 
 Para AUTO:
-- Nombre completo
 - Número de cédula
-- Número de celular
 - Placa del vehículo
 - Marca y modelo del auto
-
-Cuando tengas nombre y teléfono del cliente, crea el lead INMEDIATAMENTE — no esperes más confirmaciones. El interés se puede especificar con lo que ya sabes de la conversación.
 
 FORMATO DE RESPUESTA — CRÍTICO:
 Tu respuesta completa debe ser ÚNICAMENTE un objeto JSON válido. NUNCA agregues texto conversacional antes o después del JSON, ni lo envuelvas en \`\`\`json ni ningún otro texto. El campo "response" es donde va tu mensaje conversacional para el usuario — todo el saludo, la pregunta, la explicación, va AHÍ DENTRO, no fuera del JSON.
 
-Sin lead listo:
+Sin datos de contacto todavía:
 {"response": "tu mensaje", "action": null}
 
-Con lead de SALUD listo:
-{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "interest": "SALUD - Familia | Vitality | Adultos +60 | Individual | Tradicional", "cedula": null, "placa": null, "marca_modelo": null}}
+En cuanto tengas nombre+correo+celular (aunque no sepas el resto todavía):
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "No especificado", "cedula": null, "placa": null, "marca_modelo": null}}
 
-Con lead de AUTO listo:
-{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "interest": "AUTO", "cedula": "...", "placa": "...", "marca_modelo": "..."}}
+Cuando ya sepas más detalle (dispara de nuevo con todo lo que sepas hasta ahora):
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "AUTO", "cedula": "...", "placa": "...", "marca_modelo": "..."}}
 
 Si el cliente quiere continuar por WhatsApp:
 {"response": "tu mensaje", "action": "whatsapp"}`
@@ -66,6 +69,7 @@ interface ParsedChatReply {
   lead?: {
     name: string
     phone: string
+    email?: string
     interest?: string
     cedula?: string
     placa?: string
@@ -106,7 +110,7 @@ export class ChatService {
 
     if (parsed.action === 'capture_lead' && parsed.lead?.name && parsed.lead?.phone) {
       try {
-        await this.captureLead(parsed.lead, sessionId)
+        await this.leadsService.upsertLeadFromChat(parsed.lead, sessionId)
       } catch (err) {
         this.logger.error(`Failed to capture lead from chat session ${sessionId}: ${err}`)
       }
@@ -135,42 +139,4 @@ export class ChatService {
     }
   }
 
-  private async captureLead(
-    lead: { name: string; phone: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string },
-    sessionId?: string,
-  ) {
-    const [firstName, ...rest] = lead.name.trim().split(/\s+/)
-    const lastName = rest.length ? rest.join(' ') : undefined
-
-    const isAuto = /auto/i.test(lead.interest ?? '')
-    const insuranceType = isAuto ? InsuranceType.AUTO : InsuranceType.SALUD
-
-    const notesParts = [
-      lead.interest,
-      lead.cedula ? `Cédula: ${lead.cedula}` : null,
-      lead.placa ? `Placa: ${lead.placa}` : null,
-      lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
-      sessionId ? `Sesión: ${sessionId}` : null,
-    ].filter(Boolean)
-
-    const autoData = isAuto ? {
-      placa: lead.placa ?? undefined,
-      marca: lead.marca_modelo?.split(' ')[0] ?? undefined,
-      modelo: lead.marca_modelo?.split(' ').slice(1).join(' ') ?? undefined,
-      cedulaRuc: lead.cedula ?? undefined,
-      nombrePropietario: lead.name,
-    } : undefined
-
-    const result = await this.leadsService.ingestLead({
-      firstName,
-      lastName,
-      phone: lead.phone,
-      insuranceType,
-      source: LeadSource.CHAT_WEB,
-      notes: notesParts.join(' | ') || undefined,
-      autoData,
-    })
-
-    this.logger.log(`Lead captured from chat: ${JSON.stringify(result)}`)
-  }
 }

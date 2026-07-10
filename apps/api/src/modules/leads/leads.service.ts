@@ -118,6 +118,7 @@ export class LeadsService {
           sport,
           insured,
           ...(profileType ? { profileType } : {}),
+          ...(dto.sessionId ? { chatSessionId: dto.sessionId } : {}),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           ...(dto.autoData ? { autoData: JSON.parse(JSON.stringify(dto.autoData)) } : {}),
         },
@@ -169,5 +170,110 @@ export class LeadsService {
     }
 
     return { status: 'ok', contactId: contact.id, dealId: deal.id }
+  }
+
+  /**
+   * Punto de entrada para el chat del sitio web: si ya existe un lead para esta
+   * sesión de chat, lo actualiza con la info nueva. Si no existe, crea uno nuevo
+   * (etiquetado con el sessionId para futuras actualizaciones). Así una misma
+   * conversación nunca genera leads duplicados.
+   */
+  async upsertLeadFromChat(
+    lead: {
+      name: string
+      phone: string
+      email?: string
+      interest?: string
+      cedula?: string
+      placa?: string
+      marca_modelo?: string
+    },
+    sessionId?: string,
+  ) {
+    const orgSlug = this.config.get('ORGANIZATION_SLUG', 'acme-corp')
+    const org = await this.prisma.organization.findFirst({ where: { slug: orgSlug } })
+    if (!org) {
+      this.logger.error(`Organization with slug "${orgSlug}" not found`)
+      return { status: 'error', message: 'Organization not found' }
+    }
+
+    if (sessionId) {
+      const existingDeal = await this.prisma.deal.findFirst({
+        where: {
+          organizationId: org.id,
+          customFields: { path: ['chatSessionId'], equals: sessionId },
+        },
+        include: { contact: true },
+      })
+      if (existingDeal) {
+        return this.applyLeadUpdate(existingDeal, lead)
+      }
+    }
+
+    const [firstName, ...rest] = lead.name.trim().split(/\s+/)
+    const lastName = rest.length ? rest.join(' ') : undefined
+    const isAuto = /auto/i.test(lead.interest ?? '')
+    const insuranceType = isAuto ? InsuranceType.AUTO : InsuranceType.SALUD
+
+    const notesParts = [
+      lead.interest,
+      lead.cedula ? `Cédula: ${lead.cedula}` : null,
+      lead.placa ? `Placa: ${lead.placa}` : null,
+      lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
+    ].filter(Boolean)
+
+    return this.ingestLead({
+      firstName,
+      lastName,
+      phone: lead.phone,
+      email: lead.email,
+      insuranceType,
+      source: LeadSource.CHAT_WEB,
+      notes: notesParts.join(' | ') || undefined,
+      sessionId,
+      autoData: isAuto
+        ? {
+            placa: lead.placa,
+            marca: lead.marca_modelo?.split(' ')[0],
+            modelo: lead.marca_modelo?.split(' ').slice(1).join(' '),
+            cedulaRuc: lead.cedula,
+            nombrePropietario: lead.name,
+          }
+        : undefined,
+    })
+  }
+
+  private async applyLeadUpdate(
+    deal: { id: string; notes: string | null; customFields: unknown; contactId: string | null; contact: { id: string; email: string | null } | null },
+    lead: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string },
+  ) {
+    const cf = (deal.customFields as Record<string, unknown>) ?? {}
+    const notesParts = [
+      deal.notes,
+      lead.interest ? `Interés: ${lead.interest}` : null,
+      lead.cedula ? `Cédula: ${lead.cedula}` : null,
+      lead.placa ? `Placa: ${lead.placa}` : null,
+      lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
+    ].filter((x): x is string => Boolean(x))
+    // Evita repetir la misma línea si el bot manda la misma info dos veces
+    const uniqueNotes = Array.from(new Set(notesParts)).join(' | ')
+
+    const updated = await this.prisma.deal.update({
+      where: { id: deal.id },
+      data: {
+        notes: uniqueNotes || undefined,
+        customFields: { ...cf, lastChatUpdate: new Date().toISOString() },
+      },
+    })
+
+    if (lead.email && deal.contact && !deal.contact.email) {
+      await this.prisma.contact.update({
+        where: { id: deal.contact.id },
+        data: { email: lead.email },
+      })
+    }
+
+    this.logger.log(`Lead updated from chat: deal ${deal.id}`)
+    return { status: 'ok', contactId: deal.contactId, dealId: updated.id, updated: true }
   }
 }

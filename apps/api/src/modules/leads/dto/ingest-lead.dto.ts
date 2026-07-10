@@ -91,4 +91,9 @@ export class IngestLeadDto {
   @ValidateNested()
   @Type(() => AutoDataDto)
   autoData?: AutoDataDto
+
+  @ApiProperty({ required: false, description: 'ID de sesión de chat, para poder actualizar el mismo lead en vez de duplicarlo' })
+  @IsString()
+  @IsOptional()
+  sessionId?: string
 }

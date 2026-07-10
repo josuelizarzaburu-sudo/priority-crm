@@ -152,6 +152,14 @@ export class ChatService {
       sessionId ? `Sesión: ${sessionId}` : null,
     ].filter(Boolean)
 
+    const autoData = isAuto ? {
+      placa: lead.placa ?? undefined,
+      marca: lead.marca_modelo?.split(' ')[0] ?? undefined,
+      modelo: lead.marca_modelo?.split(' ').slice(1).join(' ') ?? undefined,
+      cedulaRuc: lead.cedula ?? undefined,
+      nombrePropietario: lead.name,
+    } : undefined
+
     const result = await this.leadsService.ingestLead({
       firstName,
       lastName,
@@ -159,6 +167,7 @@ export class ChatService {
       insuranceType,
       source: LeadSource.CHAT_WEB,
       notes: notesParts.join(' | ') || undefined,
+      autoData,
     })
 
     this.logger.log(`Lead captured from chat: ${JSON.stringify(result)}`)

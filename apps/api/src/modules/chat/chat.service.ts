@@ -45,7 +45,8 @@ Para AUTO:
 
 Cuando tengas nombre y teléfono del cliente, crea el lead INMEDIATAMENTE — no esperes más confirmaciones. El interés se puede especificar con lo que ya sabes de la conversación.
 
-FORMATO DE RESPUESTA — siempre responde con JSON válido:
+FORMATO DE RESPUESTA — CRÍTICO:
+Tu respuesta completa debe ser ÚNICAMENTE un objeto JSON válido. NUNCA agregues texto conversacional antes o después del JSON, ni lo envuelvas en \`\`\`json ni ningún otro texto. El campo "response" es donde va tu mensaje conversacional para el usuario — todo el saludo, la pregunta, la explicación, va AHÍ DENTRO, no fuera del JSON.
 
 Sin lead listo:
 {"response": "tu mensaje", "action": null}
@@ -115,22 +116,22 @@ export class ChatService {
   }
 
   private parseReply(rawText: string): ParsedChatReply {
-    const jsonText = rawText
-      .trim()
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```\s*$/i, '')
+    const cleaned = rawText.trim()
+    // Busca el objeto JSON dentro del texto (aunque el modelo agregue texto o ```fences``` alrededor)
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+    const jsonText = jsonMatch ? jsonMatch[0] : cleaned
 
     try {
       const parsed = JSON.parse(jsonText)
       const action = parsed.action === 'capture_lead' || parsed.action === 'whatsapp' ? parsed.action : null
       return {
-        response: typeof parsed.response === 'string' ? parsed.response : rawText,
+        response: typeof parsed.response === 'string' ? parsed.response : cleaned,
         action,
         lead: parsed.lead,
       }
     } catch {
       this.logger.warn(`Chat reply was not valid JSON, falling back to raw text`)
-      return { response: rawText, action: null }
+      return { response: cleaned, action: null }
     }
   }
 

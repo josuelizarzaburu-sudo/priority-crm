@@ -109,7 +109,9 @@ export class LeadsService {
         createdById: systemUser.id,
         assignedToId: autoAssignee?.id ?? undefined,
         position,
-        notes: `Fuente: ${dto.source ?? LeadSource.WEB} | Seguro: ${dto.insuranceType}`,
+        notes: dto.notes
+          ? `${dto.notes} | Fuente: ${dto.source ?? LeadSource.WEB}`
+          : `Fuente: ${dto.source ?? LeadSource.WEB} | Seguro: ${dto.insuranceType}`,
         customFields: {
           insuranceType: dto.insuranceType,
           source: dto.source ?? LeadSource.WEB,

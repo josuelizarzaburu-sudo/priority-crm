@@ -1470,6 +1470,26 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 )
               })()}
 
+              {deal.notes && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Info capturada
+                    </p>
+                    <div className="rounded-md border bg-muted/30 px-3 py-2.5 text-sm">
+                      <ul className="space-y-1">
+                        {deal.notes.split(' | ').map((part, i) => (
+                          <li key={i} className="leading-snug">
+                            • {part}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              )}
+
               <Separator />
 
               {/* ── Notas de actividad ───────────────────────────────────── */}

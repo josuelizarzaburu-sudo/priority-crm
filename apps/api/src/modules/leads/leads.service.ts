@@ -208,7 +208,7 @@ export class LeadsService {
         include: { contact: true },
       })
       if (existingDeal) {
-        return this.applyLeadUpdate(existingDeal, lead)
+        return this.applyLeadUpdate(existingDeal, lead, org.id)
       }
     }
 
@@ -248,6 +248,7 @@ export class LeadsService {
   private async applyLeadUpdate(
     deal: { id: string; notes: string | null; customFields: unknown; contactId: string | null; contact: { id: string; email: string | null } | null },
     lead: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string },
+    orgId: string,
   ) {
     const cf = (deal.customFields as Record<string, unknown>) ?? {}
     const notesParts = [
@@ -274,6 +275,19 @@ export class LeadsService {
         data: { email: lead.email },
       })
     }
+
+    this.notifications
+      .notifyLeadUpdated({
+        dealId: deal.id,
+        orgId,
+        contactName: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        source: 'CHAT_WEB',
+        arrivalTime: new Date(),
+        notes: uniqueNotes || undefined,
+      })
+      .catch(err => this.logger.error(`Update notification error: ${err}`))
 
     this.logger.log(`Lead updated from chat: deal ${deal.id}`)
     return { status: 'ok', contactId: deal.contactId, dealId: updated.id, updated: true }

@@ -301,6 +301,27 @@ export class NotificationsService {
     this.logger.log(`Unassigned-reminder queued for deal ${data.dealId} (+2 min)`)
   }
 
+  async notifyLeadUpdated(data: LeadNotificationData): Promise<void> {
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        organizationId: data.orgId,
+        role: { in: [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.MANAGER] },
+      },
+      select: { id: true, email: true },
+    })
+
+    const subject = `🔄 Lead actualizado — ${data.contactName}`
+    const html = this.buildHtml(data, false)
+    for (const r of recipients) {
+      await this.sendEmail(r.email, subject, html)
+    }
+    await this.push.sendToUsers(
+      recipients.map(r => r.id),
+      { title: `🔄 Lead actualizado — ${data.contactName}`, body: data.notes ?? `Tel: ${data.phone}`, url: '/pipeline' },
+    )
+    this.logger.log(`Update notification sent for deal ${data.dealId}`)
+  }
+
   async notifyDealAssigned(agent: { id: string; email: string; phone?: string | null }, data: LeadNotificationData): Promise<void> {
     const subject = `🎯 Nuevo lead asignado — ${data.contactName}`
     const html = this.buildHtml(data, true)

@@ -110,9 +110,24 @@ export class ChatService {
     const parsed = this.parseReply(rawText)
     this.logger.log(`session=${sessionId ?? 'sin-session'} action=${parsed.action} lead=${parsed.lead ? JSON.stringify(parsed.lead) : 'null'}`)
 
-    if (parsed.action === 'capture_lead' && parsed.lead?.name && parsed.lead?.phone) {
+    // No confiamos únicamente en que el modelo marque bien "action": guardamos
+    // el lead si el modelo incluyó nombre+teléfono, sin importar qué action puso.
+    let leadToSave: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string } | null =
+      parsed.lead?.name && parsed.lead?.phone ? parsed.lead : null
+
+    // Red de seguridad: si el modelo no incluyó el lead (le pasó ya dos veces),
+    // buscamos nombre+teléfono+correo directamente en los mensajes del usuario por patrón.
+    if (!leadToSave) {
+      const fallback = this.extractLeadFallback(messages)
+      if (fallback) {
+        leadToSave = fallback
+        this.logger.warn(`session=${sessionId ?? 'sin-session'} el modelo no incluyó lead, usando fallback por regex: ${JSON.stringify(fallback)}`)
+      }
+    }
+
+    if (leadToSave) {
       try {
-        const result = await this.leadsService.upsertLeadFromChat(parsed.lead, sessionId)
+        const result = await this.leadsService.upsertLeadFromChat(leadToSave, sessionId)
         this.logger.log(`session=${sessionId ?? 'sin-session'} lead guardado: ${JSON.stringify(result)}`)
       } catch (err) {
         this.logger.error(`Failed to capture lead from chat session ${sessionId}: ${err}`)
@@ -120,6 +135,32 @@ export class ChatService {
     }
 
     return { response: parsed.response, action: parsed.action }
+  }
+
+  /**
+   * Red de seguridad independiente del modelo: busca un teléfono ecuatoriano y,
+   * si están, correo y nombre, directamente en los mensajes del usuario. Se usa
+   * solo cuando el modelo no incluyó el objeto "lead" en su respuesta JSON.
+   */
+  private extractLeadFallback(messages: ChatMessageDto[]): { name: string; phone: string; email?: string } | null {
+    const phoneRe = /(\+?593\d{9}|0\d{9})/
+    const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/
+
+    for (const m of messages) {
+      if (m.role !== 'user') continue
+      const phoneMatch = m.content.match(phoneRe)
+      if (!phoneMatch) continue
+      const emailMatch = m.content.match(emailRe)
+      const name = m.content
+        .replace(phoneRe, '')
+        .replace(emailRe, '')
+        .replace(/[,;]/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+      if (name.length < 2 || name.length > 60) continue
+      return { name, phone: phoneMatch[0], email: emailMatch?.[0] }
+    }
+    return null
   }
 
   private parseReply(rawText: string): ParsedChatReply {

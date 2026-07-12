@@ -189,6 +189,7 @@ export class LeadsService {
       cedula?: string
       placa?: string
       marca_modelo?: string
+      detalles?: string
     },
     sessionId?: string,
   ) {
@@ -222,6 +223,7 @@ export class LeadsService {
       lead.cedula ? `Cédula: ${lead.cedula}` : null,
       lead.placa ? `Placa: ${lead.placa}` : null,
       lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
+      lead.detalles ? `Detalles: ${lead.detalles}` : null,
     ].filter(Boolean)
 
     return this.ingestLead({
@@ -247,7 +249,7 @@ export class LeadsService {
 
   private async applyLeadUpdate(
     deal: { id: string; notes: string | null; customFields: unknown; contactId: string | null; contact: { id: string; email: string | null } | null },
-    lead: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string },
+    lead: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string; detalles?: string },
     orgId: string,
   ) {
     const cf = (deal.customFields as Record<string, unknown>) ?? {}
@@ -257,6 +259,7 @@ export class LeadsService {
       lead.cedula ? `Cédula: ${lead.cedula}` : null,
       lead.placa ? `Placa: ${lead.placa}` : null,
       lead.marca_modelo ? `Vehículo: ${lead.marca_modelo}` : null,
+      lead.detalles ? `Detalles: ${lead.detalles}` : null,
     ].filter((x): x is string => Boolean(x))
     // Evita repetir la misma línea si el bot manda la misma info dos veces
     const uniqueNotes = Array.from(new Set(notesParts)).join(' | ')

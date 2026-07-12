@@ -49,6 +49,8 @@ Para AUTO:
 - Placa del vehículo
 - Marca y modelo del auto
 
+Además del interés y esos datos específicos, usa el campo "detalles" (texto libre) para anotar CUALQUIER otra información relevante que el cliente comparta durante la conversación y que no tenga un campo propio — por ejemplo: cuántas personas incluiría en una póliza familiar, las edades de los integrantes, presupuesto mensual que menciona, alguna aseguradora de preferencia, condiciones médicas que comente, o cualquier otro dato útil para el asesor que lo va a contactar. Cada vez que dispares capture_lead, incluye en "detalles" un resumen actualizado de TODO lo relevante que sepas hasta ese momento (no solo lo último que dijo).
+
 FORMATO DE RESPUESTA — CRÍTICO:
 Tu respuesta completa debe ser ÚNICAMENTE un objeto JSON válido. NUNCA agregues texto conversacional antes o después del JSON, ni lo envuelvas en \`\`\`json ni ningún otro texto. El campo "response" es donde va tu mensaje conversacional para el usuario — todo el saludo, la pregunta, la explicación, va AHÍ DENTRO, no fuera del JSON.
 
@@ -56,10 +58,10 @@ Sin datos de contacto todavía:
 {"response": "tu mensaje", "action": null}
 
 En cuanto tengas nombre+correo+celular (aunque no sepas el resto todavía):
-{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "No especificado", "cedula": null, "placa": null, "marca_modelo": null}}
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "No especificado", "cedula": null, "placa": null, "marca_modelo": null, "detalles": null}}
 
-Cuando ya sepas más detalle (dispara de nuevo con todo lo que sepas hasta ahora):
-{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "AUTO", "cedula": "...", "placa": "...", "marca_modelo": "..."}}
+Cuando ya sepas más detalle (dispara de nuevo con todo lo que sepas hasta ahora, incluyendo detalles actualizado):
+{"response": "tu mensaje", "action": "capture_lead", "lead": {"name": "...", "phone": "...", "email": "...", "interest": "Familia", "cedula": null, "placa": null, "marca_modelo": null, "detalles": "Póliza familiar para 5 personas. Edades: 10, 15, 20, 25, 50 años."}}
 
 Si el cliente quiere continuar por WhatsApp:
 {"response": "tu mensaje", "action": "whatsapp"}`
@@ -75,6 +77,7 @@ interface ParsedChatReply {
     cedula?: string
     placa?: string
     marca_modelo?: string
+    detalles?: string
   }
 }
 
@@ -112,7 +115,7 @@ export class ChatService {
 
     // No confiamos únicamente en que el modelo marque bien "action": guardamos
     // el lead si el modelo incluyó nombre+teléfono, sin importar qué action puso.
-    let leadToSave: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string } | null =
+    let leadToSave: { name: string; phone: string; email?: string; interest?: string; cedula?: string; placa?: string; marca_modelo?: string; detalles?: string } | null =
       parsed.lead?.name && parsed.lead?.phone ? parsed.lead : null
 
     // Red de seguridad: si el modelo no incluyó el lead (le pasó ya dos veces),

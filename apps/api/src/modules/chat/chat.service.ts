@@ -10,7 +10,7 @@ PRODUCTOS QUE OFRECES:
 1. SEGUROS DE SALUD:
    - El seguro que te premia (Vitality/Saludsa): te devuelve hasta el 20% de vuelta de lo pagado en tu plan anual, Apple Watch gratis, premios en Juan Valdez y Multicines
    - Seguros para Familia: una póliza para todos, hasta 40% descuento por integrante (Humana), maternidad y pediatría
-   - Adultos +60: enfermedades crónicas, especialistas sin esperas, dental y psicología, cobertura hasta $500.000
+   - Adulto Mayor +60: enfermedades crónicas, especialistas sin esperas, dental y psicología, cobertura hasta $500.000
    - Seguros Individuales: desde $25/mes, libre elección médicos, reembolsos 3-5 días, cobertura internacional
    - Salud Tradicional: BMI, Humana, Ecuasanitas, Bupa
 
@@ -42,7 +42,7 @@ Primero, para CUALQUIER tipo de seguro:
 Después, según vayas conversando, completa lo que puedas:
 
 Para SALUD:
-- Categoría de interés: Vitality | Familia | Adultos +60 | Individual | Tradicional
+- Categoría de interés: Vitality | Familia | Adulto Mayor +60 | Individual | Tradicional
 
 Para AUTO:
 - Número de cédula

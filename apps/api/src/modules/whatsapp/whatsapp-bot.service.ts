@@ -420,10 +420,12 @@ export class WhatsappBotService {
     if (!session.firstName) return
     const sport = session.sport ?? false
     const insured = session.insured ?? false
+    // Misma convención que calcProfile() en salud-premia.html:
+    // A = deporte+seguro, B = seguro sin deporte, C = deporte sin seguro, D = ninguno
     let profileType: string
     if (sport && insured) profileType = 'A'
-    else if (sport && !insured) profileType = 'B'
-    else if (!sport && insured) profileType = 'C'
+    else if (!sport && insured) profileType = 'B'
+    else if (sport && !insured) profileType = 'C'
     else profileType = 'D'
 
     try {

@@ -94,8 +94,8 @@ export class LeadsService {
     let profileType: string | null = null
     if (hasSurvey) {
       if (sport && insured) profileType = 'A'
-      else if (sport && !insured) profileType = 'B'
-      else if (!sport && insured) profileType = 'C'
+      else if (!sport && insured) profileType = 'B'
+      else if (sport && !insured) profileType = 'C'
       else profileType = 'D'
     }
 

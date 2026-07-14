@@ -34,8 +34,8 @@ const PROFILES: Record<ProfileType, { label: string; className: string }> = {
 
 function computeProfile(sport: boolean, insured: boolean): ProfileType {
   if (sport && insured) return 'A'
-  if (sport && !insured) return 'B'
-  if (!sport && insured) return 'C'
+  if (!sport && insured) return 'B'
+  if (sport && !insured) return 'C'
   return 'D'
 }
 

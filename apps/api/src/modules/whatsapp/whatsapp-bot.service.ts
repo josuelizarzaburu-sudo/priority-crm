@@ -88,8 +88,8 @@ const MSG_COMPLETADO_SALUD =
 
 // ─── Vitality: saludos personalizados según el perfil de la encuesta web ─────
 const MSG_VITALITY: Record<string, string> = {
-  A: '¡Felicitaciones! 🎉 Haces deporte Y ya tienes seguro — eso dice mucho de ti: te cuidas de verdad. 💪\n\nCon SALUDSA Vitality, todo ese esfuerzo se convierte en premios reales: hasta 20% de tu seguro de vuelta en efectivo, Apple Watch y más.\n\nPara empezar solo necesito tu nombre completo 😊',
-  B: '¡Qué bueno tenerte aquí! 🙌 Ya tienes seguro de salud — ese es un gran paso. Ahora imagina que ese mismo seguro te devuelva dinero por cuidarte: hasta 20% en efectivo al año con SALUDSA Vitality. 💰\n\nPara empezar solo necesito tu nombre completo 😊',
+  A: '¡Felicitaciones! 🎉 Haces deporte Y ya tienes seguro — eso dice mucho de ti: te cuidas de verdad. 💪\n\nCon SALUDSA Vitality, todo ese esfuerzo se convierte en premios reales: te devuelve hasta el 20% de lo pagado en el año en tu plan, además de Apple Watch y más.\n\nPara empezar solo necesito tu nombre completo 😊',
+  B: '¡Qué bueno tenerte aquí! 🙌 Ya tienes seguro de salud — ese es un gran paso. Ahora imagina que ese mismo seguro te devuelva hasta el 20% de lo pagado en el año en tu plan con SALUDSA Vitality. 💰\n\nPara empezar solo necesito tu nombre completo 😊',
   C: '¡Felicitaciones por ese estilo de vida activo! 💪 Entrenas y te cuidas — solo te falta la protección que lo respalde. Con SALUDSA Vitality te aseguramos Y te premiamos por cada logro: efectivo, Apple Watch y más. 🎁\n\nPara empezar solo necesito tu nombre completo 😊',
   D: '¡Bienvenido! 🙌 Hoy puede ser el día en que empieces a cuidarte — y que te paguen por hacerlo. 💛 Con SALUDSA Vitality tienes protección médica completa y premios reales por cada paso que des hacia una vida más sana.\n\nPara empezar solo necesito tu nombre completo 😊',
 }

@@ -111,6 +111,15 @@ export class WebhooksController {
     if (msg.type === 'text') {
       const text: string = msg.text?.body ?? ''
 
+      // Entrada desde la encuesta Vitality de la web: prioridad máxima.
+      // Aunque el contacto ya exista o tenga sesión previa, es una intención
+      // nueva y explícita — el bot responde con el saludo personalizado.
+      if (text.toLowerCase().includes('vengo de vitality')) {
+        await this.whatsappBot.clearSession(phone)
+        await this.whatsappBot.processMessage(phone, text)
+        return
+      }
+
       // Active bot session (not done) → bot handles
       if (!botDone && sessionStep !== null) {
         await this.whatsappBot.processMessage(phone, text)

@@ -84,6 +84,14 @@ const MSG_NOMBRE = '¡Perfecto! ¿Me puedes dar tu nombre completo?'
 const MSG_COMPLETADO_SALUD =
   '¡Con gusto! 😊 Recuerda que un asesor de Priority Health se pondrá en contacto contigo muy pronto. ¡Que tengas un excelente día!'
 
+// ─── Vitality: saludos personalizados según el perfil de la encuesta web ─────
+const MSG_VITALITY: Record<string, string> = {
+  A: '¡Felicitaciones! 🎉 Haces deporte Y ya tienes seguro — eso dice mucho de ti: te cuidas de verdad. 💪\n\nCon SALUDSA Vitality, todo ese esfuerzo se convierte en premios reales: hasta 20% de tu seguro de vuelta en efectivo, Apple Watch y más.\n\nPara empezar solo necesito tu nombre completo 😊',
+  B: '¡Qué bueno tenerte aquí! 🙌 Ya tienes seguro de salud — ese es un gran paso. Ahora imagina que ese mismo seguro te devuelva dinero por cuidarte: hasta 20% en efectivo al año con SALUDSA Vitality. 💰\n\nPara empezar solo necesito tu nombre completo 😊',
+  C: '¡Felicitaciones por ese estilo de vida activo! 💪 Entrenas y te cuidas — solo te falta la protección que lo respalde. Con SALUDSA Vitality te aseguramos Y te premiamos por cada logro: efectivo, Apple Watch y más. 🎁\n\nPara empezar solo necesito tu nombre completo 😊',
+  D: '¡Bienvenido! 🙌 Hoy puede ser el día en que empieces a cuidarte — y que te paguen por hacerlo. 💛 Con SALUDSA Vitality tienes protección médica completa y premios reales por cada paso que des hacia una vida más sana.\n\nPara empezar solo necesito tu nombre completo 😊',
+}
+
 const MSG_AUTO_VEHICULO =
   '¡Genial! Para cotizar tu seguro de auto necesito algunos datos. Puedes enviármelos en un solo mensaje 😊\n\n' +
   '🚗 De tu vehículo:\n- Marca y modelo\n- Año\n- Placa\n- Ciudad donde circula'
@@ -111,8 +119,41 @@ export class WhatsappBotService {
     return ['hola', 'inicio', 'start', 'reiniciar', 'reset'].includes(t)
   }
 
+  /**
+   * Detecta si el mensaje viene del link personalizado de la encuesta Vitality
+   * (salud-premia.html) y devuelve el perfil con sus respuestas ya conocidas.
+   * Los 4 textos posibles se definen en WA_MSGS dentro de salud-premia.html.
+   */
+  private detectVitalityProfile(text: string): { profile: 'A' | 'B' | 'C' | 'D'; sport: boolean; insured: boolean } | null {
+    const t = text.toLowerCase()
+    if (!t.includes('vengo de vitality')) return null
+
+    const sport = t.includes('hago deporte')
+    // "ya tengo seguro" → insured; "aún no tengo seguro" / "no tengo seguro" → not insured
+    const insured = /ya tengo seguro/.test(t)
+
+    const profile = sport && insured ? 'A' : !sport && insured ? 'B' : sport && !insured ? 'C' : 'D'
+    return { profile, sport, insured }
+  }
+
   async processMessage(phone: string, text: string): Promise<void> {
     console.log('Processing message from:', phone)
+
+    // ── Entrada desde la encuesta Vitality de la web ─────────────────────────
+    // El link de salud-premia.html pre-carga un mensaje con el perfil del usuario.
+    // Si lo detectamos, ya sabemos sport/insured — no volvemos a preguntar.
+    const vitalityProfile = this.detectVitalityProfile(text)
+    if (vitalityProfile) {
+      console.log('Vitality entry detected — profile:', vitalityProfile.profile)
+      await this.saveSession(phone, {
+        step: 'nombre',
+        insuranceType: 'SALUD',
+        sport: vitalityProfile.sport,
+        insured: vitalityProfile.insured,
+      })
+      await this.sendMessage(phone, MSG_VITALITY[vitalityProfile.profile])
+      return
+    }
 
     if (this.isRestart(text)) {
       console.log('Restart keyword — clearing session for', phone)

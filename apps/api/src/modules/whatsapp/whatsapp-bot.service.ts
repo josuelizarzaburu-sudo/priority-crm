@@ -47,6 +47,8 @@ interface BotSession {
   lastName?: string
   // auto fields
   autoData?: AutoData
+  // preguntas que el bot no pudo responder, para que el asesor las vea
+  preguntas?: string[]
 }
 
 const SESSION_TTL_SECONDS = 86400
@@ -90,6 +92,14 @@ const MSG_VITALITY: Record<string, string> = {
   B: '¡Qué bueno tenerte aquí! 🙌 Ya tienes seguro de salud — ese es un gran paso. Ahora imagina que ese mismo seguro te devuelva dinero por cuidarte: hasta 20% en efectivo al año con SALUDSA Vitality. 💰\n\nPara empezar solo necesito tu nombre completo 😊',
   C: '¡Felicitaciones por ese estilo de vida activo! 💪 Entrenas y te cuidas — solo te falta la protección que lo respalde. Con SALUDSA Vitality te aseguramos Y te premiamos por cada logro: efectivo, Apple Watch y más. 🎁\n\nPara empezar solo necesito tu nombre completo 😊',
   D: '¡Bienvenido! 🙌 Hoy puede ser el día en que empieces a cuidarte — y que te paguen por hacerlo. 💛 Con SALUDSA Vitality tienes protección médica completa y premios reales por cada paso que des hacia una vida más sana.\n\nPara empezar solo necesito tu nombre completo 😊',
+}
+
+// ─── Entradas contextuales desde las demás landings del sitio ────────────────
+const MSG_LANDING: Record<string, string> = {
+  familia: '¡Qué lindo que pienses en proteger a los tuyos! 👨‍👩‍👧 Con nuestra póliza familiar, mientras más integrantes agregas más ahorras — hasta 40% de descuento por familiar, con cobertura de maternidad y pediatría.\n\nPara armar tu cotización solo necesito tu nombre completo 😊',
+  individual: '¡Excelente decisión cuidar de ti! 🙌 Tenemos planes individuales desde $25/mes, con libre elección de médicos y cobertura a tu medida — sin ataduras.\n\nPara armar tu cotización solo necesito tu nombre completo 😊',
+  mayores: '¡Qué gusto tenerte aquí! 💛 Cuidarte en cada etapa es nuestra prioridad: planes con cobertura de especialistas, enfermedades crónicas y todo lo que necesitas hoy y a futuro.\n\nPara armar tu cotización solo necesito tu nombre completo 😊',
+  auto: '¡Perfecto! 🚗 Vamos a poner a 5 aseguradoras a competir por tu auto (AIG, Zurich, Atlántida, Sweaden y Latina) y te damos la mejor.\n\nPara empezar, envíame en un solo mensaje:\n- Marca y modelo\n- Año\n- Placa\n- Ciudad donde circula',
 }
 
 const MSG_AUTO_VEHICULO =
@@ -136,6 +146,19 @@ export class WhatsappBotService {
     return { profile, sport, insured }
   }
 
+  /**
+   * Detecta si el mensaje viene de un link contextual de las demás landings
+   * (salud-familia, salud-individual, salud-mayores, vehiculo).
+   */
+  private detectLandingEntry(text: string): 'familia' | 'individual' | 'mayores' | 'auto' | null {
+    const t = text.toLowerCase()
+    if (t.includes('vengo de la página de seguro familiar')) return 'familia'
+    if (t.includes('vengo de la página de seguro individual')) return 'individual'
+    if (t.includes('vengo de la página de adultos mayores') || t.includes('vengo de la página de seguro para mayores')) return 'mayores'
+    if (t.includes('vengo de la página de seguro de auto') || t.includes('vengo de la página de vehículo')) return 'auto'
+    return null
+  }
+
   async processMessage(phone: string, text: string): Promise<void> {
     console.log('Processing message from:', phone)
 
@@ -152,6 +175,19 @@ export class WhatsappBotService {
         insured: vitalityProfile.insured,
       })
       await this.sendMessage(phone, MSG_VITALITY[vitalityProfile.profile])
+      return
+    }
+
+    // ── Entradas contextuales desde las demás landings del sitio ────────────
+    const landing = this.detectLandingEntry(text)
+    if (landing) {
+      console.log('Landing entry detected:', landing)
+      if (landing === 'auto') {
+        await this.saveSession(phone, { step: 'auto_vehiculo', insuranceType: 'AUTO' })
+      } else {
+        await this.saveSession(phone, { step: 'nombre', insuranceType: 'SALUD' })
+      }
+      await this.sendMessage(phone, MSG_LANDING[landing])
       return
     }
 
@@ -255,7 +291,35 @@ export class WhatsappBotService {
     await this.sendMessage(phone, MSG_NOMBRE)
   }
 
+  /**
+   * Detecta si el mensaje del cliente es una pregunta/duda en vez de la
+   * respuesta que el paso espera. Heurística simple: signos de interrogación
+   * o palabras interrogativas comunes.
+   */
+  private looksLikeQuestion(text: string): boolean {
+    const t = text.trim().toLowerCase()
+    if (t.includes('?') || t.includes('¿')) return true
+    return /^(cuanto|cuánto|cuanta|cuánta|como|cómo|que |qué |cual|cuál|donde|dónde|cuando|cuándo|por que|por qué|porque me|quisiera saber|puedo|puedes|tienen|hay |sirve|cubre|incluye|acepta)/.test(t)
+  }
+
+  /**
+   * Respuesta cálida cuando el cliente pregunta algo que el bot no puede
+   * responder: valida la pregunta, la anota para el asesor, y retoma el paso.
+   */
+  private async handleClientQuestion(phone: string, session: BotSession, text: string, resumeMsg: string): Promise<void> {
+    session.preguntas = [...(session.preguntas ?? []), text.trim()].slice(-5)
+    await this.saveSession(phone, session)
+    await this.sendMessage(
+      phone,
+      '¡Tu pregunta es súper válida! 😊 La dejo anotada para que tu asesor te la responda con todo el detalle que merece.\n\n' + resumeMsg,
+    )
+  }
+
   private async handleNombre(phone: string, session: BotSession, text: string): Promise<void> {
+    if (this.looksLikeQuestion(text)) {
+      await this.handleClientQuestion(phone, session, text, 'Mientras tanto, ¿me ayudas con tu nombre completo para avanzar? 🙌')
+      return
+    }
     const { firstName, lastName } = this.parseName(text)
     session.firstName = firstName
     session.lastName = lastName
@@ -271,6 +335,10 @@ export class WhatsappBotService {
   // ─── Auto steps ───────────────────────────────────────────────────────────
 
   private async handleAutoVehiculo(phone: string, session: BotSession, text: string): Promise<void> {
+    if (this.looksLikeQuestion(text)) {
+      await this.handleClientQuestion(phone, session, text, 'Mientras tanto, ¿me compartes los datos de tu vehículo (marca, modelo, año, placa y ciudad) para avanzar con tu cotización? 🚗')
+      return
+    }
     const extracted = await this.extractAutoData(text)
     session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
     session.step = 'auto_propietario'
@@ -279,12 +347,20 @@ export class WhatsappBotService {
   }
 
   private async handleAutoPropietario(phone: string, session: BotSession, text: string): Promise<void> {
+    if (this.looksLikeQuestion(text)) {
+      await this.handleClientQuestion(phone, session, text, 'Mientras tanto, ¿me compartes los datos del propietario (nombre completo y cédula o RUC) para avanzar? 🙌')
+      return
+    }
     const extracted = await this.extractAutoData(text)
     session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
     await this.checkAndCloseAuto(phone, session)
   }
 
   private async handleAutoRepregunta(phone: string, session: BotSession, text: string): Promise<void> {
+    if (this.looksLikeQuestion(text)) {
+      await this.handleClientQuestion(phone, session, text, 'Mientras tanto, ¿me ayudas con los datos que nos faltan para completar tu cotización? 🙌')
+      return
+    }
     const extracted = await this.extractAutoData(text)
     session.autoData = { ...(session.autoData ?? {}), ...this.filterNulls(extracted) }
     await this.checkAndCloseAuto(phone, session)
@@ -360,6 +436,9 @@ export class WhatsappBotService {
         sport,
         insured,
         profileType,
+        notes: session.preguntas?.length
+          ? `Preguntas del cliente: ${session.preguntas.join(' // ')}`
+          : undefined,
       })
       this.logger.log(`Salud lead created via WhatsApp bot for ${phone} — profile ${profileType}`)
     } catch (err) {
@@ -393,6 +472,9 @@ export class WhatsappBotService {
           estadoCivil: ad.estadoCivil ?? null,
           sexo: ad.sexo ?? null,
         },
+        notes: session.preguntas?.length
+          ? `Preguntas del cliente: ${session.preguntas.join(' // ')}`
+          : undefined,
       })
       this.logger.log(`Auto lead created via WhatsApp bot for ${phone}`)
     } catch (err) {

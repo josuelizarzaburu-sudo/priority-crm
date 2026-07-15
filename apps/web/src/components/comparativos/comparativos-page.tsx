@@ -45,6 +45,9 @@ export function ComparativosPage() {
   })
   const [primas, setPrimas] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState(false)
+  const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
+    abierta: null, cerrada: null, internacional: null, vehiculos: null,
+  })
 
   const catalog = CATALOGS[tab]
   const selectedIds = selected[tab]
@@ -66,6 +69,11 @@ export function ComparativosPage() {
       const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
       return { ...prev, [tab]: next }
     })
+    setRecommended((prev) => (prev[tab] === id ? { ...prev, [tab]: null } : prev))
+  }
+
+  const toggleRecommended = (id: string) => {
+    setRecommended((prev) => ({ ...prev, [tab]: prev[tab] === id ? null : id }))
   }
 
   // Filas con al menos un valor en los planes seleccionados
@@ -176,16 +184,35 @@ export function ComparativosPage() {
         {selectedPlans.length > 0 && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              2 · {PRIMA_LABEL[tab]} de cada plan seleccionado
+              2 · {PRIMA_LABEL[tab]} de cada plan seleccionado · marca el recomendado
             </p>
             <div className="flex flex-wrap gap-3">
-              {selectedPlans.map((p) => (
+              {selectedPlans.map((p) => {
+                const isRec = recommended[tab] === p.id
+                return (
                 <div
                   key={p.id}
-                  className="min-w-[180px] flex-1 rounded-xl border bg-card p-3"
-                  style={{ borderTopWidth: 3, borderTopColor: GOLD }}
+                  className={cn('min-w-[180px] flex-1 rounded-xl border bg-card p-3', isRec && 'ring-2 ring-offset-1')}
+                  style={{
+                    borderTopWidth: 3,
+                    borderTopColor: GOLD,
+                    ...(isRec ? { boxShadow: `0 0 0 2px ${GOLD}` } : {}),
+                  }}
                 >
-                  <p className="mb-1.5 text-xs font-bold" style={{ color: NAVY }}>{p.name}</p>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold" style={{ color: NAVY }}>{p.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => toggleRecommended(p.id)}
+                      className={cn(
+                        'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                        isRec ? 'border-transparent text-white' : 'border-border text-muted-foreground hover:border-[#DBAA59]',
+                      )}
+                      style={isRec ? { backgroundColor: GOLD } : undefined}
+                    >
+                      {isRec ? '★ Recomendado' : '☆ Recomendar'}
+                    </button>
+                  </div>
                   <div className="flex items-center gap-1">
                     <span className="text-sm text-muted-foreground">$</span>
                     <Input
@@ -197,7 +224,8 @@ export function ComparativosPage() {
                     <span className="text-xs text-muted-foreground">/mes</span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -211,7 +239,7 @@ export function ComparativosPage() {
             <div className="flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={PRIORITY_LOGO_DATA_URI} alt="Priority Asesores de Seguros" className="h-14 w-auto" />
-              <div className="text-right text-[11px] leading-relaxed text-white/75">
+              <div className="text-right text-[12.5px] font-medium leading-relaxed text-white">
                 Cotización preparada para
                 <br />
                 <span className="text-[19px] font-bold text-white">{clientName || '—'}</span>
@@ -238,15 +266,23 @@ export function ComparativosPage() {
                     <th className="rounded-tl-lg px-3 py-2.5 text-left text-white" style={{ backgroundColor: NAVY, width: '22%' }}>
                       Beneficio
                     </th>
-                    {selectedPlans.map((p, i) => (
+                    {selectedPlans.map((p, i) => {
+                      const isRec = recommended[tab] === p.id
+                      return (
                       <th
                         key={p.id}
                         className={cn('px-3 py-2.5 text-left text-white', i === selectedPlans.length - 1 && 'rounded-tr-lg')}
-                        style={{ backgroundColor: NAVY }}
+                        style={{ backgroundColor: isRec ? '#8a6620' : NAVY }}
                       >
-                        {p.name}
+                        {isRec && (
+                          <div className="mb-0.5 inline-block rounded px-1.5 py-0.5 text-[8.5px] font-bold tracking-wide" style={{ backgroundColor: GOLD, color: NAVY }}>
+                            ★ RECOMENDADO
+                          </div>
+                        )}
+                        <div>{p.name}</div>
                       </th>
-                    ))}
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -258,13 +294,16 @@ export function ComparativosPage() {
                       >
                         {r.label}
                       </td>
-                      {r.values.map((v, vi) => (
+                      {selectedPlans.map((p, vi) => (
                         <td
                           key={vi}
                           className="px-3 py-2 align-top text-[#333]"
-                          style={{ borderBottom: '1px solid #c7d0e8' }}
+                          style={{
+                            borderBottom: '1px solid #c7d0e8',
+                            backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.10)' : undefined,
+                          }}
                         >
-                          {v ?? '—'}
+                          {r.values[vi] ?? '—'}
                         </td>
                       ))}
                     </tr>
@@ -274,7 +313,14 @@ export function ComparativosPage() {
                       {PRIMA_LABEL[tab].toUpperCase()}
                     </td>
                     {selectedPlans.map((p) => (
-                      <td key={p.id} className="px-3 py-3" style={{ borderTop: `2px solid ${GOLD}` }}>
+                      <td
+                        key={p.id}
+                        className="px-3 py-3"
+                        style={{
+                          borderTop: `2px solid ${GOLD}`,
+                          backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.22)' : undefined,
+                        }}
+                      >
                         <span className="text-[15px] font-bold" style={{ color: NAVY }}>
                           {primas[p.id] ? `$${primas[p.id]}` : '—'}
                         </span>

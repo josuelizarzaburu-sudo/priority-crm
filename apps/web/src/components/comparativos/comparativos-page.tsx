@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Printer, Eye, EyeOff } from 'lucide-react'
 import { CATALOGS, type CatalogKey } from '@/lib/comparativos-data'
+import { PRIORITY_LOGO_DATA_URI } from '@/lib/priority-logo'
 import { cn } from '@/lib/utils'
 
 const NAVY = '#0C2057'
@@ -207,17 +208,13 @@ export function ComparativosPage() {
         <div className={cn('comparativo-doc', preview ? 'block' : 'hidden print:block')}>
           <div className="overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
             {/* Header */}
-            <div className="flex items-center justify-between px-10 py-7 print:px-8" style={{ backgroundColor: NAVY }}>
-              <div>
-                <p className="text-xl font-bold tracking-widest text-white">✦ PRIORITY</p>
-                <p className="text-[9px] font-semibold tracking-[3px]" style={{ color: GOLD }}>
-                  ASESORES DE SEGUROS
-                </p>
-              </div>
+            <div className="flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={PRIORITY_LOGO_DATA_URI} alt="Priority Asesores de Seguros" className="h-14 w-auto" />
               <div className="text-right text-[11px] leading-relaxed text-white/75">
                 Cotización preparada para
                 <br />
-                <span className="text-[13px] font-bold text-white">{clientName || '—'}</span>
+                <span className="text-[19px] font-bold text-white">{clientName || '—'}</span>
                 <br />
                 {today}{advisorName ? ` · Asesor: ${advisorName}` : ''}
               </div>
@@ -227,8 +224,12 @@ export function ComparativosPage() {
             {/* Body */}
             <div className="px-10 py-7 print:px-8">
               <h2 className="text-lg font-bold" style={{ color: NAVY }}>Comparativo de Planes</h2>
-              <p className="mb-5 text-xs text-muted-foreground">
+              <p className="mb-3 text-xs text-muted-foreground">
                 {SUBTITLES[tab]} · Los {selectedPlans.length} planes que mejor se ajustan a tu perfil
+              </p>
+
+              <p className="mb-5 rounded-lg border-l-4 bg-[#f7f8fc] px-4 py-3 text-[12px] leading-relaxed text-[#2a3350]" style={{ borderColor: GOLD }}>
+                Estimado{clientName ? ` ${clientName.split(' ')[0]}` : ''}, hemos hecho un análisis exhaustivo de los planes del mercado, los cuales te presentamos a continuación. Recuerda que todos los planes incluyen la experiencia de Servicio Priority.
               </p>
 
               <table className="w-full border-collapse text-[11px]">
@@ -251,11 +252,18 @@ export function ComparativosPage() {
                 <tbody>
                   {rows.map((r, ri) => (
                     <tr key={r.label} className={ri % 2 === 1 ? 'bg-[#f8f9fc]' : ''}>
-                      <td className="border-b px-3 py-2 align-top font-semibold" style={{ color: NAVY }}>
+                      <td
+                        className="px-3 py-2 align-top font-semibold"
+                        style={{ color: NAVY, borderBottom: '1px solid #c7d0e8' }}
+                      >
                         {r.label}
                       </td>
                       {r.values.map((v, vi) => (
-                        <td key={vi} className="border-b px-3 py-2 align-top text-[#333]">
+                        <td
+                          key={vi}
+                          className="px-3 py-2 align-top text-[#333]"
+                          style={{ borderBottom: '1px solid #c7d0e8' }}
+                        >
                           {v ?? '—'}
                         </td>
                       ))}

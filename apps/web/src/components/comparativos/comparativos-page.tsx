@@ -137,13 +137,14 @@ export function ComparativosPage() {
               placeholder="Ej. María Fernanda Torres"
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
+              className="h-12 text-base"
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Asesor
             </label>
-            <Input value={advisorName} readOnly className="bg-muted/40" />
+            <Input value={advisorName} readOnly className="h-12 bg-muted/40 text-base font-medium" />
           </div>
         </div>
 
@@ -192,23 +193,26 @@ export function ComparativosPage() {
                 return (
                 <div
                   key={p.id}
-                  className={cn('min-w-[180px] flex-1 rounded-xl border bg-card p-3', isRec && 'ring-2 ring-offset-1')}
+                  className={cn('min-w-[220px] flex-1 rounded-xl border bg-card p-3', isRec && 'ring-2 ring-offset-1')}
                   style={{
                     borderTopWidth: 3,
                     borderTopColor: GOLD,
                     ...(isRec ? { boxShadow: `0 0 0 2px ${GOLD}` } : {}),
                   }}
                 >
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold" style={{ color: NAVY }}>{p.name}</p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-bold" style={{ color: NAVY }}>{p.name}</p>
                     <button
                       type="button"
                       onClick={() => toggleRecommended(p.id)}
                       className={cn(
-                        'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
-                        isRec ? 'border-transparent text-white' : 'border-border text-muted-foreground hover:border-[#DBAA59]',
+                        'flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors',
+                        isRec ? 'text-white' : 'text-[#DBAA59]',
                       )}
-                      style={isRec ? { backgroundColor: GOLD } : undefined}
+                      style={{
+                        backgroundColor: isRec ? GOLD : '#fff',
+                        borderColor: GOLD,
+                      }}
                     >
                       {isRec ? '★ Recomendado' : '☆ Recomendar'}
                     </button>

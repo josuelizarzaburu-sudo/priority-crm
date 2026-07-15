@@ -299,6 +299,11 @@ export function ComparativosPage() {
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
           body * { visibility: hidden; }
           .comparativo-doc, .comparativo-doc * { visibility: visible; }
           .comparativo-doc { position: absolute; left: 0; top: 0; width: 100%; }

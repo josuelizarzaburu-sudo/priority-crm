@@ -6,11 +6,23 @@ import { ComparativosPage } from '@/components/comparativos/comparativos-page'
 
 export const metadata: Metadata = { title: 'Comparativos' }
 
+// Acceso a Comparativos: SUPER_ADMIN siempre entra, más esta lista de personas
+// autorizadas mientras se hace el lanzamiento controlado. Para agregar o quitar
+// a alguien, edita este arreglo.
+const ALLOWED_EMAILS = [
+  'raviles@priority.ec', // Roxana Avilés
+  'comer@priority.ec', // Gianella Pozo
+  'pcarrillo@priority.ec', // Pablo Carrillo
+  'jsegovia@priority.ec', // Juan Fernando Segovia
+]
+
 export default async function Page() {
   const session = await getServerSession(authOptions)
-  const role = (session?.user as { role?: string } | undefined)?.role
-  // Por ahora, mientras se termina de probar, solo el super admin tiene acceso.
-  if (role !== 'SUPER_ADMIN') redirect('/pipeline')
+  const user = session?.user as { role?: string; email?: string } | undefined
+  const role = user?.role
+  const email = user?.email?.toLowerCase()
+  const hasAccess = role === 'SUPER_ADMIN' || (email && ALLOWED_EMAILS.includes(email))
+  if (!hasAccess) redirect('/pipeline')
 
   return <ComparativosPage />
 }

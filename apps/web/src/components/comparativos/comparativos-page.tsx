@@ -13,41 +13,58 @@ import { cn } from '@/lib/utils'
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
 
+const MAX_PLANS = 3
+
 const TAB_LABELS: { key: CatalogKey; label: string }[] = [
-  { key: 'abierta', label: 'Médicos · Red Abierta' },
-  { key: 'cerrada', label: 'Médicos · Red Cerrada' },
+  { key: 'salud', label: 'Salud' },
   { key: 'internacional', label: 'Internacionales' },
   { key: 'vehiculos', label: 'Vehículos' },
 ]
 
 const SUBTITLES: Record<CatalogKey, string> = {
-  abierta: 'Planes Médicos Locales · Red Médica Abierta',
-  cerrada: 'Planes Médicos Locales · Red Médica Cerrada',
+  salud: 'Planes Médicos Locales',
   internacional: 'Planes Médicos Internacionales',
   vehiculos: 'Seguro de Vehículos · Livianos',
 }
 
 const PRIMA_LABEL: Record<CatalogKey, string> = {
-  abierta: 'Prima mensual',
-  cerrada: 'Prima mensual',
+  salud: 'Prima mensual',
   internacional: 'Prima mensual',
   vehiculos: 'Prima mensual (12 meses)',
+}
+
+const NETWORK_LABEL: Record<'abierta' | 'cerrada', string> = {
+  abierta: 'Red Abierta',
+  cerrada: 'Red Cerrada',
+}
+
+// Filas de maternidad: se ocultan por completo cuando el asesor elige "Sin Maternidad"
+const MATERNIDAD_LABELS = ['Maternidad', 'Complicaciones de Maternidad', 'Complicaciones Recién Nacido']
+
+// Valores que cuentan como "no lo tiene" para efectos de ocultar filas tipo Vitality
+const NEGATIVE_VALUES = new Set(['no posee', 'no incluye', '—', 'no aplica'])
+
+function isNegativeValue(v: string | null | undefined) {
+  if (!v) return true
+  return NEGATIVE_VALUES.has(v.trim().toLowerCase())
 }
 
 export function ComparativosPage() {
   const { data: session } = useSession()
   const advisorName = (session?.user as { name?: string } | undefined)?.name ?? ''
 
-  const [tab, setTab] = useState<CatalogKey>('abierta')
+  const [tab, setTab] = useState<CatalogKey>('salud')
   const [clientName, setClientName] = useState('')
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
-    abierta: [], cerrada: [], internacional: [], vehiculos: [],
+    salud: [], internacional: [], vehiculos: [],
   })
   const [primas, setPrimas] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
-    abierta: null, cerrada: null, internacional: null, vehiculos: null,
+    salud: null, internacional: null, vehiculos: null,
   })
+  // Con/Sin Maternidad, solo aplica (y solo se muestra el selector) en la categoría Salud
+  const [maternidad, setMaternidad] = useState(true)
 
   const catalog = CATALOGS[tab]
   const selectedIds = selected[tab]
@@ -62,11 +79,17 @@ export function ComparativosPage() {
   }, [catalog])
 
   const selectedPlans = catalog.plans.filter((p) => selectedIds.includes(p.id))
+  const limitReached = selectedIds.length >= MAX_PLANS
 
   const toggle = (id: string) => {
     setSelected((prev) => {
       const cur = prev[tab]
-      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+      const isSelected = cur.includes(id)
+      if (!isSelected && cur.length >= MAX_PLANS) {
+        // Ya hay 3 planes seleccionados en esta categoría: no se permite un cuarto
+        return prev
+      }
+      const next = isSelected ? cur.filter((x) => x !== id) : [...cur, id]
       return { ...prev, [tab]: next }
     })
     setRecommended((prev) => (prev[tab] === id ? { ...prev, [tab]: null } : prev))
@@ -76,16 +99,38 @@ export function ComparativosPage() {
     setRecommended((prev) => ({ ...prev, [tab]: prev[tab] === id ? null : id }))
   }
 
-  // Filas con al menos un valor en los planes seleccionados
+  // Planes ordenados de menor a mayor por prima, solo para el documento/PDF final.
+  // Los que no tienen prima ingresada quedan al final.
+  const documentPlans = useMemo(() => {
+    const parsePrima = (id: string) => {
+      const raw = (primas[id] ?? '').replace(/[^0-9.,]/g, '').replace(',', '.')
+      const n = parseFloat(raw)
+      return Number.isFinite(n) ? n : Infinity
+    }
+    return [...selectedPlans].sort((a, b) => parsePrima(a.id) - parsePrima(b.id))
+  }, [selectedPlans, primas])
+
+  // Filas con al menos un valor en los planes seleccionados, aplicando las reglas de
+  // Maternidad (ocultar si "Sin Maternidad") y Vitality (ocultar si nadie la tiene).
   const rows = useMemo(() => {
-    if (!selectedPlans.length) return []
+    if (!documentPlans.length) return []
     return catalog.benefits
+      .filter((b) => {
+        if (tab === 'salud' && !maternidad && MATERNIDAD_LABELS.includes(b.label)) return false
+        return true
+      })
       .map((b) => ({
         label: b.label,
-        values: selectedPlans.map((p) => b.values[catalog.plans.indexOf(p)] ?? '—'),
+        values: documentPlans.map((p) => b.values[catalog.plans.indexOf(p)] ?? '—'),
       }))
       .filter((r) => r.values.some((v) => v && v !== '—'))
-  }, [catalog, selectedPlans])
+      .filter((r) => {
+        if (r.label === 'Saludsa Vitality') {
+          return r.values.some((v) => !isNegativeValue(v))
+        }
+        return true
+      })
+  }, [catalog, documentPlans, tab, maternidad])
 
   const today = new Date().toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -148,9 +193,41 @@ export function ComparativosPage() {
           </div>
         </div>
 
+        {tab === 'salud' && (
+          <div className="mt-4">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Maternidad
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMaternidad(true)}
+                className={cn(
+                  'rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-all',
+                  maternidad ? 'border-[#DBAA59] bg-[#fdf8ef] shadow-sm' : 'border-border bg-card hover:border-[#DBAA59]/50',
+                )}
+                style={{ color: NAVY }}
+              >
+                {maternidad ? '✓ ' : ''}Con Maternidad
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaternidad(false)}
+                className={cn(
+                  'rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-all',
+                  !maternidad ? 'border-[#DBAA59] bg-[#fdf8ef] shadow-sm' : 'border-border bg-card hover:border-[#DBAA59]/50',
+                )}
+                style={{ color: NAVY }}
+              >
+                {!maternidad ? '✓ ' : ''}Sin Maternidad
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-5">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            1 · Selecciona los planes a comparar ({selectedPlans.length} seleccionados)
+            1 · Selecciona los planes a comparar ({selectedPlans.length}/{MAX_PLANS} seleccionados)
           </p>
           <div className="space-y-3">
             {Object.entries(insurers).map(([insurer, plans]) => (
@@ -159,20 +236,30 @@ export function ComparativosPage() {
                 <div className="flex flex-wrap gap-2">
                   {plans.map((p) => {
                     const sel = selectedIds.includes(p.id)
+                    const disabled = !sel && limitReached
                     return (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => toggle(p.id)}
+                        disabled={disabled}
+                        title={disabled ? `Máximo ${MAX_PLANS} planes por categoría` : undefined}
                         className={cn(
                           'rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-all',
                           sel
                             ? 'border-[#DBAA59] bg-[#fdf8ef] shadow-sm'
-                            : 'border-border bg-card hover:border-[#DBAA59]/50',
+                            : disabled
+                              ? 'cursor-not-allowed border-border bg-muted/30 opacity-50'
+                              : 'border-border bg-card hover:border-[#DBAA59]/50',
                         )}
                         style={{ color: NAVY }}
                       >
                         {sel ? '✓ ' : ''}{p.name}
+                        {p.network && (
+                          <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                            · {NETWORK_LABEL[p.network]}
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -180,6 +267,11 @@ export function ComparativosPage() {
               </div>
             ))}
           </div>
+          {limitReached && (
+            <p className="mt-2 text-xs font-medium" style={{ color: GOLD }}>
+              Máximo {MAX_PLANS} planes por comparativo. Deselecciona uno para elegir otro.
+            </p>
+          )}
         </div>
 
         {selectedPlans.length > 0 && (
@@ -236,7 +328,7 @@ export function ComparativosPage() {
       </div>
 
       {/* ── Documento (vista previa + impresión) ────────────────────────── */}
-      {selectedPlans.length > 0 && (
+      {documentPlans.length > 0 && (
         <div className={cn('comparativo-doc', preview ? 'block' : 'hidden print:block')}>
           <div className="overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
             {/* Header */}
@@ -257,7 +349,7 @@ export function ComparativosPage() {
             <div className="px-10 py-7 print:px-8">
               <h2 className="text-lg font-bold" style={{ color: NAVY }}>Comparativo de Planes</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                {SUBTITLES[tab]} · Los {selectedPlans.length} planes que mejor se ajustan a tu perfil
+                {SUBTITLES[tab]} · Los {documentPlans.length} planes que mejor se ajustan a tu perfil
               </p>
 
               <p className="mb-5 rounded-lg border-l-4 bg-[#f7f8fc] px-4 py-3 text-[12px] leading-relaxed text-[#2a3350]" style={{ borderColor: GOLD }}>
@@ -270,12 +362,12 @@ export function ComparativosPage() {
                     <th className="rounded-tl-lg px-3 py-2.5 text-left text-white" style={{ backgroundColor: NAVY, width: '22%' }}>
                       Beneficio
                     </th>
-                    {selectedPlans.map((p, i) => {
+                    {documentPlans.map((p, i) => {
                       const isRec = recommended[tab] === p.id
                       return (
                       <th
                         key={p.id}
-                        className={cn('px-3 py-2.5 text-left text-white', i === selectedPlans.length - 1 && 'rounded-tr-lg')}
+                        className={cn('px-3 py-2.5 text-left text-white', i === documentPlans.length - 1 && 'rounded-tr-lg')}
                         style={{ backgroundColor: isRec ? '#8a6620' : NAVY }}
                       >
                         {isRec && (
@@ -298,7 +390,7 @@ export function ComparativosPage() {
                       >
                         {r.label}
                       </td>
-                      {selectedPlans.map((p, vi) => (
+                      {documentPlans.map((p, vi) => (
                         <td
                           key={vi}
                           className="px-3 py-2 align-top text-[#333]"
@@ -316,7 +408,7 @@ export function ComparativosPage() {
                     <td className="px-3 py-3 font-bold" style={{ color: NAVY, borderTop: `2px solid ${GOLD}` }}>
                       {PRIMA_LABEL[tab].toUpperCase()}
                     </td>
-                    {selectedPlans.map((p) => (
+                    {documentPlans.map((p) => (
                       <td
                         key={p.id}
                         className="px-3 py-3"
@@ -337,7 +429,7 @@ export function ComparativosPage() {
 
               <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
                 <span>Priority Asesores de Seguros · info@priority.ec · WhatsApp 099 591 5761</span>
-                <span>Información detallada de coberturas y beneficios en la ilustración adjunta de cada plan</span>
+                <span>Información detallada de coberturas y beneficios, revisar en la ilustración adjunta de cada Plan Médico</span>
               </div>
             </div>
           </div>

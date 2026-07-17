@@ -38,6 +38,12 @@ const NETWORK_LABEL: Record<'abierta' | 'cerrada', string> = {
   cerrada: 'Red Cerrada',
 }
 
+// Orden preferido de aseguradoras SOLO en el paso 1 (selección de planes).
+// Saludsa siempre primero; el resto mantiene el orden en que aparece en el catálogo.
+const INSURER_PRIORITY: Record<string, number> = {
+  Saludsa: 0,
+}
+
 // Filas de maternidad: se ocultan por completo cuando el asesor elige "Sin Maternidad"
 const MATERNIDAD_LABELS = ['Maternidad', 'Complicaciones de Maternidad', 'Complicaciones Recién Nacido']
 
@@ -75,7 +81,10 @@ export function ComparativosPage() {
       groups[p.insurer] = groups[p.insurer] ?? []
       groups[p.insurer].push(p)
     }
-    return groups
+    // Reordenar: Saludsa primero (solo afecta el orden visual del paso 1, no el PDF)
+    const entries = Object.entries(groups)
+    entries.sort((a, b) => (INSURER_PRIORITY[a[0]] ?? 99) - (INSURER_PRIORITY[b[0]] ?? 99))
+    return Object.fromEntries(entries)
   }, [catalog])
 
   const selectedPlans = catalog.plans.filter((p) => selectedIds.includes(p.id))

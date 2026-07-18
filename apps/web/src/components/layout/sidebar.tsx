@@ -31,6 +31,16 @@ import {
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
 
+// Acceso especial a Comparativos mientras se hace el lanzamiento controlado
+// (ademas de SUPER_ADMIN). Debe coincidir con la lista en
+// apps/web/src/app/(dashboard)/comparativos/page.tsx
+const COMPARATIVOS_ALLOWED_EMAILS = [
+  'raviles@priority.ec', // Roxana Avilés
+  'comer@priority.ec', // Gianella Pozo
+  'pcarrillo@priority.ec', // Pablo Carrillo
+  'jsegovia@priority.ec', // Juan Fernando Segovia
+]
+
 const NAV_ITEMS = [
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
@@ -42,7 +52,7 @@ const NAV_ITEMS = [
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: ALL_ROLES },
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: ALL_ROLES },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ALL_ROLES },
-  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: ['SUPER_ADMIN'] },
+  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: ['SUPER_ADMIN'], allowEmails: COMPARATIVOS_ALLOWED_EMAILS },
   { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: ALL_ROLES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },
@@ -53,8 +63,11 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useUIStore()
   const { data: session } = useSession()
   const role = (session?.user as any)?.role ?? 'SALES_REP'
+  const email = ((session?.user as any)?.email ?? '').toLowerCase()
 
-  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => item.roles.includes(role) || (item.allowEmails && email && item.allowEmails.includes(email)),
+  )
 
   const navItemClass = (href: string) =>
     cn(

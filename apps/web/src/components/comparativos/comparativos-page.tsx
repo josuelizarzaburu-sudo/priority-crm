@@ -339,9 +339,33 @@ export function ComparativosPage() {
       {/* ── Documento (vista previa + impresión) ────────────────────────── */}
       {documentPlans.length > 0 && (
         <div className={cn('comparativo-doc', preview ? 'block' : 'hidden print:block')}>
-          <div className="overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+          <div className="relative overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+            {/* Marca de agua: PRIORITY repetido en diagonal detrás de todo el contenido */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(-35deg, transparent, transparent 120px, rgba(12,32,87,0.055) 120px, rgba(12,32,87,0.055) 121px)',
+              }}
+            >
+              <div
+                className="absolute inset-[-20%] grid grid-cols-4 gap-x-16 gap-y-20"
+                style={{ transform: 'rotate(-35deg)' }}
+              >
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="whitespace-nowrap text-[13px] font-bold tracking-wide"
+                    style={{ color: 'rgba(12,32,87,0.06)' }}
+                  >
+                    PRIORITY · priority.ec
+                  </span>
+                ))}
+              </div>
+            </div>
             {/* Header */}
-            <div className="flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>
+            <div className="relative z-10 flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={PRIORITY_LOGO_DATA_URI} alt="Priority Asesores de Seguros" className="h-14 w-auto" />
               <div className="text-right text-[12.5px] font-medium leading-relaxed text-white">
@@ -352,10 +376,10 @@ export function ComparativosPage() {
                 {today}{advisorName ? ` · Asesor: ${advisorName}` : ''}
               </div>
             </div>
-            <div className="h-1" style={{ background: `linear-gradient(90deg, ${GOLD}, #f0d9ad)` }} />
+            <div className="relative z-10 h-1" style={{ background: `linear-gradient(90deg, ${GOLD}, #f0d9ad)` }} />
 
             {/* Body */}
-            <div className="px-10 py-7 print:px-8">
+            <div className="relative z-10 px-10 py-7 print:px-8">
               <h2 className="text-lg font-bold" style={{ color: NAVY }}>Comparativo de Planes</h2>
               <p className="mb-3 text-xs text-muted-foreground">
                 {SUBTITLES[tab]} · Los {documentPlans.length} planes que mejor se ajustan a tu perfil
@@ -437,7 +461,7 @@ export function ComparativosPage() {
               </table>
 
               <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
-                <span>Priority Asesores de Seguros · info@priority.ec · WhatsApp 099 591 5761</span>
+                <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp 099 591 5761</span>
                 <span>Información detallada de coberturas y beneficios, revisar en la ilustración adjunta de cada Plan Médico</span>
               </div>
             </div>

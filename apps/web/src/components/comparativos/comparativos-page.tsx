@@ -404,7 +404,7 @@ export function ComparativosPage() {
                 </thead>
                 <tbody>
                   {rows.map((r, ri) => (
-                    <tr key={r.label} className={ri % 2 === 1 ? 'bg-[#f8f9fc]' : ''}>
+                    <tr key={r.label} style={ri % 2 === 1 ? { backgroundColor: 'rgba(248,249,252,0.55)' } : undefined}>
                       <td
                         className="px-3 py-2 align-top font-semibold"
                         style={{ color: NAVY, borderBottom: '1px solid #c7d0e8' }}
@@ -425,7 +425,7 @@ export function ComparativosPage() {
                       ))}
                     </tr>
                   ))}
-                  <tr style={{ backgroundColor: '#fdf8ef' }}>
+                  <tr style={{ backgroundColor: 'rgba(253,248,239,0.7)' }}>
                     <td className="px-3 py-3 font-bold" style={{ color: NAVY, borderTop: `2px solid ${GOLD}` }}>
                       {PRIMA_LABEL[tab].toUpperCase()}
                     </td>

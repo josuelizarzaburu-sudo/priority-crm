@@ -349,7 +349,7 @@ export function ComparativosPage() {
               <img
                 src={PRIORITY_LOGO_DATA_URI}
                 alt=""
-                style={{ width: '340px', height: 'auto', opacity: 0.18 }}
+                style={{ width: '460px', height: 'auto', opacity: 0.22 }}
               />
             </div>
             {/* Header */}

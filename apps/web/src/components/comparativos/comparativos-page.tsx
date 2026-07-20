@@ -346,16 +346,16 @@ export function ComparativosPage() {
               className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
             >
               <div
-                className="absolute inset-[-20%] grid grid-cols-5 gap-x-10 gap-y-14"
+                className="absolute inset-[-20%] grid grid-cols-6 gap-x-6 gap-y-8"
                 style={{ transform: 'rotate(-30deg)' }}
               >
-                {Array.from({ length: 48 }).map((_, i) => (
+                {Array.from({ length: 70 }).map((_, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={i}
                     src={PRIORITY_LOGO_DATA_URI}
                     alt=""
-                    style={{ width: '110px', height: 'auto', opacity: 0.18 }}
+                    style={{ width: '95px', height: 'auto', opacity: 0.35 }}
                   />
                 ))}
               </div>

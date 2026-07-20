@@ -355,7 +355,7 @@ export function ComparativosPage() {
                     key={i}
                     src={PRIORITY_LOGO_DATA_URI}
                     alt=""
-                    style={{ width: '170px', height: 'auto', opacity: 0.5 }}
+                    style={{ width: '170px', height: 'auto', opacity: 0.65 }}
                   />
                 ))}
               </div>

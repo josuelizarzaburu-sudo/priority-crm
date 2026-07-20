@@ -340,25 +340,17 @@ export function ComparativosPage() {
       {documentPlans.length > 0 && (
         <div className={cn('comparativo-doc', preview ? 'block' : 'hidden print:block')}>
           <div className="relative overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-            {/* Marca de agua: logo de Priority repetido en diagonal detrás de todo el contenido */}
+            {/* Marca de agua: un solo logo de Priority, centrado, mediano-grande, repetido en cada página al imprimir */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
+              className="pointer-events-none absolute inset-0 z-0 flex select-none items-center justify-center print:fixed print:inset-0"
             >
-              <div
-                className="absolute inset-[-20%] grid grid-cols-4 gap-x-10 gap-y-12"
-                style={{ transform: 'rotate(-30deg)' }}
-              >
-                {Array.from({ length: 40 }).map((_, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={PRIORITY_LOGO_DATA_URI}
-                    alt=""
-                    style={{ width: '170px', height: 'auto', opacity: 0.65 }}
-                  />
-                ))}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={PRIORITY_LOGO_DATA_URI}
+                alt=""
+                style={{ width: '340px', height: 'auto', opacity: 0.18 }}
+              />
             </div>
             {/* Header */}
             <div className="relative z-10 flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>

@@ -340,27 +340,23 @@ export function ComparativosPage() {
       {documentPlans.length > 0 && (
         <div className={cn('comparativo-doc', preview ? 'block' : 'hidden print:block')}>
           <div className="relative overflow-hidden rounded-xl border bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-            {/* Marca de agua: PRIORITY repetido en diagonal detrás de todo el contenido */}
+            {/* Marca de agua: logo de Priority repetido en diagonal detrás de todo el contenido */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(-35deg, transparent, transparent 120px, rgba(12,32,87,0.055) 120px, rgba(12,32,87,0.055) 121px)',
-              }}
             >
               <div
-                className="absolute inset-[-20%] grid grid-cols-4 gap-x-16 gap-y-20"
-                style={{ transform: 'rotate(-35deg)' }}
+                className="absolute inset-[-20%] grid grid-cols-5 gap-x-10 gap-y-14"
+                style={{ transform: 'rotate(-30deg)' }}
               >
-                {Array.from({ length: 40 }).map((_, i) => (
-                  <span
+                {Array.from({ length: 48 }).map((_, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
                     key={i}
-                    className="whitespace-nowrap text-[13px] font-bold tracking-wide"
-                    style={{ color: 'rgba(12,32,87,0.06)' }}
-                  >
-                    PRIORITY · priority.ec
-                  </span>
+                    src={PRIORITY_LOGO_DATA_URI}
+                    alt=""
+                    style={{ width: '90px', height: 'auto', opacity: 0.07 }}
+                  />
                 ))}
               </div>
             </div>

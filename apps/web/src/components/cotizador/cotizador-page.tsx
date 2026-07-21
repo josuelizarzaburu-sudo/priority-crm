@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -52,6 +53,7 @@ interface SeleccionComparativo {
 }
 
 export function CotizadorPage() {
+  const router = useRouter()
   const [region, setRegion] = useState<BmiRegion>('Sierra')
   const [confiamedRed, setConfiamedRed] = useState<ConfiamedRed>('red1')
   const [miembros, setMiembros] = useState<Miembro[]>([nuevoMiembro('Titular')])
@@ -347,6 +349,7 @@ export function CotizadorPage() {
                       <th className="px-3 py-2 text-right font-semibold">Sin descuento</th>
                       <th className="px-3 py-2 text-right font-semibold">Descuento</th>
                       <th className="px-3 py-2 text-right font-semibold">Mensual final</th>
+                      <th className="px-3 py-2 text-center font-semibold"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -367,6 +370,34 @@ export function CotizadorPage() {
                           </td>
                           <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
                             ${money(r.mensual)}
+                          </td>
+                          <td className="px-2 py-2 text-center">
+                            {(() => {
+                              const selId = `humana-${r.plan}`
+                              const sel = estaSeleccionado(selId)
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleSeleccion({
+                                      id: selId,
+                                      aseguradora: 'Humana',
+                                      plan: r.label,
+                                      detalle: `${personas.length} pers · ${Math.round(r.descuento * 100)}% desc`,
+                                      mensual: r.mensual,
+                                    })
+                                  }
+                                  className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
+                                  style={{
+                                    borderColor: GOLD,
+                                    backgroundColor: sel ? GOLD : '#fff',
+                                    color: sel ? '#fff' : NAVY,
+                                  }}
+                                >
+                                  {sel ? '✓ Añadido' : '+ Comparar'}
+                                </button>
+                              )
+                            })()}
                           </td>
                         </tr>
                       ))}
@@ -415,6 +446,7 @@ export function CotizadorPage() {
                       <th className="px-3 py-2 text-left font-semibold">Deducible</th>
                       <th className="px-3 py-2 text-right font-semibold">Mensual</th>
                       <th className="px-3 py-2 text-right font-semibold">Anual</th>
+                      <th className="px-3 py-2 text-center font-semibold"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -431,6 +463,35 @@ export function CotizadorPage() {
                             ${money(r.mensual)}
                           </td>
                           <td className="px-3 py-2 text-right text-[#333]">${money(r.anual)}</td>
+                          <td className="px-2 py-2 text-center">
+                            {(() => {
+                              const redLabel = confiamedRed === 'red1' ? 'Red 1 Top' : 'Red 2'
+                              const selId = `confiamed-${confiamedRed}-${r.deducible}`
+                              const sel = estaSeleccionado(selId)
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleSeleccion({
+                                      id: selId,
+                                      aseguradora: 'Confiamed',
+                                      plan: `CONFIPLUS ${redLabel}`,
+                                      detalle: CONFIAMED_DEDUCIBLE_LABEL[r.deducible],
+                                      mensual: r.mensual,
+                                    })
+                                  }
+                                  className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
+                                  style={{
+                                    borderColor: GOLD,
+                                    backgroundColor: sel ? GOLD : '#fff',
+                                    color: sel ? '#fff' : NAVY,
+                                  }}
+                                >
+                                  {sel ? '✓ Añadido' : '+ Comparar'}
+                                </button>
+                              )
+                            })()}
+                          </td>
                         </tr>
                       ))}
                   </tbody>
@@ -492,10 +553,19 @@ export function CotizadorPage() {
             <Button
               type="button"
               style={{ backgroundColor: NAVY, color: '#fff' }}
-              disabled
-              title="Próximamente: genera el comparativo con estas opciones"
+              onClick={() => {
+                // Codificar las selecciones en la URL para pasarlas al comparativo
+                const payload = seleccionados.map((s) => ({
+                  aseguradora: s.aseguradora,
+                  plan: s.plan,
+                  detalle: s.detalle,
+                  mensual: s.mensual,
+                }))
+                const encoded = encodeURIComponent(JSON.stringify(payload))
+                router.push(`/comparativos?cotizacion=${encoded}`)
+              }}
             >
-              Generar comparativo (próximamente)
+              Generar comparativo
             </Button>
           </div>
         </div>

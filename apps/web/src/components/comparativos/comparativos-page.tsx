@@ -57,6 +57,17 @@ const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
   'BMI GMM': [5000, 10000, 15000, 20000],
 }
 
+// Planes de Confiamed que permiten elegir Red 1 o Red 2. El texto que sale en la
+// fila "Red Medica" del PDF depende de la red elegida.
+// - 30 / 60 / 110: Red 1 => "Red 1 Top y libre elección"
+// - 10K: Red 1 => "Red 1" (sin "Top y libre elección")
+const CONFIAMED_RED_PLANS: Record<string, { red1: string; red2: string }> = {
+  'CONFIAMED 30': { red1: 'Red 1 Top y libre elección', red2: 'Red 2' },
+  'CONFIAMED 60': { red1: 'Red 1 Top y libre elección', red2: 'Red 2' },
+  'CONFIAMED 110': { red1: 'Red 1 Top y libre elección', red2: 'Red 2' },
+  'CONFIAMED 10': { red1: 'Red 1', red2: 'Red 2' },
+}
+
 // Una prima extra asociada a un deducible específico (para BMI Sigma / GMM)
 interface PrimaExtra {
   deducible: number
@@ -80,6 +91,8 @@ export function ComparativosPage() {
   const [primas, setPrimas] = useState<Record<string, string>>({})
   // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.
   const [primasExtra, setPrimasExtra] = useState<Record<string, PrimaExtra[]>>({})
+  // Red elegida por plan de Confiamed ('red1' | 'red2'). Clave = id del plan. Default red1.
+  const [confiamedRed, setConfiamedRed] = useState<Record<string, 'red1' | 'red2'>>({})
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
     salud: null, internacional: null, vehiculos: null,
@@ -430,6 +443,31 @@ export function ComparativosPage() {
                       <span className="text-xs text-muted-foreground">/mes</span>
                     </div>
                   )}
+
+                  {/* Confiamed: elegir Red 1 o Red 2 (cambia la fila Red Medica en el PDF) */}
+                  {CONFIAMED_RED_PLANS[p.name] && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-muted-foreground">Red médica:</span>
+                      {(['red1', 'red2'] as const).map((red) => {
+                        const active = (confiamedRed[p.id] ?? 'red1') === red
+                        return (
+                          <button
+                            key={red}
+                            type="button"
+                            onClick={() => setConfiamedRed((prev) => ({ ...prev, [p.id]: red }))}
+                            className="rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors"
+                            style={{
+                              borderColor: GOLD,
+                              backgroundColor: active ? GOLD : '#fff',
+                              color: active ? '#fff' : NAVY,
+                            }}
+                          >
+                            {red === 'red1' ? 'Red 1' : 'Red 2'}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
                 )
               })}
@@ -524,6 +562,8 @@ export function ComparativosPage() {
                         >
                           {r.label === 'Deducible' && BMI_DEDUCIBLE_PLANS[p.name]
                             ? 'A Elección'
+                            : r.label === 'Red Medica' && CONFIAMED_RED_PLANS[p.name]
+                            ? CONFIAMED_RED_PLANS[p.name][confiamedRed[p.id] ?? 'red1']
                             : r.values[vi] ?? '—'}
                         </td>
                       ))}

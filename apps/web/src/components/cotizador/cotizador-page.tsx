@@ -46,10 +46,33 @@ const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
 // Una opción marcada para pasar al comparativo.
 interface SeleccionComparativo {
   id: string // clave única (ej "bmi-sigma-D500")
+  catalogId: string // id del plan en el catálogo del comparativo (ej "ab0")
   aseguradora: string // "BMI", "Humana", "Confiamed", "Salud"...
   plan: string // "Sigma", "MH 50", "CONFIPLUS Red 1"...
   detalle: string // deducible o red específica (ej "Deducible 500")
   mensual: number // prima mensual
+  deducible?: string // para BMI: el deducible elegido (ej "D500", "5000")
+  red?: 'red1' | 'red2' // para Confiamed: la red elegida
+}
+
+// Mapeo de plan del cotizador -> id del plan en el catálogo del comparativo
+const BMI_CATALOG_ID: Record<BmiPlanId, string> = {
+  sigma: 'ab0',
+  innova: 'ab1',
+  gmm: 'ab2',
+}
+// Humana: plan del motor -> id catálogo
+const HUMANA_CATALOG_ID: Record<string, string> = {
+  MH50: 'ab3',
+  MH80: 'ab4',
+  // PH30 y MH150 no tienen columna en el catálogo salud abierto; se omiten del match directo
+}
+// Confiamed: deducible -> id catálogo
+const CONFIAMED_CATALOG_ID: Record<string, string> = {
+  '30000': 'ab5',
+  '60000': 'ab6',
+  '110000': 'ab7',
+  '10000': 'ce2',
 }
 
 export function CotizadorPage() {
@@ -307,10 +330,12 @@ export function CotizadorPage() {
                                       onClick={() =>
                                         toggleSeleccion({
                                           id: selId,
+                                          catalogId: BMI_CATALOG_ID[plan],
                                           aseguradora: 'BMI',
                                           plan: BMI_PLAN_LABEL[plan],
                                           detalle: r.label,
                                           mensual: r.mensualNormal,
+                                          deducible: r.deducible,
                                         })
                                       }
                                       className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
@@ -373,6 +398,8 @@ export function CotizadorPage() {
                           </td>
                           <td className="px-2 py-2 text-center">
                             {(() => {
+                              const catalogId = HUMANA_CATALOG_ID[r.plan]
+                              if (!catalogId) return null // PH30 y MH150 no van al comparativo por ahora
                               const selId = `humana-${r.plan}`
                               const sel = estaSeleccionado(selId)
                               return (
@@ -381,6 +408,7 @@ export function CotizadorPage() {
                                   onClick={() =>
                                     toggleSeleccion({
                                       id: selId,
+                                      catalogId,
                                       aseguradora: 'Humana',
                                       plan: r.label,
                                       detalle: `${personas.length} pers · ${Math.round(r.descuento * 100)}% desc`,
@@ -474,10 +502,12 @@ export function CotizadorPage() {
                                   onClick={() =>
                                     toggleSeleccion({
                                       id: selId,
+                                      catalogId: CONFIAMED_CATALOG_ID[r.deducible],
                                       aseguradora: 'Confiamed',
                                       plan: `CONFIPLUS ${redLabel}`,
                                       detalle: CONFIAMED_DEDUCIBLE_LABEL[r.deducible],
                                       mensual: r.mensual,
+                                      red: confiamedRed,
                                     })
                                   }
                                   className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"

@@ -42,10 +42,31 @@ const money = (n: number) =>
 
 const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
 
+// Una opción marcada para pasar al comparativo.
+interface SeleccionComparativo {
+  id: string // clave única (ej "bmi-sigma-D500")
+  aseguradora: string // "BMI", "Humana", "Confiamed", "Salud"...
+  plan: string // "Sigma", "MH 50", "CONFIPLUS Red 1"...
+  detalle: string // deducible o red específica (ej "Deducible 500")
+  mensual: number // prima mensual
+}
+
 export function CotizadorPage() {
   const [region, setRegion] = useState<BmiRegion>('Sierra')
   const [confiamedRed, setConfiamedRed] = useState<ConfiamedRed>('red1')
   const [miembros, setMiembros] = useState<Miembro[]>([nuevoMiembro('Titular')])
+  // Opciones marcadas que irán al comparativo
+  const [seleccionados, setSeleccionados] = useState<SeleccionComparativo[]>([])
+
+  const toggleSeleccion = (opcion: SeleccionComparativo) =>
+    setSeleccionados((prev) =>
+      prev.some((s) => s.id === opcion.id)
+        ? prev.filter((s) => s.id !== opcion.id)
+        : [...prev, opcion],
+    )
+  const estaSeleccionado = (id: string) => seleccionados.some((s) => s.id === id)
+  const quitarSeleccion = (id: string) =>
+    setSeleccionados((prev) => prev.filter((s) => s.id !== id))
 
   const addMiembro = (parentesco: string) =>
     setMiembros((prev) => [...prev, nuevoMiembro(parentesco)])
@@ -247,6 +268,7 @@ export function CotizadorPage() {
                             <th className="px-3 py-2 text-right font-semibold">Anual</th>
                             <th className="px-3 py-2 text-right font-semibold">Contado −9%</th>
                             <th className="px-3 py-2 text-right font-semibold">Diferido −5%</th>
+                            <th className="px-3 py-2 text-center font-semibold"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -272,6 +294,34 @@ export function CotizadorPage() {
                               </td>
                               <td className="px-3 py-2 text-right text-[#333]">
                                 ${money(r.anualDiferido)}
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                {(() => {
+                                  const selId = `bmi-${plan}-${r.deducible}`
+                                  const sel = estaSeleccionado(selId)
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        toggleSeleccion({
+                                          id: selId,
+                                          aseguradora: 'BMI',
+                                          plan: BMI_PLAN_LABEL[plan],
+                                          detalle: r.label,
+                                          mensual: r.mensualNormal,
+                                        })
+                                      }
+                                      className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
+                                      style={{
+                                        borderColor: GOLD,
+                                        backgroundColor: sel ? GOLD : '#fff',
+                                        color: sel ? '#fff' : NAVY,
+                                      }}
+                                    >
+                                      {sel ? '✓ Añadido' : '+ Comparar'}
+                                    </button>
+                                  )
+                                })()}
                               </td>
                             </tr>
                           ))}
@@ -392,6 +442,61 @@ export function CotizadorPage() {
                 precios incluyen impuestos.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Seleccionados para el comparativo ── */}
+      {seleccionados.length > 0 && (
+        <div
+          className="sticky bottom-4 rounded-xl border-2 bg-card p-4 shadow-lg"
+          style={{ borderColor: GOLD }}
+        >
+          <h2 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
+            Seleccionados para el comparativo ({seleccionados.length})
+          </h2>
+          <div className="space-y-2">
+            {seleccionados.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium" style={{ color: NAVY }}>
+                    {s.aseguradora} · {s.plan}
+                  </span>
+                  <span className="ml-2 text-xs text-muted-foreground">{s.detalle}</span>
+                </div>
+                <span className="shrink-0 text-sm font-bold" style={{ color: NAVY }}>
+                  ${money(s.mensual)}/mes
+                </span>
+                <button
+                  type="button"
+                  onClick={() => quitarSeleccion(s.id)}
+                  className="shrink-0 rounded px-1.5 text-sm text-muted-foreground hover:text-red-600"
+                  aria-label="Quitar"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setSeleccionados([])}
+              className="text-xs text-muted-foreground hover:text-red-600"
+            >
+              Limpiar todo
+            </button>
+            <Button
+              type="button"
+              style={{ backgroundColor: NAVY, color: '#fff' }}
+              disabled
+              title="Próximamente: genera el comparativo con estas opciones"
+            >
+              Generar comparativo (próximamente)
+            </Button>
           </div>
         </div>
       )}

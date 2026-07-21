@@ -24,6 +24,7 @@ import {
   DollarSign,
   PlayCircle,
   FileSpreadsheet,
+  Calculator,
   X,
   LogOut,
 } from 'lucide-react'
@@ -53,6 +54,7 @@ const NAV_ITEMS = [
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: ALL_ROLES },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: ALL_ROLES },
   { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: ['SUPER_ADMIN'], allowEmails: COMPARATIVOS_ALLOWED_EMAILS },
+  { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: ['SUPER_ADMIN'] },
   { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: ALL_ROLES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },

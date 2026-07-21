@@ -50,6 +50,19 @@ const MATERNIDAD_LABELS = ['Maternidad', 'Complicaciones de Maternidad', 'Compli
 // Valores que cuentan como "no lo tiene" para efectos de ocultar filas tipo Vitality
 const NEGATIVE_VALUES = new Set(['no posee', 'no incluye', '—', 'no aplica'])
 
+// Planes de BMI que permiten cotizar varias primas, una por cada deducible.
+// El asesor elige un deducible de la lista y escribe la prima manualmente.
+const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
+  'BMI SIGMA': [150, 250, 500, 1000, 2000],
+  'BMI GMM': [5000, 10000, 15000, 20000],
+}
+
+// Una prima extra asociada a un deducible específico (para BMI Sigma / GMM)
+interface PrimaExtra {
+  deducible: number
+  valor: string
+}
+
 function isNegativeValue(v: string | null | undefined) {
   if (!v) return true
   return NEGATIVE_VALUES.has(v.trim().toLowerCase())
@@ -65,6 +78,8 @@ export function ComparativosPage() {
     salud: [], internacional: [], vehiculos: [],
   })
   const [primas, setPrimas] = useState<Record<string, string>>({})
+  // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.
+  const [primasExtra, setPrimasExtra] = useState<Record<string, PrimaExtra[]>>({})
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
     salud: null, internacional: null, vehiculos: null,
@@ -106,6 +121,36 @@ export function ComparativosPage() {
 
   const toggleRecommended = (id: string) => {
     setRecommended((prev) => ({ ...prev, [tab]: prev[tab] === id ? null : id }))
+  }
+
+  // ---- Primas extra por deducible (BMI Sigma / GMM) ----
+  // Deducibles de un plan que aún no han sido agregados como prima extra.
+  const availableDeducibles = (planName: string, planId: string): number[] => {
+    const all = BMI_DEDUCIBLE_PLANS[planName]
+    if (!all) return []
+    const used = new Set((primasExtra[planId] ?? []).map((e) => e.deducible))
+    return all.filter((d) => !used.has(d))
+  }
+
+  const addPrimaExtra = (planId: string, deducible: number) => {
+    setPrimasExtra((prev) => ({
+      ...prev,
+      [planId]: [...(prev[planId] ?? []), { deducible, valor: '' }],
+    }))
+  }
+
+  const updatePrimaExtra = (planId: string, deducible: number, valor: string) => {
+    setPrimasExtra((prev) => ({
+      ...prev,
+      [planId]: (prev[planId] ?? []).map((e) => (e.deducible === deducible ? { ...e, valor } : e)),
+    }))
+  }
+
+  const removePrimaExtra = (planId: string, deducible: number) => {
+    setPrimasExtra((prev) => ({
+      ...prev,
+      [planId]: (prev[planId] ?? []).filter((e) => e.deducible !== deducible),
+    }))
   }
 
   // Planes ordenados de menor a mayor por prima, solo para el documento/PDF final.
@@ -328,6 +373,51 @@ export function ComparativosPage() {
                     />
                     <span className="text-xs text-muted-foreground">/mes</span>
                   </div>
+
+                  {/* BMI Sigma / GMM: primas adicionales, una por deducible */}
+                  {BMI_DEDUCIBLE_PLANS[p.name] && (
+                    <div className="mt-2 space-y-2">
+                      {(primasExtra[p.id] ?? []).map((extra) => (
+                        <div key={extra.deducible} className="flex items-center gap-1">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            placeholder="0,00"
+                            value={extra.valor}
+                            onChange={(e) => updatePrimaExtra(p.id, extra.deducible, e.target.value)}
+                            className="h-9"
+                          />
+                          <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                            /mes · Ded. {extra.deducible.toLocaleString('es-EC')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removePrimaExtra(p.id, extra.deducible)}
+                            className="ml-auto shrink-0 rounded px-1.5 text-sm text-muted-foreground hover:text-red-600"
+                            aria-label="Quitar deducible"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+
+                      {availableDeducibles(p.name, p.id).length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-medium text-muted-foreground">+ Deducible:</span>
+                          {availableDeducibles(p.name, p.id).map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => addPrimaExtra(p.id, d)}
+                              className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-[#DBAA59] hover:text-white"
+                              style={{ borderColor: GOLD, color: NAVY }}
+                            >
+                              {d.toLocaleString('es-EC')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 )
               })}
@@ -442,6 +532,18 @@ export function ComparativosPage() {
                           {primas[p.id] ? `$${primas[p.id]}` : '—'}
                         </span>
                         {primas[p.id] && <span className="ml-1 text-[9px] text-muted-foreground">/mes</span>}
+                        {(primasExtra[p.id] ?? [])
+                          .filter((e) => e.valor.trim() !== '')
+                          .map((e) => (
+                            <div key={e.deducible} className="mt-1 leading-tight">
+                              <span className="text-[13px] font-bold" style={{ color: NAVY }}>
+                                ${e.valor}
+                              </span>
+                              <span className="ml-1 text-[9px] text-muted-foreground">
+                                /mes · Deducible {e.deducible.toLocaleString('es-EC')}
+                              </span>
+                            </div>
+                          ))}
                       </td>
                     ))}
                   </tr>

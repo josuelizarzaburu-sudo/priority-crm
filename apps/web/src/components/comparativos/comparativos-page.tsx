@@ -156,13 +156,22 @@ export function ComparativosPage() {
   // Planes ordenados de menor a mayor por prima, solo para el documento/PDF final.
   // Los que no tienen prima ingresada quedan al final.
   const documentPlans = useMemo(() => {
-    const parsePrima = (id: string) => {
-      const raw = (primas[id] ?? '').replace(/[^0-9.,]/g, '').replace(',', '.')
-      const n = parseFloat(raw)
+    const toNum = (raw: string) => {
+      const n = parseFloat(raw.replace(/[^0-9.,]/g, '').replace(',', '.'))
       return Number.isFinite(n) ? n : Infinity
     }
-    return [...selectedPlans].sort((a, b) => parsePrima(a.id) - parsePrima(b.id))
-  }, [selectedPlans, primas])
+    const parsePrima = (plan: (typeof selectedPlans)[number]) => {
+      // BMI Sigma/GMM: usar la prima más baja entre los deducibles ingresados
+      if (BMI_DEDUCIBLE_PLANS[plan.name]) {
+        const vals = (primasExtra[plan.id] ?? [])
+          .map((e) => toNum(e.valor))
+          .filter((n) => Number.isFinite(n))
+        return vals.length ? Math.min(...vals) : Infinity
+      }
+      return toNum(primas[plan.id] ?? '')
+    }
+    return [...selectedPlans].sort((a, b) => parsePrima(a) - parsePrima(b))
+  }, [selectedPlans, primas, primasExtra])
 
   // Filas con al menos un valor en los planes seleccionados, aplicando las reglas de
   // Maternidad (ocultar si "Sin Maternidad") y Vitality (ocultar si nadie la tiene).
@@ -363,20 +372,9 @@ export function ComparativosPage() {
                       {isRec ? '★ Recomendado' : '☆ Recomendar'}
                     </button>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <Input
-                      placeholder="0,00"
-                      value={primas[p.id] ?? ''}
-                      onChange={(e) => setPrimas((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      className="h-9"
-                    />
-                    <span className="text-xs text-muted-foreground">/mes</span>
-                  </div>
-
-                  {/* BMI Sigma / GMM: primas adicionales, una por deducible */}
-                  {BMI_DEDUCIBLE_PLANS[p.name] && (
-                    <div className="mt-2 space-y-2">
+                  {BMI_DEDUCIBLE_PLANS[p.name] ? (
+                    /* BMI Sigma / GMM: todas las primas van con su deducible (sin prima "suelta") */
+                    <div className="space-y-2">
                       {(primasExtra[p.id] ?? []).map((extra) => (
                         <div key={extra.deducible} className="flex items-center gap-1">
                           <span className="text-sm text-muted-foreground">$</span>
@@ -402,7 +400,9 @@ export function ComparativosPage() {
 
                       {availableDeducibles(p.name, p.id).length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[11px] font-medium text-muted-foreground">+ Deducible:</span>
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            {(primasExtra[p.id] ?? []).length === 0 ? 'Elige un deducible:' : '+ Deducible:'}
+                          </span>
                           {availableDeducibles(p.name, p.id).map((d) => (
                             <button
                               key={d}
@@ -416,6 +416,18 @@ export function ComparativosPage() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  ) : (
+                    /* Resto de planes: prima simple como siempre */
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-muted-foreground">$</span>
+                      <Input
+                        placeholder="0,00"
+                        value={primas[p.id] ?? ''}
+                        onChange={(e) => setPrimas((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="h-9"
+                      />
+                      <span className="text-xs text-muted-foreground">/mes</span>
                     </div>
                   )}
                 </div>
@@ -510,7 +522,9 @@ export function ComparativosPage() {
                             backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.10)' : undefined,
                           }}
                         >
-                          {r.values[vi] ?? '—'}
+                          {r.label === 'Deducible' && BMI_DEDUCIBLE_PLANS[p.name]
+                            ? 'A Elección'
+                            : r.values[vi] ?? '—'}
                         </td>
                       ))}
                     </tr>
@@ -528,22 +542,31 @@ export function ComparativosPage() {
                           backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.22)' : undefined,
                         }}
                       >
-                        <span className="text-[15px] font-bold" style={{ color: NAVY }}>
-                          {primas[p.id] ? `$${primas[p.id]}` : '—'}
-                        </span>
-                        {primas[p.id] && <span className="ml-1 text-[9px] text-muted-foreground">/mes</span>}
-                        {(primasExtra[p.id] ?? [])
-                          .filter((e) => e.valor.trim() !== '')
-                          .map((e) => (
-                            <div key={e.deducible} className="mt-1 leading-tight">
-                              <span className="text-[13px] font-bold" style={{ color: NAVY }}>
-                                ${e.valor}
-                              </span>
-                              <span className="ml-1 text-[9px] text-muted-foreground">
-                                /mes · Deducible {e.deducible.toLocaleString('es-EC')}
-                              </span>
-                            </div>
-                          ))}
+                        {BMI_DEDUCIBLE_PLANS[p.name] ? (
+                          (() => {
+                            const items = (primasExtra[p.id] ?? []).filter((e) => e.valor.trim() !== '')
+                            if (items.length === 0) {
+                              return <span className="text-[15px] font-bold" style={{ color: NAVY }}>—</span>
+                            }
+                            return items.map((e) => (
+                              <div key={e.deducible} className="leading-tight [&:not(:first-child)]:mt-1">
+                                <span className="text-[15px] font-bold" style={{ color: NAVY }}>
+                                  ${e.valor}
+                                </span>
+                                <span className="ml-1 text-[9px] text-muted-foreground">
+                                  /mes · Deducible {e.deducible.toLocaleString('es-EC')}
+                                </span>
+                              </div>
+                            ))
+                          })()
+                        ) : (
+                          <>
+                            <span className="text-[15px] font-bold" style={{ color: NAVY }}>
+                              {primas[p.id] ? `$${primas[p.id]}` : '—'}
+                            </span>
+                            {primas[p.id] && <span className="ml-1 text-[9px] text-muted-foreground">/mes</span>}
+                          </>
+                        )}
                       </td>
                     ))}
                   </tr>

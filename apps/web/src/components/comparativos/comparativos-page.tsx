@@ -53,7 +53,7 @@ const NEGATIVE_VALUES = new Set(['no posee', 'no incluye', '—', 'no aplica'])
 // Planes de BMI que permiten cotizar varias primas, una por cada deducible.
 // El asesor elige un deducible de la lista y escribe la prima manualmente.
 const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
-  'BMI SIGMA': [150, 250, 500, 1000, 2000],
+  'BMI SIGMA': [250, 500, 1000, 2000],
   'BMI GMM': [5000, 10000, 15000, 20000],
 }
 

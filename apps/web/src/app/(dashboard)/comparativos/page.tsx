@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -24,5 +25,9 @@ export default async function Page() {
   const hasAccess = role === 'SUPER_ADMIN' || (email && ALLOWED_EMAILS.includes(email))
   if (!hasAccess) redirect('/pipeline')
 
-  return <ComparativosPage />
+  return (
+    <Suspense fallback={null}>
+      <ComparativosPage />
+    </Suspense>
+  )
 }

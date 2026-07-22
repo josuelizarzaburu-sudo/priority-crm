@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -75,6 +75,68 @@ interface PrimaExtra {
   valor: string
 }
 
+// Parsea el parámetro ?cotizacion=... que manda el cotizador y arma el estado inicial
+// del comparativo (planes seleccionados, primas, deducibles BMI y red Confiamed).
+function parseCotizacion(raw: string | null): {
+  saludIds: string[]
+  primas: Record<string, string>
+  primasExtra: Record<string, PrimaExtra[]>
+  redes: Record<string, 'red1' | 'red2'>
+} | null {
+  if (!raw) return null
+  let items: Array<{
+    catalogId: string
+    mensual: number
+    deducible?: string
+    red?: 'red1' | 'red2'
+  }>
+  try {
+    items = JSON.parse(raw)
+  } catch {
+    try {
+      items = JSON.parse(decodeURIComponent(raw))
+    } catch {
+      return null
+    }
+  }
+  if (!Array.isArray(items) || items.length === 0) return null
+
+  const saludIds: string[] = []
+  const primas: Record<string, string> = {}
+  const primasExtra: Record<string, PrimaExtra[]> = {}
+  const redes: Record<string, 'red1' | 'red2'> = {}
+
+  const parseDed = (d?: string): number | null => {
+    if (!d) return null
+    const n = parseInt(d.replace(/[^0-9]/g, ''), 10)
+    return Number.isFinite(n) ? n : null
+  }
+
+  for (const it of items) {
+    const plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
+    if (!plan) continue
+    if (!saludIds.includes(plan.id)) saludIds.push(plan.id)
+    const mensualStr = Number(it.mensual).toFixed(2).replace('.', ',')
+
+    if (BMI_DEDUCIBLE_PLANS[plan.name]) {
+      const ded = parseDed(it.deducible)
+      if (ded !== null) {
+        primasExtra[plan.id] = [...(primasExtra[plan.id] ?? []), { deducible: ded, valor: mensualStr }]
+      } else {
+        primas[plan.id] = mensualStr
+      }
+    } else {
+      primas[plan.id] = mensualStr
+    }
+
+    if (CONFIAMED_RED_PLANS[plan.name] && it.red) {
+      redes[plan.id] = it.red
+    }
+  }
+  if (saludIds.length === 0) return null
+  return { saludIds, primas, primasExtra, redes }
+}
+
 function isNegativeValue(v: string | null | undefined) {
   if (!v) return true
   return NEGATIVE_VALUES.has(v.trim().toLowerCase())
@@ -84,87 +146,30 @@ export function ComparativosPage() {
   const { data: session } = useSession()
   const advisorName = (session?.user as { name?: string } | undefined)?.name ?? ''
 
+  // Precarga desde el cotizador: lee ?cotizacion=... UNA vez al inicio.
+  const searchParams = useSearchParams()
+  const preload = useMemo(() => parseCotizacion(searchParams.get('cotizacion')), [searchParams])
+
   const [tab, setTab] = useState<CatalogKey>('salud')
   const [clientName, setClientName] = useState('')
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
-    salud: [], internacional: [], vehiculos: [],
+    salud: preload?.saludIds ?? [], internacional: [], vehiculos: [],
   })
-  const [primas, setPrimas] = useState<Record<string, string>>({})
+  const [primas, setPrimas] = useState<Record<string, string>>(preload?.primas ?? {})
   // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.
-  const [primasExtra, setPrimasExtra] = useState<Record<string, PrimaExtra[]>>({})
+  const [primasExtra, setPrimasExtra] = useState<Record<string, PrimaExtra[]>>(
+    preload?.primasExtra ?? {},
+  )
   // Red elegida por plan de Confiamed ('red1' | 'red2'). Clave = id del plan. Default red1.
-  const [confiamedRed, setConfiamedRed] = useState<Record<string, 'red1' | 'red2'>>({})
+  const [confiamedRed, setConfiamedRed] = useState<Record<string, 'red1' | 'red2'>>(
+    preload?.redes ?? {},
+  )
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
     salud: null, internacional: null, vehiculos: null,
   })
   // Con/Sin Maternidad, solo aplica (y solo se muestra el selector) en la categoría Salud
   const [maternidad, setMaternidad] = useState(true)
-
-  // Precarga desde el cotizador: lee ?cotizacion=... y llena planes, primas, deducibles y redes.
-  const searchParams = useSearchParams()
-  useEffect(() => {
-    const raw = searchParams.get('cotizacion')
-    if (!raw) return
-    let items: Array<{
-      catalogId: string
-      mensual: number
-      deducible?: string
-      red?: 'red1' | 'red2'
-    }>
-    try {
-      items = JSON.parse(decodeURIComponent(raw))
-    } catch {
-      return
-    }
-    if (!Array.isArray(items) || items.length === 0) return
-
-    const nuevosSalud: string[] = []
-    const nuevasPrimas: Record<string, string> = {}
-    const nuevasPrimasExtra: Record<string, PrimaExtra[]> = {}
-    const nuevasRedes: Record<string, 'red1' | 'red2'> = {}
-
-    // Convierte el deducible del cotizador ("D500", "5000", "I150") al número del comparativo
-    const parseDeducible = (d?: string): number | null => {
-      if (!d) return null
-      const n = parseInt(d.replace(/[^0-9]/g, ''), 10)
-      return Number.isFinite(n) ? n : null
-    }
-
-    for (const it of items) {
-      const plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
-      if (!plan) continue
-      if (!nuevosSalud.includes(plan.id)) nuevosSalud.push(plan.id)
-
-      const mensualStr = it.mensual.toFixed(2).replace('.', ',')
-
-      // BMI Sigma/GMM usan primasExtra (por deducible); el resto usa prima simple
-      if (BMI_DEDUCIBLE_PLANS[plan.name]) {
-        const ded = parseDeducible(it.deducible)
-        if (ded !== null) {
-          nuevasPrimasExtra[plan.id] = [
-            ...(nuevasPrimasExtra[plan.id] ?? []),
-            { deducible: ded, valor: mensualStr },
-          ]
-        }
-      } else {
-        nuevasPrimas[plan.id] = mensualStr
-      }
-
-      // Confiamed: red elegida
-      if (CONFIAMED_RED_PLANS[plan.name] && it.red) {
-        nuevasRedes[plan.id] = it.red
-      }
-    }
-
-    if (nuevosSalud.length === 0) return
-    setTab('salud')
-    setSelected((prev) => ({ ...prev, salud: nuevosSalud }))
-    setPrimas((prev) => ({ ...prev, ...nuevasPrimas }))
-    setPrimasExtra((prev) => ({ ...prev, ...nuevasPrimasExtra }))
-    setConfiamedRed((prev) => ({ ...prev, ...nuevasRedes }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const catalog = CATALOGS[tab]
   const selectedIds = selected[tab]

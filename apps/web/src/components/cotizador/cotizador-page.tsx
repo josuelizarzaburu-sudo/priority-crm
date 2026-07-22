@@ -17,6 +17,7 @@ import {
   CONFIAMED_DEDUCIBLE_LABEL,
   type ConfiamedRed,
 } from '@/lib/confiamed-tarifas'
+import { CATALOGS } from '@/lib/comparativos-data'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -75,6 +76,12 @@ const CONFIAMED_CATALOG_ID: Record<string, string> = {
   '10000': 'ce2',
 }
 
+// Aseguradoras que tienen cotizador automático. El resto se cotiza manualmente.
+const ASEGURADORAS_AUTO = new Set(['BMI', 'Humana', 'Confiamed'])
+
+// Planes del catálogo salud SIN cotizador (Saludsa, Bupa, etc.) para la sección manual.
+const PLANES_MANUALES = CATALOGS.salud.plans.filter((p) => !ASEGURADORAS_AUTO.has(p.insurer))
+
 export function CotizadorPage() {
   const router = useRouter()
   const [region, setRegion] = useState<BmiRegion>('Sierra')
@@ -82,6 +89,9 @@ export function CotizadorPage() {
   const [miembros, setMiembros] = useState<Miembro[]>([nuevoMiembro('Titular')])
   // Opciones marcadas que irán al comparativo
   const [seleccionados, setSeleccionados] = useState<SeleccionComparativo[]>([])
+  // Sección manual: plan elegido y precio digitado
+  const [manualPlanId, setManualPlanId] = useState('')
+  const [manualPrecio, setManualPrecio] = useState('')
 
   const toggleSeleccion = (opcion: SeleccionComparativo) =>
     setSeleccionados((prev) =>
@@ -92,6 +102,27 @@ export function CotizadorPage() {
   const estaSeleccionado = (id: string) => seleccionados.some((s) => s.id === id)
   const quitarSeleccion = (id: string) =>
     setSeleccionados((prev) => prev.filter((s) => s.id !== id))
+
+  // Agregar un plan manual (Saludsa, Bupa...) a los seleccionados
+  const agregarManual = () => {
+    const plan = PLANES_MANUALES.find((p) => p.id === manualPlanId)
+    const precio = parseFloat(manualPrecio.replace(',', '.'))
+    if (!plan || !Number.isFinite(precio) || precio <= 0) return
+    const selId = `manual-${plan.id}`
+    setSeleccionados((prev) => [
+      ...prev.filter((s) => s.id !== selId),
+      {
+        id: selId,
+        catalogId: plan.id,
+        aseguradora: plan.insurer,
+        plan: plan.name,
+        detalle: 'Manual',
+        mensual: precio,
+      },
+    ])
+    setManualPlanId('')
+    setManualPrecio('')
+  }
 
   const addMiembro = (parentesco: string) =>
     setMiembros((prev) => [...prev, nuevoMiembro(parentesco)])
@@ -536,6 +567,56 @@ export function CotizadorPage() {
           </div>
         </div>
       )}
+
+      {/* ── Aseguradoras manuales (Saludsa, Bupa...) ── */}
+      <div className="rounded-xl border border-dashed bg-card p-4">
+        <h2 className="mb-1 text-base font-bold" style={{ color: NAVY }}>
+          Agregar plan manual
+        </h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Para aseguradoras sin cotizador (Saludsa, Bupa). Elige el plan y digita el precio mensual.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[200px] flex-1">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Plan</label>
+            <select
+              value={manualPlanId}
+              onChange={(e) => setManualPlanId(e.target.value)}
+              className="h-9 w-full rounded-md border bg-white px-2 text-sm"
+              style={{ color: NAVY }}
+            >
+              <option value="">Selecciona un plan…</option>
+              {PLANES_MANUALES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.insurer} · {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-32">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Precio /mes
+            </label>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-muted-foreground">$</span>
+              <Input
+                placeholder="0,00"
+                value={manualPrecio}
+                onChange={(e) => setManualPrecio(e.target.value)}
+                className="h-9"
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            onClick={agregarManual}
+            disabled={!manualPlanId || !manualPrecio}
+            style={{ backgroundColor: GOLD, color: '#fff' }}
+          >
+            + Agregar
+          </Button>
+        </div>
+      </div>
 
       {/* ── Seleccionados para el comparativo ── */}
       {seleccionados.length > 0 && (

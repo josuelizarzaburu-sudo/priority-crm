@@ -584,12 +584,16 @@ export function CotizadorPage() {
               type="button"
               style={{ backgroundColor: NAVY, color: '#fff' }}
               onClick={() => {
-                // Codificar las selecciones en la URL para pasarlas al comparativo
+                // Codificar las selecciones en la URL para pasarlas al comparativo.
+                // catalogId es lo que el comparativo usa para encontrar el plan; sin él llega vacío.
                 const payload = seleccionados.map((s) => ({
+                  catalogId: s.catalogId,
                   aseguradora: s.aseguradora,
                   plan: s.plan,
                   detalle: s.detalle,
                   mensual: s.mensual,
+                  deducible: s.deducible,
+                  red: s.red,
                 }))
                 const encoded = encodeURIComponent(JSON.stringify(payload))
                 router.push(`/comparativos?cotizacion=${encoded}`)

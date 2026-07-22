@@ -290,7 +290,7 @@ export function ComparativosPage() {
     <div className="flex h-full flex-col gap-4">
       {/* ── Controles (ocultos al imprimir) ─────────────────────────────── */}
       <div className="print:hidden">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Comparativos</h1>
             <p className="text-sm text-muted-foreground">
@@ -298,7 +298,11 @@ export function ComparativosPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setPreview((v) => !v)}>
+            <Button
+              variant="outline"
+              onClick={() => setPreview((v) => !v)}
+              className="flex-1 md:flex-none"
+            >
               {preview ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
               {preview ? 'Ocultar vista previa' : 'Vista previa'}
             </Button>
@@ -306,6 +310,7 @@ export function ComparativosPage() {
               onClick={handlePrint}
               disabled={!selectedPlans.length}
               style={{ backgroundColor: GOLD, color: NAVY }}
+              className="flex-1 md:flex-none"
             >
               <Printer className="mr-2 h-4 w-4" /> Generar PDF
             </Button>
@@ -564,10 +569,10 @@ export function ComparativosPage() {
               />
             </div>
             {/* Header */}
-            <div className="relative z-10 flex items-center justify-between px-10 py-6 print:px-8" style={{ backgroundColor: NAVY }}>
+            <div className="relative z-10 flex flex-col items-center gap-3 px-6 py-5 md:flex-row md:justify-between md:gap-0 md:px-10 md:py-6 print:flex-row print:justify-between print:gap-0 print:px-8 print:py-6" style={{ backgroundColor: NAVY }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={PRIORITY_LOGO_DATA_URI} alt="Priority Asesores de Seguros" className="h-14 w-auto" />
-              <div className="text-right text-[12.5px] font-medium leading-relaxed text-white">
+              <div className="text-center text-[12.5px] font-medium leading-relaxed text-white md:text-right print:text-right">
                 Cotización preparada para
                 <br />
                 <span className="text-[19px] font-bold text-white">{clientName || '—'}</span>
@@ -578,7 +583,7 @@ export function ComparativosPage() {
             <div className="relative z-10 h-1" style={{ background: `linear-gradient(90deg, ${GOLD}, #f0d9ad)` }} />
 
             {/* Body */}
-            <div className="relative z-10 px-10 py-7 print:px-8">
+            <div className="relative z-10 px-5 py-6 md:px-10 md:py-7 print:px-8 print:py-7">
               <h2 className="text-lg font-bold" style={{ color: NAVY }}>Comparativo de Planes</h2>
               <p className="mb-3 text-xs text-muted-foreground">
                 {SUBTITLES[tab]} · Los {documentPlans.length} planes que mejor se ajustan a tu perfil
@@ -588,7 +593,8 @@ export function ComparativosPage() {
                 Estimado{clientName ? ` ${clientName.split(' ')[0]}` : ''}, hemos hecho un análisis exhaustivo de los planes del mercado, los cuales te presentamos a continuación. Recuerda que todos los planes incluyen la experiencia de Servicio Priority.
               </p>
 
-              <table className="w-full border-collapse text-[11px]">
+              <div className="-mx-5 overflow-x-auto px-5 md:mx-0 md:overflow-visible md:px-0 print:mx-0 print:overflow-visible print:px-0">
+              <table className="w-full min-w-[560px] border-collapse text-[11px] md:min-w-0 print:min-w-0">
                 <thead>
                   <tr>
                     <th className="rounded-tl-lg px-3 py-2.5 text-left text-white" style={{ backgroundColor: NAVY, width: '22%' }}>
@@ -683,6 +689,7 @@ export function ComparativosPage() {
                   </tr>
                 </tbody>
               </table>
+              </div>
 
               <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
                 <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp 099 591 5761</span>

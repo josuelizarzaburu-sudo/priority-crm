@@ -27,7 +27,7 @@ const OTROS_CARGOS: Record<BmiPlanId, number> = {
 
 // Deducibles ofrecidos por cada plan
 export const BMI_DEDUCIBLES: Record<BmiPlanId, string[]> = {
-  sigma: ['I150', 'D150', 'D250', 'D500', 'D1000', 'D2000'],
+  sigma: ['D250', 'D500', 'D1000', 'D2000'],
   innova: ['D250'],
   gmm: ['5000', '10000', '15000', '20000'],
 }

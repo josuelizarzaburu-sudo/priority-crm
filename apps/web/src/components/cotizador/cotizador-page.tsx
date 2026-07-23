@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -118,6 +118,19 @@ const ASEGURADORAS_AUTO = new Set(['BMI', 'Humana', 'Confiamed'])
 // Planes del catálogo salud SIN cotizador (Saludsa, Bupa, etc.) para la sección manual.
 const PLANES_MANUALES = CATALOGS.salud.plans.filter((p) => !ASEGURADORAS_AUTO.has(p.insurer))
 
+// Guardamos el trabajo en curso del cotizador (integrantes + seleccionados) para que el
+// vendedor pueda ir y volver del comparativo sin perder los datos ya ingresados del cliente.
+// sessionStorage: se limpia solo al cerrar la pestaña, así no se mezcla con el siguiente cliente
+// si el vendedor cierra y abre una pestaña nueva.
+const COTIZADOR_STORAGE_KEY = 'priority-cotizador-en-curso-v1'
+
+type CotizadorGuardado = {
+  region: BmiRegion
+  confiamedRed: ConfiamedRed
+  miembros: Miembro[]
+  seleccionados: SeleccionComparativo[]
+}
+
 export function CotizadorPage() {
   const router = useRouter()
   const [region, setRegion] = useState<BmiRegion>('Sierra')
@@ -128,6 +141,49 @@ export function CotizadorPage() {
   // Sección manual: plan elegido y precio digitado
   const [manualPlanId, setManualPlanId] = useState('')
   const [manualPrecio, setManualPrecio] = useState('')
+  // Evita que el efecto de "guardar" pise el sessionStorage con los valores por defecto
+  // antes de que el efecto de "restaurar" alcance a correr.
+  const [hidratado, setHidratado] = useState(false)
+
+  // Restaurar cotización en curso (si el vendedor viene de vuelta desde /comparativos, o recargó la página)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(COTIZADOR_STORAGE_KEY)
+      if (raw) {
+        const data: CotizadorGuardado = JSON.parse(raw)
+        if (data.region) setRegion(data.region)
+        if (data.confiamedRed) setConfiamedRed(data.confiamedRed)
+        if (data.miembros?.length) setMiembros(data.miembros)
+        if (data.seleccionados?.length) setSeleccionados(data.seleccionados)
+      }
+    } catch {
+      // sessionStorage no disponible o dato corrupto: seguimos con el formulario en blanco
+    }
+    setHidratado(true)
+  }, [])
+
+  // Guardar automáticamente en cada cambio
+  useEffect(() => {
+    if (!hidratado) return
+    const data: CotizadorGuardado = { region, confiamedRed, miembros, seleccionados }
+    try {
+      sessionStorage.setItem(COTIZADOR_STORAGE_KEY, JSON.stringify(data))
+    } catch {
+      // si falla el guardado (modo privado, cuota llena, etc.) no interrumpimos el flujo
+    }
+  }, [hidratado, region, confiamedRed, miembros, seleccionados])
+
+  // Botón "Nueva cotización": limpia todo para empezar con otro cliente sin arrastrar datos
+  const nuevaCotizacion = () => {
+    if (!confirm('¿Empezar una cotización nueva? Se perderán los datos e integrantes actuales.')) return
+    sessionStorage.removeItem(COTIZADOR_STORAGE_KEY)
+    setRegion('Sierra')
+    setConfiamedRed('red1')
+    setMiembros([nuevoMiembro('Titular')])
+    setSeleccionados([])
+    setManualPlanId('')
+    setManualPrecio('')
+  }
 
   const toggleSeleccion = (opcion: SeleccionComparativo) =>
     setSeleccionados((prev) =>
@@ -196,13 +252,18 @@ export function CotizadorPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>
-          Cotizador
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Herramienta interna · BMI (Sigma · Innova · GMM) y Humana · Salud individual/familiar
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>
+            Cotizador
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Herramienta interna · BMI (Sigma · Innova · GMM) y Humana · Salud individual/familiar
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={nuevaCotizacion} className="self-start">
+          Nueva cotización
+        </Button>
       </div>
 
       {/* ── Datos del cliente ── */}

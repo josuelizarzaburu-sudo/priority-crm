@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -290,6 +291,13 @@ export function ComparativosPage() {
     <div className="flex h-full flex-col gap-4">
       {/* ── Controles (ocultos al imprimir) ─────────────────────────────── */}
       <div className="print:hidden">
+        <Link
+          href="/cotizador"
+          className="mb-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          style={{ color: NAVY }}
+        >
+          ← Volver al cotizador
+        </Link>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Comparativos</h1>

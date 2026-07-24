@@ -99,7 +99,8 @@ export class LeadsService {
       else profileType = 'D'
     }
 
-    const insuranceLabel = dto.insuranceType === 'SALUD' ? 'Salud' : 'Auto'
+    const insuranceLabel =
+      dto.insuranceType === 'SALUD' ? 'Salud' : dto.insuranceType === 'VIDA' ? 'Vida' : 'Auto'
     const deal = await this.prisma.deal.create({
       data: {
         title: `Seguro de ${insuranceLabel} — ${dto.firstName}${dto.lastName ? ` ${dto.lastName}` : ''}`,

@@ -113,9 +113,9 @@ const CONFIAMED_CATALOG_ID: Record<string, string> = {
   '10000': 'ce2',
 }
 
-// ── Catálogo de Gastos Médicos Mayores (los 3 viven en CATALOGS.salud, igual que el resto) ──
+// ── Gastos Médicos Mayores. Viven en CATALOGS.salud igual que el resto de planes.
+// BMI GMM no está aquí: se selecciona desde la sección BMI de arriba (id ab2).
 const GMM_CATALOG_ID = {
-  bmi: 'ab2', // BMI GMM ya vivía en salud
   confiamed: 'ab16',
   proteger: 'ab17',
 } as const
@@ -259,7 +259,7 @@ export function CotizadorPage() {
   }, [personas, confiamedRed])
 
   // ── Gastos Médicos Mayores ──
-  // Proteger no distingue maternidad ni da descuento familiar; solo edad + sexo.
+  // Humana GMM (producto "Proteger"): sin maternidad ni descuento familiar; solo edad + sexo.
   const proteger = useMemo(() => {
     if (personas.length === 0) return null
     return cotizarProteger(personas.map((p) => ({ edad: p.edad, sexo: p.sexo })))
@@ -674,6 +674,106 @@ export function CotizadorPage() {
             </div>
           </div>
 
+          {/* ── Humana GMM ── */}
+          <div>
+            <h2 className="mb-2 text-base font-bold" style={{ color: NAVY }}>
+              Humana GMM
+            </h2>
+            <div className="rounded-xl border bg-card p-4">
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
+                      <th className="px-3 py-2 text-left font-semibold">Plan</th>
+                      <th className="px-3 py-2 text-left font-semibold">Deducible</th>
+                      <th className="px-3 py-2 text-right font-semibold">Mensual</th>
+                      <th className="px-3 py-2 text-right font-semibold">Anual</th>
+                      <th className="px-3 py-2 text-center font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proteger?.map((r, i) => {
+                      const selId = `gmm-proteger-${r.plan}`
+                      const sel = estaSeleccionado(selId)
+                      return (
+                        <tr key={r.plan} className={i % 2 ? 'bg-muted/40' : ''}>
+                          <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
+                            {r.label}
+                          </td>
+                          <td className="px-3 py-2">{r.deducibleLabel}</td>
+                          <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
+                            ${money(r.mensual)}
+                          </td>
+                          <td className="px-3 py-2 text-right">${money(r.anual)}</td>
+                          <td className="px-3 py-2 text-center">
+                            <CompararBtn
+                              sel={sel}
+                              onClick={() =>
+                                toggleSeleccion({
+                                  id: selId,
+                                  catalogId: GMM_CATALOG_ID.proteger,
+                                  aseguradora: 'Humana',
+                                  plan: 'HUMANA GMM',
+                                  detalle: `${r.label} · ${r.deducibleLabel}`,
+                                  mensual: r.mensual,
+                                  deducible: String(r.deducible),
+                                })
+                              }
+                              className="px-3 py-1 text-xs"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-3 md:hidden">
+                {proteger?.map((r) => {
+                  const selId = `gmm-proteger-${r.plan}`
+                  const sel = estaSeleccionado(selId)
+                  return (
+                    <div key={r.plan} className="rounded-lg border p-3">
+                      <div className="mb-2 flex items-baseline justify-between gap-2">
+                        <span className="text-sm font-bold" style={{ color: NAVY }}>
+                          {r.label}
+                        </span>
+                        <span className="text-base font-bold" style={{ color: NAVY }}>
+                          ${money(r.mensual)}
+                          <span className="text-xs font-normal text-muted-foreground"> /mes</span>
+                        </span>
+                      </div>
+                      <div className="mb-3 space-y-1 border-t pt-2">
+                        <CardStat label="Deducible" value={r.deducibleLabel} />
+                        <CardStat label="Anual" value={`$${money(r.anual)}`} />
+                      </div>
+                      <CompararBtn
+                        sel={sel}
+                        onClick={() =>
+                          toggleSeleccion({
+                            id: selId,
+                            catalogId: GMM_CATALOG_ID.proteger,
+                            aseguradora: 'Humana',
+                            plan: 'HUMANA GMM',
+                            detalle: `${r.label} · ${r.deducibleLabel}`,
+                            mensual: r.mensual,
+                            deducible: String(r.deducible),
+                          })
+                        }
+                        className="w-full py-2 text-xs"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Cobertura USD 500.000 en las tres variantes. Incluye seguro campesino (0,5%). Sin
+                descuento familiar.
+              </p>
+            </div>
+          </div>
+
           {/* ── Confiamed ── */}
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-3">
@@ -810,309 +910,103 @@ export function CotizadorPage() {
             </div>
           </div>
 
-          {/* ── Gastos Médicos Mayores (GMM) ── */}
+          {/* ── Confiamed GMM ── */}
           <div>
-            <h2 className="mb-1 text-base font-bold" style={{ color: NAVY }}>
-              Gastos Médicos Mayores
+            <h2 className="mb-2 text-base font-bold" style={{ color: NAVY }}>
+              Confiamed GMM
             </h2>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Estos planes van a la pestaña <strong>Salud</strong> del comparativo, junto con el
-              resto.
-            </p>
-
-            <div className="space-y-4">
-              {/* BMI GMM */}
-              <div className="rounded-xl border bg-card p-4">
-                <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
-                  BMI · GMM <span className="font-normal text-muted-foreground">({region})</span>
-                </h3>
-
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
-                        <th className="px-3 py-2 text-left font-semibold">Deducible</th>
-                        <th className="px-3 py-2 text-right font-semibold">Mensual</th>
-                        <th className="px-3 py-2 text-right font-semibold">Anual</th>
-                        <th className="px-3 py-2 text-center font-semibold"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bmi?.gmm.map((r, i) => {
-                        const selId = `gmm-bmi-${r.deducible}`
-                        const sel = estaSeleccionado(selId)
-                        return (
-                          <tr key={r.deducible} className={i % 2 ? 'bg-muted/40' : ''}>
-                            <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
-                              {r.label}
-                            </td>
-                            <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
-                              ${money(r.mensualNormal)}
-                            </td>
-                            <td className="px-3 py-2 text-right">${money(r.anualNormal)}</td>
-                            <td className="px-3 py-2 text-center">
-                              <CompararBtn
-                                sel={sel}
-                                onClick={() =>
-                                  toggleSeleccion({
-                                    id: selId,
-                                    catalogId: GMM_CATALOG_ID.bmi,
-                                    aseguradora: 'BMI',
-                                    plan: 'BMI GMM',
-                                    detalle: r.label,
-                                    mensual: r.mensualNormal,
-                                    deducible: r.deducible,
-                                  })
-                                }
-                                className="px-3 py-1 text-xs"
-                              />
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="space-y-3 md:hidden">
-                  {bmi?.gmm.map((r) => {
-                    const selId = `gmm-bmi-${r.deducible}`
-                    const sel = estaSeleccionado(selId)
-                    return (
-                      <div key={r.deducible} className="rounded-lg border p-3">
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-bold" style={{ color: NAVY }}>
-                            {r.label}
-                          </span>
-                          <span className="text-base font-bold" style={{ color: NAVY }}>
-                            ${money(r.mensualNormal)}
-                            <span className="text-xs font-normal text-muted-foreground"> /mes</span>
-                          </span>
-                        </div>
-                        <div className="mb-3 space-y-1 border-t pt-2">
-                          <CardStat label="Anual" value={`$${money(r.anualNormal)}`} />
-                        </div>
-                        <CompararBtn
-                          sel={sel}
-                          onClick={() =>
-                            toggleSeleccion({
-                              id: selId,
-                              catalogId: GMM_CATALOG_ID.bmi,
-                              aseguradora: 'BMI',
-                              plan: 'BMI GMM',
-                              detalle: r.label,
-                              mensual: r.mensualNormal,
-                              deducible: r.deducible,
-                            })
-                          }
-                          className="w-full py-2 text-xs"
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="mt-3 text-[11px] text-muted-foreground">
-                  Cobertura USD 500.000. Mismos precios que la sección BMI de arriba.
-                </p>
-              </div>
-
-              {/* Humana Proteger */}
-              <div className="rounded-xl border bg-card p-4">
-                <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
-                  Humana · Plan Proteger
-                </h3>
-
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
-                        <th className="px-3 py-2 text-left font-semibold">Plan</th>
-                        <th className="px-3 py-2 text-left font-semibold">Deducible</th>
-                        <th className="px-3 py-2 text-right font-semibold">Mensual</th>
-                        <th className="px-3 py-2 text-right font-semibold">Anual</th>
-                        <th className="px-3 py-2 text-center font-semibold"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {proteger?.map((r, i) => {
-                        const selId = `gmm-proteger-${r.plan}`
-                        const sel = estaSeleccionado(selId)
-                        return (
-                          <tr key={r.plan} className={i % 2 ? 'bg-muted/40' : ''}>
-                            <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
-                              {r.label}
-                            </td>
-                            <td className="px-3 py-2">{r.deducibleLabel}</td>
-                            <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
-                              ${money(r.mensual)}
-                            </td>
-                            <td className="px-3 py-2 text-right">${money(r.anual)}</td>
-                            <td className="px-3 py-2 text-center">
-                              <CompararBtn
-                                sel={sel}
-                                onClick={() =>
-                                  toggleSeleccion({
-                                    id: selId,
-                                    catalogId: GMM_CATALOG_ID.proteger,
-                                    aseguradora: 'Humana',
-                                    plan: 'HUMANA PROTEGER',
-                                    detalle: `${r.label} · ${r.deducibleLabel}`,
-                                    mensual: r.mensual,
-                                    deducible: String(r.deducible),
-                                  })
-                                }
-                                className="px-3 py-1 text-xs"
-                              />
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="space-y-3 md:hidden">
-                  {proteger?.map((r) => {
-                    const selId = `gmm-proteger-${r.plan}`
-                    const sel = estaSeleccionado(selId)
-                    return (
-                      <div key={r.plan} className="rounded-lg border p-3">
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-bold" style={{ color: NAVY }}>
-                            {r.label}
-                          </span>
-                          <span className="text-base font-bold" style={{ color: NAVY }}>
+            <div className="rounded-xl border bg-card p-4">
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
+                      <th className="px-3 py-2 text-left font-semibold">Producto</th>
+                      <th className="px-3 py-2 text-left font-semibold">Deducible</th>
+                      <th className="px-3 py-2 text-right font-semibold">Mensual</th>
+                      <th className="px-3 py-2 text-right font-semibold">Anual</th>
+                      <th className="px-3 py-2 text-center font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {confiamedGmm?.map((r, i) => {
+                      const selId = `gmm-confiamed-${r.deducible}`
+                      const sel = estaSeleccionado(selId)
+                      return (
+                        <tr key={r.deducible} className={i % 2 ? 'bg-muted/40' : ''}>
+                          <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
+                            {r.producto}
+                          </td>
+                          <td className="px-3 py-2">{r.label}</td>
+                          <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
                             ${money(r.mensual)}
-                            <span className="text-xs font-normal text-muted-foreground"> /mes</span>
-                          </span>
-                        </div>
-                        <div className="mb-3 space-y-1 border-t pt-2">
-                          <CardStat label="Deducible" value={r.deducibleLabel} />
-                          <CardStat label="Anual" value={`$${money(r.anual)}`} />
-                        </div>
-                        <CompararBtn
-                          sel={sel}
-                          onClick={() =>
-                            toggleSeleccion({
-                              id: selId,
-                              catalogId: GMM_CATALOG_ID.proteger,
-                              aseguradora: 'Humana',
-                              plan: 'HUMANA PROTEGER',
-                              detalle: `${r.label} · ${r.deducibleLabel}`,
-                              mensual: r.mensual,
-                              deducible: String(r.deducible),
-                            })
-                          }
-                          className="w-full py-2 text-xs"
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="mt-3 text-[11px] text-muted-foreground">
-                  Cobertura USD 500.000 en las tres variantes. Incluye seguro campesino (0,5%). Sin
-                  descuento familiar.
-                </p>
+                          </td>
+                          <td className="px-3 py-2 text-right">${money(r.anual)}</td>
+                          <td className="px-3 py-2 text-center">
+                            <CompararBtn
+                              sel={sel}
+                              onClick={() =>
+                                toggleSeleccion({
+                                  id: selId,
+                                  catalogId: GMM_CATALOG_ID.confiamed,
+                                  aseguradora: 'Confiamed',
+                                  plan: 'CONFIAMED GMM',
+                                  detalle: r.label,
+                                  mensual: r.mensual,
+                                  deducible: r.deducible,
+                                })
+                              }
+                              className="px-3 py-1 text-xs"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Confiamed GMM */}
-              <div className="rounded-xl border bg-card p-4">
-                <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
-                  Confiamed · GMM
-                </h3>
-
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
-                        <th className="px-3 py-2 text-left font-semibold">Producto</th>
-                        <th className="px-3 py-2 text-left font-semibold">Deducible</th>
-                        <th className="px-3 py-2 text-right font-semibold">Mensual</th>
-                        <th className="px-3 py-2 text-right font-semibold">Anual</th>
-                        <th className="px-3 py-2 text-center font-semibold"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {confiamedGmm?.map((r, i) => {
-                        const selId = `gmm-confiamed-${r.deducible}`
-                        const sel = estaSeleccionado(selId)
-                        return (
-                          <tr key={r.deducible} className={i % 2 ? 'bg-muted/40' : ''}>
-                            <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
-                              {r.producto}
-                            </td>
-                            <td className="px-3 py-2">{r.label}</td>
-                            <td className="px-3 py-2 text-right font-bold" style={{ color: NAVY }}>
-                              ${money(r.mensual)}
-                            </td>
-                            <td className="px-3 py-2 text-right">${money(r.anual)}</td>
-                            <td className="px-3 py-2 text-center">
-                              <CompararBtn
-                                sel={sel}
-                                onClick={() =>
-                                  toggleSeleccion({
-                                    id: selId,
-                                    catalogId: GMM_CATALOG_ID.confiamed,
-                                    aseguradora: 'Confiamed',
-                                    plan: 'CONFIAMED GMM',
-                                    detalle: r.label,
-                                    mensual: r.mensual,
-                                    deducible: r.deducible,
-                                  })
-                                }
-                                className="px-3 py-1 text-xs"
-                              />
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="space-y-3 md:hidden">
-                  {confiamedGmm?.map((r) => {
-                    const selId = `gmm-confiamed-${r.deducible}`
-                    const sel = estaSeleccionado(selId)
-                    return (
-                      <div key={r.deducible} className="rounded-lg border p-3">
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-bold" style={{ color: NAVY }}>
-                            {r.label}
-                          </span>
-                          <span className="text-base font-bold" style={{ color: NAVY }}>
-                            ${money(r.mensual)}
-                            <span className="text-xs font-normal text-muted-foreground"> /mes</span>
-                          </span>
-                        </div>
-                        <div className="mb-3 space-y-1 border-t pt-2">
-                          <CardStat label="Producto" value={r.producto} />
-                          <CardStat label="Anual" value={`$${money(r.anual)}`} />
-                        </div>
-                        <CompararBtn
-                          sel={sel}
-                          onClick={() =>
-                            toggleSeleccion({
-                              id: selId,
-                              catalogId: GMM_CATALOG_ID.confiamed,
-                              aseguradora: 'Confiamed',
-                              plan: 'CONFIAMED GMM',
-                              detalle: r.label,
-                              mensual: r.mensual,
-                              deducible: r.deducible,
-                            })
-                          }
-                          className="w-full py-2 text-xs"
-                        />
+              <div className="space-y-3 md:hidden">
+                {confiamedGmm?.map((r) => {
+                  const selId = `gmm-confiamed-${r.deducible}`
+                  const sel = estaSeleccionado(selId)
+                  return (
+                    <div key={r.deducible} className="rounded-lg border p-3">
+                      <div className="mb-2 flex items-baseline justify-between gap-2">
+                        <span className="text-sm font-bold" style={{ color: NAVY }}>
+                          {r.label}
+                        </span>
+                        <span className="text-base font-bold" style={{ color: NAVY }}>
+                          ${money(r.mensual)}
+                          <span className="text-xs font-normal text-muted-foreground"> /mes</span>
+                        </span>
                       </div>
-                    )
-                  })}
-                </div>
-                <p className="mt-3 text-[11px] text-muted-foreground">
-                  Cobertura USD 500.000. Tarifario de venta nueva. Sin descuento familiar; precios
-                  incluyen impuestos.
-                </p>
+                      <div className="mb-3 space-y-1 border-t pt-2">
+                        <CardStat label="Producto" value={r.producto} />
+                        <CardStat label="Anual" value={`$${money(r.anual)}`} />
+                      </div>
+                      <CompararBtn
+                        sel={sel}
+                        onClick={() =>
+                          toggleSeleccion({
+                            id: selId,
+                            catalogId: GMM_CATALOG_ID.confiamed,
+                            aseguradora: 'Confiamed',
+                            plan: 'CONFIAMED GMM',
+                            detalle: r.label,
+                            mensual: r.mensual,
+                            deducible: r.deducible,
+                          })
+                        }
+                        className="w-full py-2 text-xs"
+                      />
+                    </div>
+                  )
+                })}
               </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Cobertura USD 500.000. Tarifario de venta nueva. Sin descuento familiar; precios
+                incluyen impuestos.
+              </p>
             </div>
           </div>
         </div>

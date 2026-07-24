@@ -140,6 +140,18 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "name": "SALUD STAR 30",
         "insurer": "Saludsa",
         "network": "cerrada"
+      },
+      {
+        "id": "ab14",
+        "name": "HUMANA 150",
+        "insurer": "Humana",
+        "network": "abierta"
+      },
+      {
+        "id": "ab15",
+        "name": "SALUD 65+",
+        "insurer": "Saludsa",
+        "network": "abierta"
       }
     ],
     "benefits": [
@@ -164,7 +176,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD. 30.000  Anual",
           "USD 10.000 por incapacidad",
           "USD 15.000 por enfermedad",
-          "USD 30.000 por enfermedad"
+          "USD 30.000 por enfermedad",
+          "USD. 150.000 Por Incapacidad",
+          "USD 10.000 Por Incapacidad"
         ]
       },
       {
@@ -188,7 +202,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 60 anual",
           "USD 120 anual",
           "USD 70 anual",
-          "USD 90 anual"
+          "USD 90 anual",
+          "USD 150 anual",
+          "USD 100 anual"
         ]
       },
       {
@@ -212,7 +228,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Red direccionada Plan Practi Humana",
           "Red Uno",
           "Red Medica Star",
-          "Red Medica Star"
+          "Red Medica Star",
+          "Red Medica Humana y libre eleccion",
+          "Red Medica 65+"
         ]
       },
       {
@@ -236,7 +254,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "90%",
           "90%",
           "90%",
-          "100%"
+          "100%",
+          "90%",
+          "50%"
         ]
       },
       {
@@ -260,7 +280,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "80%",
           "N/A",
-          "N/A"
+          "N/A",
+          "80%",
+          "No aplica"
         ]
       },
       {
@@ -284,7 +306,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "90%",
           "70%",
-          "80%"
+          "80%",
+          "80%",
+          "50%"
         ]
       },
       {
@@ -308,7 +332,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "80%",
           "N/A",
-          "N/A"
+          "N/A",
+          "80%",
+          "No aplica"
         ]
       },
       {
@@ -332,7 +358,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 160 Por Día",
           "USD 150 Por día",
           "Hasta USD 150 al 90% en hospital de la Red",
-          "Hasta USD 150 al 100% en hospital de la Red"
+          "Hasta USD 150 al 100% en hospital de la Red",
+          "USD 200 Por Día",
+          "USD 150 Por día"
         ]
       },
       {
@@ -356,7 +384,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 30",
           "USD 45",
           "25 USD",
-          "25 USD"
+          "25 USD",
+          "USD 80",
+          "USD 12-25"
         ]
       },
       {
@@ -380,7 +410,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Posee",
           "No Posee",
           "No posee",
-          "No posee"
+          "No posee",
+          "No Posee",
+          "No Posee"
         ]
       },
       {
@@ -404,7 +436,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "70%",
           "80%",
           "70% en red de convenio",
-          "80% en red de convenio"
+          "80% en red de convenio",
+          "70%",
+          "30%"
         ]
       },
       {
@@ -428,7 +462,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta 15 sesiones por tipo de terapia",
           "Hasta USD 1.000 solo en red no cubre red abierta",
           "Hasta 30 sesiones por tipo de terapia",
-          "Hasta 30 sesiones por tipo de terapia"
+          "Hasta 30 sesiones por tipo de terapia",
+          "Hasta 30 sesiones por tipo de terapia",
+          "Hasta 10 sesiones por tipo de terapia"
         ]
       },
       {
@@ -452,7 +488,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 1.500",
           "USD 800",
           "USD 1.000 en hospital de la Red",
-          "USD 2.500 en hospital de la Red"
+          "USD 2.500 en hospital de la Red",
+          "USD 7.500",
+          "No aplica"
         ]
       },
       {
@@ -476,7 +514,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 2.250",
           "Incluido en maternidad",
           "USD 500 en hospital de la Red",
-          "USD 1.000 en hospital de la Red"
+          "USD 1.000 en hospital de la Red",
+          "USD 11.250",
+          "No aplica"
         ]
       },
       {
@@ -500,7 +540,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta USD 30.000 con inclusion intrauterina",
           "USD 10.000 con inclusión intrauterina",
           "USD 15.000 con inclusión intrauterina en hospital de la Red",
-          "USD 30.000 con inclusión intrauterina en hospital de la Red"
+          "USD 30.000 con inclusión intrauterina en hospital de la Red",
+          "Hasta el monto de cobertura",
+          "No aplica"
         ]
       },
       {
@@ -524,6 +566,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "USD 40.000",
           "No Incluye",
+          "No Incluye",
+          "USD 100.000",
           "No Incluye"
         ]
       },
@@ -548,7 +592,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "30 Días Por Viaje",
           "No Incluye",
-          "No Incluye"
+          "No Incluye",
+          "30 Días Por Año",
+          "No aplica"
         ]
       },
       {
@@ -572,7 +618,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 5.000 hasta 65 años",
           "No Incluye",
           "No Incluye",
-          "No Incluye"
+          "No Incluye",
+          "USD 5.000 hasta 65 años",
+          "No aplica"
         ]
       },
       {
@@ -581,6 +629,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
+          "No Incluye",
+          "No Incluye",
           "No Incluye",
           "No Incluye",
           "No Incluye",
@@ -620,7 +670,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Incluido",
           "Incluido",
           "Incluido",
-          "Incluido"
+          "Incluido",
+          "Incluido",
+          "Se contrata adicional"
         ]
       },
       {
@@ -644,6 +696,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "Bono de USD 200",
           "Plan Básico",
+          "Plan Básico",
+          "200",
           "Plan Básico"
         ]
       },
@@ -668,6 +722,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "No Incluye",
           "Hasta 20% de descuento anual en la tarifa del plan medico con el programa",
+          "Hasta 20% de descuento anual en la tarifa del plan medico con el programa",
+          "No posee",
           "Hasta 20% de descuento anual en la tarifa del plan medico con el programa"
         ]
       },
@@ -692,7 +748,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Desde el mes 13 USD 1.350 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD 500 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD 400 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
-          "Desde el mes 13 USD 600 y mes 25 hasta 20 salarios básicos unificados USD 9.600."
+          "Desde el mes 13 USD 600 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
+          "Desde el mes 7 USD 540 - mes 12 USD 1.350 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
+          "Desde el mes 13 USD 1500 solo ambulatoria y mes 25 hasta 20 salarios básicos unificados USD 9.600."
         ]
       }
     ]

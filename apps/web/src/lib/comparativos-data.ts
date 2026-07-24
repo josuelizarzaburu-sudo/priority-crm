@@ -1039,7 +1039,12 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
     "plans": [
       {
         "id": "ve0",
-        "name": "Seguros Atlantida",
+        "name": "Atlántida Plan Medio",
+        "insurer": "Atlántida"
+      },
+      {
+        "id": "ve4",
+        "name": "Atlántida Plan Full",
         "insurer": "Atlántida"
       },
       {
@@ -1049,7 +1054,12 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
       },
       {
         "id": "ve2",
-        "name": "Sweaden (Cross Plus)",
+        "name": "Sweaden Plus 10",
+        "insurer": "Sweaden"
+      },
+      {
+        "id": "ve5",
+        "name": "Sweaden Plus 11",
         "insurer": "Sweaden"
       },
       {
@@ -1065,6 +1075,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "SI",
           "SI",
           "SI",
+          "SI",
+          "SI",
           "SI"
         ]
       },
@@ -1072,8 +1084,10 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Responsabilidad Civil",
         "values": [
           "USD 45.000",
+          "USD 65.000",
           "USD 50.000",
           "USD 50.000",
+          "USD 10.000",
           "USD 40.000"
         ]
       },
@@ -1083,15 +1097,19 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "SI",
           "SI",
           "SI",
+          "SI",
+          "SI",
           "SI"
         ]
       },
       {
-        "label": "Gastos Medicos por Accidente",
+        "label": "Gastos Medicos por Accidente Titular",
         "values": [
+          "USD 3.000 por ocupante",
           "USD 3.000 por ocupante",
           "USD 4.000 por ocupante",
           "USD 2.500 por ocupante",
+          "USD 2.000 por ocupante",
           "USD 3.000 por ocupante"
         ]
       },
@@ -1099,14 +1117,18 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Muerte Accidental",
         "values": [
           "USD 5.000 por ocupante",
+          "USD 10.000 titular y USD 5.000 por ocupante",
           "USD 15.000 Titular y USD 10.000 por ocupante",
           "USD 6.000 por ocupante",
+          "USD 3.000 por ocupante",
           "USD 10.000 al conductor"
         ]
       },
       {
         "label": "Asistencias",
         "values": [
+          "Programa completo",
+          "Programa completo",
           "Programa completo",
           "Programa completo",
           "Programa completo",
@@ -1117,7 +1139,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Servicio de Grúa",
         "values": [
           "Hasta 300 km",
+          "Hasta 300 km",
           "Hasta USD 300",
+          "Hasta 300 km",
           "Hasta 300 km",
           "Hasta USD 300"
         ]
@@ -1126,7 +1150,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Auto por Auto",
         "values": [
           "30 días. \nProforma debe superar los USD 1.000 sin IVA.",
+          "30 días. \nProforma debe superar los USD 1.000 sin IVA.",
           "10 días perdida parcial y 20 días perdida total.\n Proforma debe superar los USD 1.000 sin IVA",
+          "30 días. \nProforma debe superar los USD. 1.200 sin IVA",
           "30 días. \nProforma debe superar los USD. 1.200 sin IVA",
           "15 días en pérdida parcial y 30 días en pérdida total. \nProforma debe superar los USD 1.400 sin IVA."
         ]
@@ -1135,8 +1161,10 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Deducible Perdida Parcial",
         "values": [
           "10% del valor del siniestro, 1% del valor asegurado, No menor a USD 300 / 350",
+          "10% del valor del siniestro, 1% del valor asegurado, No menor a USD 300 / 350",
           "10% del valor del siniestro, 1% del valor asegurado, no menor a USD 350",
           "10% del valor del siniestro, 1% del valor asegurado no menor a $250",
+          "12% del valor del siniestro, 1% del valor asegurado no menor a $400",
           "10% del valor del siniestro, 1% del valor asegurado no menor a USD 300"
         ]
       },
@@ -1145,7 +1173,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "values": [
           "15% del Valor Asegurado.",
           "15% del Valor Asegurado.",
+          "15% del Valor Asegurado.",
           "15% del Valor Asegurado",
+          "30% del Valor Asegurado",
           "15% del Valor Asegurado"
         ]
       },
@@ -1153,18 +1183,11 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "label": "Deducible Perdida Total por Robo",
         "values": [
           "Con o sin dispositivos. Autos cuya suma asegurada sea hasta USD 30,000: 15% Valor Asegurado / Autos cuya suma asegurada sea mayor a USD. 30,001: 20% Valor Asegurado.",
+          "Con o sin dispositivos. Autos cuya suma asegurada sea hasta USD 30,000: 15% Valor Asegurado / Autos cuya suma asegurada sea mayor a USD. 30,001: 20% Valor Asegurado.",
           "20% del Valor Asegurado",
           "15% del Valor Asegurado",
+          "30% del Valor Asegurado",
           "Vehículos de USD 19.999 o menos: 15% del valor asegurado, sin dispositivo. 10% con dispositivo.\nVehículos mayores a USD 20.000: 20% del valor asegurado, sin dispositivo. 10% con dispositivo."
-        ]
-      },
-      {
-        "label": "Formas de Pago",
-        "values": [
-          "Tarjeta de Crédito: diferido hasta 12 meses sin interes.\n Débito Bancario: Hasta 10 cuotas no menores de USD 50",
-          "Tarjeta de Crédito: diferido hasta 12 meses sin interes.\n Débito Bancario: Hasta 10 cuotas no menores de USD 50",
-          "Tarjeta de Crédito: diferido hasta 12 meses sin interes cuotas no menores de UDS 50\n Débito Bancario: Hasta 8 cuotas no menores de USD 50",
-          "Tarjeta de Crédito: diferido hasta 12 meses sin interes.\n Débito Bancario: Hasta 10 cuotas no menores de USD 50"
         ]
       }
     ]

@@ -1,6 +1,4 @@
-// Generado desde seed-operaciones.ts — no editar a mano.
-// Ubicacion: apps/api/scripts/  (usa las deps del API, garantizadas en produccion)
-// Corre con: node scripts/seed-operaciones.js  desde apps/api
+// Seed de operaciones con auto-reporte por email (Resend). Generado, no editar a mano.
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -24,7 +22,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// seed-apps-api.ts
+// seed-final.ts
 var import_client = require("@prisma/client");
 var bcrypt = __toESM(require("bcryptjs"));
 var fs = __toESM(require("fs"));
@@ -32,7 +30,12 @@ var path = __toESM(require("path"));
 var prisma = new import_client.PrismaClient();
 var fecha = (v) => v ? new Date(v) : null;
 var norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-async function main() {
+async function runSeed() {
+  const _log = [];
+  const cap = (m) => {
+    _log.push(m);
+    console.log("###SEED### " + m);
+  };
   const password = process.env.SEED_DEFAULT_PASSWORD;
   if (!password) {
     throw new Error(
@@ -42,10 +45,7 @@ async function main() {
   const orgSlug = process.env.ORGANIZATION_SLUG ?? "acme-corp";
   const org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
   if (!org) throw new Error(`No existe la organizaci\xF3n con slug "${orgSlug}"`);
-  const raw = fs.readFileSync(
-    path.join(__dirname, "../../../packages/database/prisma/datos-iniciales.json"),
-    "utf8"
-  );
+  const raw = fs.readFileSync(path.join(__dirname, "../../../packages/database/prisma/datos-iniciales.json"), "utf8");
   const { usuarios, clientes } = JSON.parse(raw);
   const hash2 = await bcrypt.hash(password, 12);
   const usuariosCreados = [];
@@ -167,17 +167,49 @@ async function main() {
     nuevos++;
   }
   const marcados = await prisma.cliente.count({ where: { organizationId: org.id, revisar: true } });
-  console.log("\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
-  console.log(`Usuarios procesados ..... ${usuariosCreados.length}`);
-  console.log(`Clientes nuevos ......... ${nuevos}`);
-  console.log(`Clientes ya existentes .. ${yaExistian}`);
-  console.log(`Marcados "por revisar" .. ${marcados}`);
+  cap("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
+  cap(`Usuarios procesados ..... ${usuariosCreados.length}`);
+  cap(`Clientes nuevos ......... ${nuevos}`);
+  cap(`Clientes ya existentes .. ${yaExistian}`);
+  cap(`Marcados "por revisar" .. ${marcados}`);
   if (sinEjecutivo.length) {
-    console.log("\nSIN EJECUTIVO ASIGNADO (no los ver\xE1 ninguna ejecutiva):");
-    sinEjecutivo.forEach((x) => console.log(`  - ${x}`));
+    cap("SIN EJECUTIVO ASIGNADO (no los ver\xE1 ninguna ejecutiva):");
+    sinEjecutivo.forEach((x) => cap(`  - ${x}`));
+  }
+  return _log;
+}
+async function enviarReporte(asunto, cuerpo) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.SEED_REPORT_EMAIL || "josuex_99@hotmail.com";
+  if (!apiKey) {
+    console.log("###SEED### sin RESEND_API_KEY");
+    return;
+  }
+  try {
+    const { Resend } = require("resend");
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: "Priority CRM <leads@priorityhealth.ec>",
+      to: [to],
+      subject: asunto,
+      html: '<pre style="white-space:pre-wrap;font-family:monospace">' + cuerpo + "</pre>"
+    });
+    console.log(error ? "###SEED### email fallo: " + JSON.stringify(error) : "###SEED### email enviado a " + to);
+  } catch (e) {
+    console.log("###SEED### no se pudo enviar email: " + e.message);
   }
 }
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-}).finally(() => void prisma.$disconnect());
+async function main() {
+  try {
+    const logs = await runSeed();
+    await enviarReporte("Seed operaciones: OK", logs.join("\n"));
+  } catch (e) {
+    const err = e;
+    const detalle = "###SEED### SEED FALLO: " + err.message + "\n\n" + (err.stack ?? "");
+    console.log(detalle);
+    await enviarReporte("Seed operaciones: FALLO", detalle);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+main();

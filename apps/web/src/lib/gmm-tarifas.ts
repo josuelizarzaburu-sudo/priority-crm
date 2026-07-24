@@ -86,12 +86,11 @@ export function cotizarProteger(personas: ProtegerPersona[]): ProtegerResultado[
 //  CONFIAMED — GMM (GASTOS MÉDICOS MAYORES)
 // ══════════════════════════════════════════════════════════════════
 // 2 deducibles (5.000 = "GMM UNO", 10.000 = "GMM DOS"), ambos con cobertura USD 500.000.
-// El tarifario distingue VENTA NUEVA de RENOVACIÓN, y precio por género. No hay
-// dimensión de maternidad (a diferencia de CONFIPLUS) ni descuento por familia.
-// Los precios de CODEX ya vienen con impuestos incluidos (igual que CONFIPLUS).
+// Tarifario de VENTA NUEVA únicamente. Precio por edad y género. No hay dimensión de
+// maternidad (a diferencia de CONFIPLUS) ni descuento por familia. Los precios de CODEX
+// ya vienen con impuestos incluidos (igual que CONFIPLUS).
 
 export type ConfiamedGmmDeducible = '5000' | '10000'
-export type ConfiamedGmmVenta = 'nueva' | 'renov'
 export type SexoCG = 'M' | 'F'
 
 export const CONFIAMED_GMM_DEDUCIBLES: ConfiamedGmmDeducible[] = ['5000', '10000']
@@ -113,8 +112,8 @@ interface RangoGmm {
   precios: Record<string, number | null>
 }
 
-// Rangos de edad -> precios por (tipo de venta × deducible × género)
-export const CONFIAMED_GMM_TARIFAS: RangoGmm[] = [{"desde":0,"hasta":0,"precios":{"nueva_5000_M":19.7752,"nueva_5000_F":23.2128,"nueva_10000_M":15.7201,"nueva_10000_F":17.9471,"renov_5000_M":21.2134,"renov_5000_F":22.7908,"renov_10000_M":15.7201,"renov_10000_F":17.6208}},{"desde":1,"hasta":17,"precios":{"nueva_5000_M":18.8763,"nueva_5000_F":22.1577,"nueva_10000_M":14.6072,"nueva_10000_F":15.4998,"renov_5000_M":18.5168,"renov_5000_F":22.1577,"renov_10000_M":14.6072,"renov_10000_F":14.684}},{"desde":18,"hasta":24,"precios":{"nueva_5000_M":20.4322,"nueva_5000_F":24.7305,"nueva_10000_M":14.7875,"nueva_10000_F":16.5027,"renov_5000_M":17.0075,"renov_5000_F":23.6064,"renov_10000_M":13.3972,"renov_10000_F":15.6341}},{"desde":25,"hasta":29,"precios":{"nueva_5000_M":21.276,"nueva_5000_F":31.4961,"nueva_10000_M":15.3801,"nueva_10000_F":21.7929,"renov_5000_M":17.7099,"renov_5000_F":29.8384,"renov_10000_M":13.6712,"renov_10000_F":20.511}},{"desde":30,"hasta":34,"precios":{"nueva_5000_M":26.7155,"nueva_5000_F":35.6256,"nueva_10000_M":19.331,"nueva_10000_F":25.9042,"renov_5000_M":22.2377,"renov_5000_F":33.53,"renov_10000_M":16.4671,"renov_10000_F":24.2852}},{"desde":35,"hasta":39,"precios":{"nueva_5000_M":33.5112,"nueva_5000_F":41.0084,"nueva_10000_M":24.2554,"nueva_10000_F":30.0265,"renov_5000_M":27.8943,"renov_5000_F":36.6917,"renov_10000_M":20.662,"renov_10000_F":28.3584}},{"desde":40,"hasta":44,"precios":{"nueva_5000_M":41.7533,"nueva_5000_F":46.4116,"nueva_10000_M":29.0911,"nueva_10000_F":34.1571,"renov_5000_M":34.755,"renov_5000_F":41.9914,"renov_10000_M":25.7344,"renov_10000_F":32.4493}},{"desde":45,"hasta":49,"precios":{"nueva_5000_M":52.6776,"nueva_5000_F":55.7959,"nueva_10000_M":36.7273,"nueva_10000_F":37.5122,"renov_5000_M":43.8482,"renov_5000_F":50.9441,"renov_10000_M":32.4895,"renov_10000_F":35.6366}},{"desde":50,"hasta":54,"precios":{"nueva_5000_M":67.4426,"nueva_5000_F":68.494,"nueva_10000_M":48.399,"nueva_10000_F":44.1283,"renov_5000_M":55.3993,"renov_5000_F":59.9323,"renov_10000_M":42.8145,"renov_10000_F":41.9219}},{"desde":55,"hasta":59,"precios":{"nueva_5000_M":87.6358,"nueva_5000_F":79.2053,"nueva_10000_M":62.897,"nueva_10000_F":53.567,"renov_5000_M":71.9866,"renov_5000_F":69.3046,"renov_10000_M":55.6397,"renov_10000_F":51.0162}},{"desde":60,"hasta":62,"precios":{"nueva_5000_M":112.4531,"nueva_5000_F":106.0805,"nueva_10000_M":86.9042,"nueva_10000_F":75.8946,"renov_5000_M":94.7819,"renov_5000_F":92.7222,"renov_10000_M":73.2478,"renov_10000_F":69.823}},{"desde":63,"hasta":65,"precios":{"nueva_5000_M":114.8628,"nueva_5000_F":108.4378,"nueva_10000_M":88.7664,"nueva_10000_F":88.0377,"renov_5000_M":96.3883,"renov_5000_F":94.2938,"renov_10000_M":74.4893,"renov_10000_F":72.8588}},{"desde":66,"hasta":68,"precios":{"nueva_5000_M":146.3719,"nueva_5000_F":132.6218,"nueva_10000_M":115.3796,"nueva_10000_F":112.3015,"renov_5000_M":123.3706,"renov_5000_F":115.9213,"renov_10000_M":97.2485,"renov_10000_F":90.6157}},{"desde":69,"hasta":71,"precios":{"nueva_5000_M":149.5084,"nueva_5000_F":135.5689,"nueva_10000_M":117.852,"nueva_10000_F":114.625,"renov_5000_M":125.4616,"renov_5000_F":117.886,"renov_10000_M":98.8968,"renov_10000_F":92.9392}},{"desde":72,"hasta":74,"precios":{"nueva_5000_M":175.3741,"nueva_5000_F":156.3833,"nueva_10000_M":138.2507,"nueva_10000_F":123.2949,"renov_5000_M":150.3207,"renov_5000_F":139.0074,"renov_10000_M":118.5006,"renov_10000_F":109.5955}},{"desde":75,"hasta":79,"precios":{"nueva_5000_M":207.1419,"nueva_5000_F":181.6124,"nueva_10000_M":163.302,"nueva_10000_F":143.1762,"renov_5000_M":177.5502,"renov_5000_F":161.4332,"renov_10000_M":139.9732,"renov_10000_F":127.2677}},{"desde":80,"hasta":84,"precios":{"nueva_5000_M":238.1049,"nueva_5000_F":208.2242,"nueva_10000_M":187.6949,"nueva_10000_F":164.144,"renov_5000_M":204.0899,"renov_5000_F":185.0882,"renov_10000_M":160.8814,"renov_10000_F":145.9057}},{"desde":85,"hasta":100,"precios":{"nueva_5000_M":272.5066,"nueva_5000_F":237.6863,"nueva_10000_M":214.8241,"nueva_10000_F":187.3835,"renov_5000_M":233.5771,"renov_5000_F":211.2767,"renov_10000_M":184.135,"renov_10000_F":166.5631}}]
+// Rangos de edad -> precios por (deducible × género), solo venta nueva
+export const CONFIAMED_GMM_TARIFAS: RangoGmm[] = [{"desde":0,"hasta":0,"precios":{"5000_M":19.7752,"5000_F":23.2128,"10000_M":15.7201,"10000_F":17.9471}},{"desde":1,"hasta":17,"precios":{"5000_M":18.8763,"5000_F":22.1577,"10000_M":14.6072,"10000_F":15.4998}},{"desde":18,"hasta":24,"precios":{"5000_M":20.4322,"5000_F":24.7305,"10000_M":14.7875,"10000_F":16.5027}},{"desde":25,"hasta":29,"precios":{"5000_M":21.276,"5000_F":31.4961,"10000_M":15.3801,"10000_F":21.7929}},{"desde":30,"hasta":34,"precios":{"5000_M":26.7155,"5000_F":35.6256,"10000_M":19.331,"10000_F":25.9042}},{"desde":35,"hasta":39,"precios":{"5000_M":33.5112,"5000_F":41.0084,"10000_M":24.2554,"10000_F":30.0265}},{"desde":40,"hasta":44,"precios":{"5000_M":41.7533,"5000_F":46.4116,"10000_M":29.0911,"10000_F":34.1571}},{"desde":45,"hasta":49,"precios":{"5000_M":52.6776,"5000_F":55.7959,"10000_M":36.7273,"10000_F":37.5122}},{"desde":50,"hasta":54,"precios":{"5000_M":67.4426,"5000_F":68.494,"10000_M":48.399,"10000_F":44.1283}},{"desde":55,"hasta":59,"precios":{"5000_M":87.6358,"5000_F":79.2053,"10000_M":62.897,"10000_F":53.567}},{"desde":60,"hasta":62,"precios":{"5000_M":112.4531,"5000_F":106.0805,"10000_M":86.9042,"10000_F":75.8946}},{"desde":63,"hasta":65,"precios":{"5000_M":114.8628,"5000_F":108.4378,"10000_M":88.7664,"10000_F":88.0377}},{"desde":66,"hasta":68,"precios":{"5000_M":146.3719,"5000_F":132.6218,"10000_M":115.3796,"10000_F":112.3015}},{"desde":69,"hasta":71,"precios":{"5000_M":149.5084,"5000_F":135.5689,"10000_M":117.852,"10000_F":114.625}},{"desde":72,"hasta":74,"precios":{"5000_M":175.3741,"5000_F":156.3833,"10000_M":138.2507,"10000_F":123.2949}},{"desde":75,"hasta":79,"precios":{"5000_M":207.1419,"5000_F":181.6124,"10000_M":163.302,"10000_F":143.1762}},{"desde":80,"hasta":84,"precios":{"5000_M":238.1049,"5000_F":208.2242,"10000_M":187.6949,"10000_F":164.144}},{"desde":85,"hasta":100,"precios":{"5000_M":272.5066,"5000_F":237.6863,"10000_M":214.8241,"10000_F":187.3835}}]
 
 export interface ConfiamedGmmPersona {
   edad: number
@@ -125,46 +124,36 @@ export interface ConfiamedGmmResultado {
   deducible: ConfiamedGmmDeducible
   label: string
   producto: string
-  venta: ConfiamedGmmVenta
   mensual: number
   anual: number
 }
 
-// Precio de una persona: ubica el rango de edad y arma la clave venta_deducible_sexo.
-function precioPersonaGmm(
-  deducible: ConfiamedGmmDeducible,
-  persona: ConfiamedGmmPersona,
-  venta: ConfiamedGmmVenta,
-): number {
+// Precio de una persona: ubica el rango de edad y arma la clave deducible_sexo.
+function precioPersonaGmm(deducible: ConfiamedGmmDeducible, persona: ConfiamedGmmPersona): number {
   const edad = Math.max(0, Math.round(persona.edad))
   const rango =
     CONFIAMED_GMM_TARIFAS.find((r) => edad >= r.desde && edad <= r.hasta) ??
     CONFIAMED_GMM_TARIFAS[CONFIAMED_GMM_TARIFAS.length - 1]
-  return rango.precios[`${venta}_${deducible}_${persona.sexo}`] ?? 0
+  return rango.precios[`${deducible}_${persona.sexo}`] ?? 0
 }
 
 // Cotiza un deducible de GMM para una familia (suma directa, sin descuentos).
 export function cotizarConfiamedGmmDeducible(
   deducible: ConfiamedGmmDeducible,
   personas: ConfiamedGmmPersona[],
-  venta: ConfiamedGmmVenta,
 ): ConfiamedGmmResultado {
   const r2 = (n: number) => Math.round(n * 100) / 100
-  const mensual = personas.reduce((s, p) => s + precioPersonaGmm(deducible, p, venta), 0)
+  const mensual = personas.reduce((s, p) => s + precioPersonaGmm(deducible, p), 0)
   return {
     deducible,
     label: CONFIAMED_GMM_DEDUCIBLE_LABEL[deducible],
     producto: CONFIAMED_GMM_PRODUCTO[deducible],
-    venta,
     mensual: r2(mensual),
     anual: r2(mensual * 12),
   }
 }
 
-// Cotiza los 2 deducibles de GMM para un tipo de venta dado.
-export function cotizarConfiamedGmm(
-  personas: ConfiamedGmmPersona[],
-  venta: ConfiamedGmmVenta,
-): ConfiamedGmmResultado[] {
-  return CONFIAMED_GMM_DEDUCIBLES.map((d) => cotizarConfiamedGmmDeducible(d, personas, venta))
+// Cotiza los 2 deducibles de GMM (venta nueva) para una familia.
+export function cotizarConfiamedGmm(personas: ConfiamedGmmPersona[]): ConfiamedGmmResultado[] {
+  return CONFIAMED_GMM_DEDUCIBLES.map((d) => cotizarConfiamedGmmDeducible(d, personas))
 }

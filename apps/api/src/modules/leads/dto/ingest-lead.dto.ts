@@ -18,6 +18,7 @@ export class AutoDataDto {
 export enum InsuranceType {
   SALUD = 'SALUD',
   AUTO = 'AUTO',
+  VIDA = 'VIDA',
 }
 
 export enum LeadSource {

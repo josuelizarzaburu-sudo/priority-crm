@@ -19,21 +19,18 @@ const MAX_PLANS = 3
 
 const TAB_LABELS: { key: CatalogKey; label: string }[] = [
   { key: 'salud', label: 'Salud' },
-  { key: 'gmm', label: 'Gastos Mayores' },
   { key: 'internacional', label: 'Internacionales' },
   { key: 'vehiculos', label: 'Vehículos' },
 ]
 
 const SUBTITLES: Record<CatalogKey, string> = {
   salud: 'Planes Médicos Locales',
-  gmm: 'Planes de Gastos Médicos Mayores',
   internacional: 'Planes Médicos Internacionales',
   vehiculos: 'Seguro de Vehículos · Livianos',
 }
 
 const PRIMA_LABEL: Record<CatalogKey, string> = {
   salud: 'Prima mensual',
-  gmm: 'Prima mensual',
   internacional: 'Prima mensual',
   vehiculos: 'Prima mensual (12 meses)',
 }
@@ -86,7 +83,6 @@ interface PrimaExtra {
 // del comparativo (planes seleccionados, primas, deducibles BMI y red Confiamed).
 function parseCotizacion(raw: string | null): {
   saludIds: string[]
-  gmmIds: string[]
   primas: Record<string, string>
   primasExtra: Record<string, PrimaExtra[]>
   redes: Record<string, 'red1' | 'red2'>
@@ -110,7 +106,6 @@ function parseCotizacion(raw: string | null): {
   if (!Array.isArray(items) || items.length === 0) return null
 
   const saludIds: string[] = []
-  const gmmIds: string[] = []
   const primas: Record<string, string> = {}
   const primasExtra: Record<string, PrimaExtra[]> = {}
   const redes: Record<string, 'red1' | 'red2'> = {}
@@ -122,14 +117,9 @@ function parseCotizacion(raw: string | null): {
   }
 
   for (const it of items) {
-    // El plan puede venir del catálogo de salud o del de gastos mayores
-    const plan =
-      CATALOGS.salud.plans.find((p) => p.id === it.catalogId) ??
-      CATALOGS.gmm.plans.find((p) => p.id === it.catalogId)
+    const plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
     if (!plan) continue
-    const esGmm = CATALOGS.gmm.plans.some((p) => p.id === plan.id)
-    const destino = esGmm ? gmmIds : saludIds
-    if (!destino.includes(plan.id)) destino.push(plan.id)
+    if (!saludIds.includes(plan.id)) saludIds.push(plan.id)
     const mensualStr = Number(it.mensual).toFixed(2).replace('.', ',')
 
     if (BMI_DEDUCIBLE_PLANS[plan.name]) {
@@ -147,8 +137,8 @@ function parseCotizacion(raw: string | null): {
       redes[plan.id] = it.red
     }
   }
-  if (saludIds.length === 0 && gmmIds.length === 0) return null
-  return { saludIds, gmmIds, primas, primasExtra, redes }
+  if (saludIds.length === 0) return null
+  return { saludIds, primas, primasExtra, redes }
 }
 
 function isNegativeValue(v: string | null | undefined) {
@@ -164,16 +154,10 @@ export function ComparativosPage() {
   const searchParams = useSearchParams()
   const preload = useMemo(() => parseCotizacion(searchParams.get('cotizacion')), [searchParams])
 
-  // Si el cotizador mandó solo planes de gastos mayores, abrimos directo esa pestaña
-  const [tab, setTab] = useState<CatalogKey>(
-    preload && preload.gmmIds.length > 0 && preload.saludIds.length === 0 ? 'gmm' : 'salud',
-  )
+  const [tab, setTab] = useState<CatalogKey>('salud')
   const [clientName, setClientName] = useState('')
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
-    salud: preload?.saludIds ?? [],
-    gmm: preload?.gmmIds ?? [],
-    internacional: [],
-    vehiculos: [],
+    salud: preload?.saludIds ?? [], internacional: [], vehiculos: [],
   })
   const [primas, setPrimas] = useState<Record<string, string>>(preload?.primas ?? {})
   // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.
@@ -186,7 +170,7 @@ export function ComparativosPage() {
   )
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
-    salud: null, gmm: null, internacional: null, vehiculos: null,
+    salud: null, internacional: null, vehiculos: null,
   })
   // Con/Sin Maternidad, solo aplica (y solo se muestra el selector) en la categoría Salud
   const [maternidad, setMaternidad] = useState(true)
@@ -283,8 +267,7 @@ export function ComparativosPage() {
     if (!documentPlans.length) return []
     return catalog.benefits
       .filter((b) => {
-        if ((tab === 'salud' || tab === 'gmm') && !maternidad && MATERNIDAD_LABELS.includes(b.label))
-          return false
+        if (tab === 'salud' && !maternidad && MATERNIDAD_LABELS.includes(b.label)) return false
         return true
       })
       .map((b) => ({
@@ -373,7 +356,7 @@ export function ComparativosPage() {
           </div>
         </div>
 
-        {(tab === 'salud' || tab === 'gmm') && (
+        {tab === 'salud' && (
           <div className="mt-4">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Maternidad

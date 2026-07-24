@@ -6,7 +6,7 @@ buildCommand = "pnpm install && pnpm --filter @priority-crm/database exec prisma
 # TEMPORAL: corre una sola vez la carga inicial de Operaciones y luego arranca.
 # El "|| true" hace que, si el seed falla, el API arranque igual y no se caiga el CRM.
 # QUITAR esta linea y dejar la de abajo cuando la carga ya se haya hecho.
-startCommand = "cd apps/api && npx prisma migrate deploy && (node ../../packages/database/prisma/seed-operaciones.js || true) && node dist/main.js"
+startCommand = "cd apps/api && npx prisma migrate deploy && (node scripts/seed-operaciones.js || echo \"===== SEED FALLO (codigo $?) — el API arranca igual =====\") && node dist/main.js"
 # startCommand = "cd apps/api && npx prisma migrate deploy && node dist/main.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30

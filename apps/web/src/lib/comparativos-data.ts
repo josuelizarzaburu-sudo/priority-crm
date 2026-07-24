@@ -22,7 +22,7 @@ export interface Catalog {
   benefits: CatalogBenefit[]
 }
 
-export type CatalogKey = 'salud' | 'internacional' | 'vehiculos'
+export type CatalogKey = 'salud' | 'gmm' | 'internacional' | 'vehiculos'
 
 export const CATALOGS: Record<CatalogKey, Catalog> = {
   "salud": {
@@ -693,6 +693,195 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Desde el mes 13 USD 500 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD 400 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD 600 y mes 25 hasta 20 salarios básicos unificados USD 9.600."
+        ]
+      }
+    ]
+  },
+  "gmm": {
+    "plans": [
+      {
+        "id": "gmm0",
+        "name": "BMI GMM",
+        "insurer": "BMI"
+      },
+      {
+        "id": "gmm1",
+        "name": "CONFIAMED GMM",
+        "insurer": "Confiamed"
+      },
+      {
+        "id": "gmm2",
+        "name": "HUMANA PROTEGER",
+        "insurer": "Humana"
+      }
+    ],
+    "benefits": [
+      {
+        "label": "Monto de Cobertura por Incapacidad",
+        "values": [
+          "USD 500.000",
+          "USD 500.000",
+          "USD 500.000"
+        ]
+      },
+      {
+        "label": "Deducible",
+        "values": [
+          "A Elección",
+          "A Elección",
+          "A Elección"
+        ]
+      },
+      {
+        "label": "Red Medica",
+        "values": [
+          "Libre Eleccion de Medicos y Hospitales en Ecuador y Red medica en Colombia y Navarra España",
+          "Libre Eleccion de Medicos y Hospitales en Ecuador y red medica en Colombia",
+          "Libre Eleccion de Medicos y Hospitales en Ecuador"
+        ]
+      },
+      {
+        "label": "Cobertura Hospitalaria",
+        "values": [
+          "100%",
+          "100%",
+          "100%"
+        ]
+      },
+      {
+        "label": "Cobertura Ambulatoria",
+        "values": [
+          "100%",
+          "100%",
+          "100%"
+        ]
+      },
+      {
+        "label": "Cuarto y Alimento",
+        "values": [
+          "Monto Total de Cobertura",
+          "Monto Total de Cobertura",
+          "Monto Total de Cobertura"
+        ]
+      },
+      {
+        "label": "Tope de Consulta",
+        "values": [
+          "USD 73",
+          "USD 65",
+          "USD 65"
+        ]
+      },
+      {
+        "label": "Medicamentos después del deducible",
+        "values": [
+          "100%",
+          "100%",
+          "100% hasta $60.000 dentro de red ambulatoria, hasta el monto maximo red hospitalaria"
+        ]
+      },
+      {
+        "label": "Terapias Cardíacas, Físicas y Respiratorias",
+        "values": [
+          "Monto Total de Cobertura",
+          "Hasta USD $10.000",
+          "Máximo 40 sesiones por tipo de terapia"
+        ]
+      },
+      {
+        "label": "Cirugía Robótica",
+        "values": [
+          "Incluida",
+          "Incluida",
+          "Incluida"
+        ]
+      },
+      {
+        "label": "Trasplante de Organos",
+        "values": [
+          "Hasta USD $250.000",
+          "Hasta USD $250.000",
+          "Hasta USD $125.000"
+        ]
+      },
+      {
+        "label": "Maternidad",
+        "values": [
+          "Monto Total de Cobertura",
+          "Hasta USD $20.000",
+          "Prenatal hasta USD $1000, Parto y complicaciones hasta USD $10.000"
+        ]
+      },
+      {
+        "label": "Complicaciones de Maternidad",
+        "values": [
+          "Hasta USD $50.000",
+          "Dentro del monto de Maternidad",
+          "Dentro de la cobertura de Parto y complicaciones"
+        ]
+      },
+      {
+        "label": "Complicaciones Recién Nacido",
+        "values": [
+          "Monto Total de Cobertura",
+          "Hasta USD $10.000",
+          "Monto Total de Cobertura"
+        ]
+      },
+      {
+        "label": "Cobertura por enfermedad o accidentes en viajes al exterior",
+        "values": [
+          "USD 50.000",
+          "USD 40.000",
+          "No Incluye"
+        ]
+      },
+      {
+        "label": "Maximo dias por viaje",
+        "values": [
+          "30 Días Por Viaje",
+          "30 Días Por Viaje",
+          "No Incluye"
+        ]
+      },
+      {
+        "label": "Seguro de Vida",
+        "values": [
+          "USD 10.000",
+          "No Incluye",
+          "USD 5.000"
+        ]
+      },
+      {
+        "label": "Incapacidad total y permanente",
+        "values": [
+          "USD 10.000",
+          "No Incluye",
+          "No Incluye"
+        ]
+      },
+      {
+        "label": "Plan Exequial",
+        "values": [
+          "Incluido",
+          "Incluido",
+          "No Incluye"
+        ]
+      },
+      {
+        "label": "Plan Dental",
+        "values": [
+          "Descuentos Dentales",
+          "Descuentos Dentales",
+          "No Incluye"
+        ]
+      },
+      {
+        "label": "Cobertura Condiciones Medicas Preexistentes",
+        "values": [
+          "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses.",
+          "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses.",
+          "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses."
         ]
       }
     ]

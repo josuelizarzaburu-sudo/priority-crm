@@ -60,6 +60,9 @@ const NEGATIVE_VALUES = new Set(['no posee', 'no incluye', '—', 'no aplica'])
 const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
   'BMI SIGMA': [250, 500, 1000, 2000],
   'BMI GMM': [5000, 10000, 15000, 20000],
+  // GMM de las otras dos aseguradoras: también se cotizan por deducible
+  'CONFIAMED GMM': [5000, 10000],
+  'HUMANA PROTEGER': [5000, 10000, 20000],
 }
 
 // Planes de Confiamed que permiten elegir Red 1 o Red 2. El texto que sale en la
@@ -83,6 +86,7 @@ interface PrimaExtra {
 // del comparativo (planes seleccionados, primas, deducibles BMI y red Confiamed).
 function parseCotizacion(raw: string | null): {
   saludIds: string[]
+  gmmIds: string[]
   primas: Record<string, string>
   primasExtra: Record<string, PrimaExtra[]>
   redes: Record<string, 'red1' | 'red2'>
@@ -106,6 +110,7 @@ function parseCotizacion(raw: string | null): {
   if (!Array.isArray(items) || items.length === 0) return null
 
   const saludIds: string[] = []
+  const gmmIds: string[] = []
   const primas: Record<string, string> = {}
   const primasExtra: Record<string, PrimaExtra[]> = {}
   const redes: Record<string, 'red1' | 'red2'> = {}
@@ -117,9 +122,14 @@ function parseCotizacion(raw: string | null): {
   }
 
   for (const it of items) {
-    const plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
+    // El plan puede venir del catálogo de salud o del de gastos mayores
+    const plan =
+      CATALOGS.salud.plans.find((p) => p.id === it.catalogId) ??
+      CATALOGS.gmm.plans.find((p) => p.id === it.catalogId)
     if (!plan) continue
-    if (!saludIds.includes(plan.id)) saludIds.push(plan.id)
+    const esGmm = CATALOGS.gmm.plans.some((p) => p.id === plan.id)
+    const destino = esGmm ? gmmIds : saludIds
+    if (!destino.includes(plan.id)) destino.push(plan.id)
     const mensualStr = Number(it.mensual).toFixed(2).replace('.', ',')
 
     if (BMI_DEDUCIBLE_PLANS[plan.name]) {
@@ -137,8 +147,8 @@ function parseCotizacion(raw: string | null): {
       redes[plan.id] = it.red
     }
   }
-  if (saludIds.length === 0) return null
-  return { saludIds, primas, primasExtra, redes }
+  if (saludIds.length === 0 && gmmIds.length === 0) return null
+  return { saludIds, gmmIds, primas, primasExtra, redes }
 }
 
 function isNegativeValue(v: string | null | undefined) {
@@ -154,10 +164,16 @@ export function ComparativosPage() {
   const searchParams = useSearchParams()
   const preload = useMemo(() => parseCotizacion(searchParams.get('cotizacion')), [searchParams])
 
-  const [tab, setTab] = useState<CatalogKey>('salud')
+  // Si el cotizador mandó solo planes de gastos mayores, abrimos directo esa pestaña
+  const [tab, setTab] = useState<CatalogKey>(
+    preload && preload.gmmIds.length > 0 && preload.saludIds.length === 0 ? 'gmm' : 'salud',
+  )
   const [clientName, setClientName] = useState('')
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
-    salud: preload?.saludIds ?? [], gmm: [], internacional: [], vehiculos: [],
+    salud: preload?.saludIds ?? [],
+    gmm: preload?.gmmIds ?? [],
+    internacional: [],
+    vehiculos: [],
   })
   const [primas, setPrimas] = useState<Record<string, string>>(preload?.primas ?? {})
   // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.

@@ -161,7 +161,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
       },
       {
         "id": "ab17",
-        "name": "HUMANA PROTEGER",
+        "name": "HUMANA GMM",
         "insurer": "Humana",
         "network": "abierta"
       }

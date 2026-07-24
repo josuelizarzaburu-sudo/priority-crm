@@ -59,7 +59,7 @@ const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
   'BMI GMM': [5000, 10000, 15000, 20000],
   // GMM de las otras dos aseguradoras: también se cotizan por deducible
   'CONFIAMED GMM': [5000, 10000],
-  'HUMANA PROTEGER': [5000, 10000, 20000],
+  'HUMANA GMM': [5000, 10000, 20000],
 }
 
 // Planes de Confiamed que permiten elegir Red 1 o Red 2. El texto que sale en la

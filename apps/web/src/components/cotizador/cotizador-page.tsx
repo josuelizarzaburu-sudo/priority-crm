@@ -17,11 +17,7 @@ import {
   CONFIAMED_DEDUCIBLE_LABEL,
   type ConfiamedRed,
 } from '@/lib/confiamed-tarifas'
-import {
-  cotizarProteger,
-  cotizarConfiamedGmm,
-  type ConfiamedGmmVenta,
-} from '@/lib/gmm-tarifas'
+import { cotizarProteger, cotizarConfiamedGmm } from '@/lib/gmm-tarifas'
 import { CATALOGS } from '@/lib/comparativos-data'
 
 const NAVY = '#0C2057'
@@ -117,12 +113,11 @@ const CONFIAMED_CATALOG_ID: Record<string, string> = {
   '10000': 'ce2',
 }
 
-// ── Catálogo de Gastos Médicos Mayores (pestaña "Gastos Mayores" del comparativo) ──
-// Los tres planes de GMM viven en CATALOGS.gmm, no en CATALOGS.salud.
+// ── Catálogo de Gastos Médicos Mayores (los 3 viven en CATALOGS.salud, igual que el resto) ──
 const GMM_CATALOG_ID = {
-  bmi: 'gmm0',
-  confiamed: 'gmm1',
-  proteger: 'gmm2',
+  bmi: 'ab2', // BMI GMM ya vivía en salud
+  confiamed: 'ab16',
+  proteger: 'ab17',
 } as const
 
 // Aseguradoras que tienen cotizador automático. El resto se cotiza manualmente.
@@ -140,7 +135,6 @@ const COTIZADOR_STORAGE_KEY = 'priority-cotizador-en-curso-v1'
 type CotizadorGuardado = {
   region: BmiRegion
   confiamedRed: ConfiamedRed
-  confiamedGmmVenta?: ConfiamedGmmVenta
   miembros: Miembro[]
   seleccionados: SeleccionComparativo[]
 }
@@ -149,8 +143,6 @@ export function CotizadorPage() {
   const router = useRouter()
   const [region, setRegion] = useState<BmiRegion>('Sierra')
   const [confiamedRed, setConfiamedRed] = useState<ConfiamedRed>('red1')
-  // Confiamed GMM tiene tarifario distinto para venta nueva vs renovación
-  const [confiamedGmmVenta, setConfiamedGmmVenta] = useState<ConfiamedGmmVenta>('nueva')
   const [miembros, setMiembros] = useState<Miembro[]>([nuevoMiembro('Titular')])
   // Opciones marcadas que irán al comparativo
   const [seleccionados, setSeleccionados] = useState<SeleccionComparativo[]>([])
@@ -169,7 +161,6 @@ export function CotizadorPage() {
         const data: CotizadorGuardado = JSON.parse(raw)
         if (data.region) setRegion(data.region)
         if (data.confiamedRed) setConfiamedRed(data.confiamedRed)
-        if (data.confiamedGmmVenta) setConfiamedGmmVenta(data.confiamedGmmVenta)
         if (data.miembros?.length) setMiembros(data.miembros)
         if (data.seleccionados?.length) setSeleccionados(data.seleccionados)
       }
@@ -182,19 +173,13 @@ export function CotizadorPage() {
   // Guardar automáticamente en cada cambio
   useEffect(() => {
     if (!hidratado) return
-    const data: CotizadorGuardado = {
-      region,
-      confiamedRed,
-      confiamedGmmVenta,
-      miembros,
-      seleccionados,
-    }
+    const data: CotizadorGuardado = { region, confiamedRed, miembros, seleccionados }
     try {
       sessionStorage.setItem(COTIZADOR_STORAGE_KEY, JSON.stringify(data))
     } catch {
       // si falla el guardado (modo privado, cuota llena, etc.) no interrumpimos el flujo
     }
-  }, [hidratado, region, confiamedRed, confiamedGmmVenta, miembros, seleccionados])
+  }, [hidratado, region, confiamedRed, miembros, seleccionados])
 
   // Botón "Nueva cotización": limpia todo para empezar con otro cliente sin arrastrar datos
   const nuevaCotizacion = () => {
@@ -202,7 +187,6 @@ export function CotizadorPage() {
     sessionStorage.removeItem(COTIZADOR_STORAGE_KEY)
     setRegion('Sierra')
     setConfiamedRed('red1')
-    setConfiamedGmmVenta('nueva')
     setMiembros([nuevoMiembro('Titular')])
     setSeleccionados([])
     setManualPlanId('')
@@ -281,14 +265,11 @@ export function CotizadorPage() {
     return cotizarProteger(personas.map((p) => ({ edad: p.edad, sexo: p.sexo })))
   }, [personas])
 
-  // Confiamed GMM: tarifario distinto según venta nueva / renovación. Sin maternidad.
+  // Confiamed GMM: solo venta nueva. Sin maternidad.
   const confiamedGmm = useMemo(() => {
     if (personas.length === 0) return null
-    return cotizarConfiamedGmm(
-      personas.map((p) => ({ edad: p.edad, sexo: p.sexo })),
-      confiamedGmmVenta,
-    )
-  }, [personas, confiamedGmmVenta])
+    return cotizarConfiamedGmm(personas.map((p) => ({ edad: p.edad, sexo: p.sexo })))
+  }, [personas])
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
@@ -835,8 +816,8 @@ export function CotizadorPage() {
               Gastos Médicos Mayores
             </h2>
             <p className="mb-2 text-xs text-muted-foreground">
-              Estos planes van a la pestaña <strong>Gastos Mayores</strong> del comparativo (no se
-              mezclan con los planes de salud de arriba).
+              Estos planes van a la pestaña <strong>Salud</strong> del comparativo, junto con el
+              resto.
             </p>
 
             <div className="space-y-4">
@@ -1036,31 +1017,9 @@ export function CotizadorPage() {
 
               {/* Confiamed GMM */}
               <div className="rounded-xl border bg-card p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold" style={{ color: NAVY }}>
-                    Confiamed · GMM
-                  </h3>
-                  <div className="flex gap-2">
-                    {(['nueva', 'renov'] as ConfiamedGmmVenta[]).map((v) => {
-                      const active = confiamedGmmVenta === v
-                      return (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setConfiamedGmmVenta(v)}
-                          className="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
-                          style={{
-                            borderColor: active ? NAVY : '#d4d4d8',
-                            backgroundColor: active ? NAVY : '#fff',
-                            color: active ? '#fff' : NAVY,
-                          }}
-                        >
-                          {v === 'nueva' ? 'Venta nueva' : 'Renovación'}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
+                  Confiamed · GMM
+                </h3>
 
                 <div className="hidden overflow-x-auto md:block">
                   <table className="w-full border-collapse text-sm">
@@ -1075,7 +1034,7 @@ export function CotizadorPage() {
                     </thead>
                     <tbody>
                       {confiamedGmm?.map((r, i) => {
-                        const selId = `gmm-confiamed-${confiamedGmmVenta}-${r.deducible}`
+                        const selId = `gmm-confiamed-${r.deducible}`
                         const sel = estaSeleccionado(selId)
                         return (
                           <tr key={r.deducible} className={i % 2 ? 'bg-muted/40' : ''}>
@@ -1096,9 +1055,7 @@ export function CotizadorPage() {
                                     catalogId: GMM_CATALOG_ID.confiamed,
                                     aseguradora: 'Confiamed',
                                     plan: 'CONFIAMED GMM',
-                                    detalle: `${r.label} · ${
-                                      confiamedGmmVenta === 'nueva' ? 'Venta nueva' : 'Renovación'
-                                    }`,
+                                    detalle: r.label,
                                     mensual: r.mensual,
                                     deducible: r.deducible,
                                   })
@@ -1115,7 +1072,7 @@ export function CotizadorPage() {
 
                 <div className="space-y-3 md:hidden">
                   {confiamedGmm?.map((r) => {
-                    const selId = `gmm-confiamed-${confiamedGmmVenta}-${r.deducible}`
+                    const selId = `gmm-confiamed-${r.deducible}`
                     const sel = estaSeleccionado(selId)
                     return (
                       <div key={r.deducible} className="rounded-lg border p-3">
@@ -1140,9 +1097,7 @@ export function CotizadorPage() {
                               catalogId: GMM_CATALOG_ID.confiamed,
                               aseguradora: 'Confiamed',
                               plan: 'CONFIAMED GMM',
-                              detalle: `${r.label} · ${
-                                confiamedGmmVenta === 'nueva' ? 'Venta nueva' : 'Renovación'
-                              }`,
+                              detalle: r.label,
                               mensual: r.mensual,
                               deducible: r.deducible,
                             })
@@ -1154,9 +1109,8 @@ export function CotizadorPage() {
                   })}
                 </div>
                 <p className="mt-3 text-[11px] text-muted-foreground">
-                  Cobertura USD 500.000. Tarifario de{' '}
-                  {confiamedGmmVenta === 'nueva' ? 'venta nueva' : 'renovación'}. Sin descuento
-                  familiar; precios incluyen impuestos.
+                  Cobertura USD 500.000. Tarifario de venta nueva. Sin descuento familiar; precios
+                  incluyen impuestos.
                 </p>
               </div>
             </div>

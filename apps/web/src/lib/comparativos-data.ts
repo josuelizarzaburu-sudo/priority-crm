@@ -22,7 +22,7 @@ export interface Catalog {
   benefits: CatalogBenefit[]
 }
 
-export type CatalogKey = 'salud' | 'gmm' | 'internacional' | 'vehiculos'
+export type CatalogKey = 'salud' | 'internacional' | 'vehiculos'
 
 export const CATALOGS: Record<CatalogKey, Catalog> = {
   "salud": {
@@ -152,6 +152,18 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "name": "SALUD 65+",
         "insurer": "Saludsa",
         "network": "abierta"
+      },
+      {
+        "id": "ab16",
+        "name": "CONFIAMED GMM",
+        "insurer": "Confiamed",
+        "network": "abierta"
+      },
+      {
+        "id": "ab17",
+        "name": "HUMANA PROTEGER",
+        "insurer": "Humana",
+        "network": "abierta"
       }
     ],
     "benefits": [
@@ -178,7 +190,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 15.000 por enfermedad",
           "USD 30.000 por enfermedad",
           "USD. 150.000 Por Incapacidad",
-          "USD 10.000 Por Incapacidad"
+          "USD 10.000 Por Incapacidad",
+          "USD 500.000",
+          "USD 500.000"
         ]
       },
       {
@@ -204,7 +218,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 70 anual",
           "USD 90 anual",
           "USD 150 anual",
-          "USD 100 anual"
+          "USD 100 anual",
+          "A Elección",
+          "A Elección"
         ]
       },
       {
@@ -230,7 +246,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Red Medica Star",
           "Red Medica Star",
           "Red Medica Humana y libre eleccion",
-          "Red Medica 65+"
+          "Red Medica 65+",
+          "Libre Eleccion de Medicos y Hospitales en Ecuador y red medica en Colombia",
+          "Libre Eleccion de Medicos y Hospitales en Ecuador"
         ]
       },
       {
@@ -256,7 +274,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "90%",
           "100%",
           "90%",
-          "50%"
+          "50%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -282,7 +302,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "N/A",
           "N/A",
           "80%",
-          "No aplica"
+          "No aplica",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -308,7 +330,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "70%",
           "80%",
           "80%",
-          "50%"
+          "50%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -334,7 +358,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "N/A",
           "N/A",
           "80%",
-          "No aplica"
+          "No aplica",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -360,7 +386,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta USD 150 al 90% en hospital de la Red",
           "Hasta USD 150 al 100% en hospital de la Red",
           "USD 200 Por Día",
-          "USD 150 Por día"
+          "USD 150 Por día",
+          "Monto Total de Cobertura",
+          "Monto Total de Cobertura"
         ]
       },
       {
@@ -386,7 +414,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "25 USD",
           "25 USD",
           "USD 80",
-          "USD 12-25"
+          "USD 12-25",
+          "USD 65",
+          "USD 65"
         ]
       },
       {
@@ -411,6 +441,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Posee",
           "No posee",
           "No posee",
+          "No Posee",
+          "No Posee",
           "No Posee",
           "No Posee"
         ]
@@ -438,7 +470,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "70% en red de convenio",
           "80% en red de convenio",
           "70%",
-          "30%"
+          "30%",
+          "100%",
+          "100% hasta $60.000 dentro de red ambulatoria, hasta el monto maximo red hospitalaria"
         ]
       },
       {
@@ -464,7 +498,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta 30 sesiones por tipo de terapia",
           "Hasta 30 sesiones por tipo de terapia",
           "Hasta 30 sesiones por tipo de terapia",
-          "Hasta 10 sesiones por tipo de terapia"
+          "Hasta 10 sesiones por tipo de terapia",
+          "Hasta USD $10.000",
+          "Máximo 40 sesiones por tipo de terapia"
         ]
       },
       {
@@ -490,7 +526,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 1.000 en hospital de la Red",
           "USD 2.500 en hospital de la Red",
           "USD 7.500",
-          "No aplica"
+          "No aplica",
+          "Hasta USD $20.000",
+          "Prenatal hasta USD $1000, Parto y complicaciones hasta USD $10.000"
         ]
       },
       {
@@ -516,7 +554,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 500 en hospital de la Red",
           "USD 1.000 en hospital de la Red",
           "USD 11.250",
-          "No aplica"
+          "No aplica",
+          "Dentro del monto de Maternidad",
+          "Dentro de la cobertura de Parto y complicaciones"
         ]
       },
       {
@@ -542,7 +582,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 15.000 con inclusión intrauterina en hospital de la Red",
           "USD 30.000 con inclusión intrauterina en hospital de la Red",
           "Hasta el monto de cobertura",
-          "No aplica"
+          "No aplica",
+          "Hasta USD $10.000",
+          "Monto Total de Cobertura"
         ]
       },
       {
@@ -568,6 +610,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "No Incluye",
           "USD 100.000",
+          "No Incluye",
+          "USD 40.000",
           "No Incluye"
         ]
       },
@@ -594,7 +638,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "No Incluye",
           "30 Días Por Año",
-          "No aplica"
+          "No aplica",
+          "30 Días Por Viaje",
+          "No Incluye"
         ]
       },
       {
@@ -620,7 +666,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "No Incluye",
           "USD 5.000 hasta 65 años",
-          "No aplica"
+          "No aplica",
+          "No Incluye",
+          "USD 5.000"
         ]
       },
       {
@@ -629,6 +677,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
+          "No Incluye",
+          "No Incluye",
           "No Incluye",
           "No Incluye",
           "No Incluye",
@@ -672,7 +722,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Incluido",
           "Incluido",
           "Incluido",
-          "Se contrata adicional"
+          "Se contrata adicional",
+          "Incluido",
+          "No Incluye"
         ]
       },
       {
@@ -698,7 +750,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Plan Básico",
           "Plan Básico",
           "200",
-          "Plan Básico"
+          "Plan Básico",
+          "Descuentos Dentales",
+          "No Incluye"
         ]
       },
       {
@@ -724,7 +778,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta 20% de descuento anual en la tarifa del plan medico con el programa",
           "Hasta 20% de descuento anual en la tarifa del plan medico con el programa",
           "No posee",
-          "Hasta 20% de descuento anual en la tarifa del plan medico con el programa"
+          "Hasta 20% de descuento anual en la tarifa del plan medico con el programa",
+          "No posee",
+          "No posee"
         ]
       },
       {
@@ -750,194 +806,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Desde el mes 13 USD 400 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD 600 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 7 USD 540 - mes 12 USD 1.350 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
-          "Desde el mes 13 USD 1500 solo ambulatoria y mes 25 hasta 20 salarios básicos unificados USD 9.600."
-        ]
-      }
-    ]
-  },
-  "gmm": {
-    "plans": [
-      {
-        "id": "gmm0",
-        "name": "BMI GMM",
-        "insurer": "BMI"
-      },
-      {
-        "id": "gmm1",
-        "name": "CONFIAMED GMM",
-        "insurer": "Confiamed"
-      },
-      {
-        "id": "gmm2",
-        "name": "HUMANA PROTEGER",
-        "insurer": "Humana"
-      }
-    ],
-    "benefits": [
-      {
-        "label": "Monto de Cobertura por Incapacidad",
-        "values": [
-          "USD 500.000",
-          "USD 500.000",
-          "USD 500.000"
-        ]
-      },
-      {
-        "label": "Deducible",
-        "values": [
-          "A Elección",
-          "A Elección",
-          "A Elección"
-        ]
-      },
-      {
-        "label": "Red Medica",
-        "values": [
-          "Libre Eleccion de Medicos y Hospitales en Ecuador y Red medica en Colombia y Navarra España",
-          "Libre Eleccion de Medicos y Hospitales en Ecuador y red medica en Colombia",
-          "Libre Eleccion de Medicos y Hospitales en Ecuador"
-        ]
-      },
-      {
-        "label": "Cobertura Hospitalaria",
-        "values": [
-          "100%",
-          "100%",
-          "100%"
-        ]
-      },
-      {
-        "label": "Cobertura Ambulatoria",
-        "values": [
-          "100%",
-          "100%",
-          "100%"
-        ]
-      },
-      {
-        "label": "Cuarto y Alimento",
-        "values": [
-          "Monto Total de Cobertura",
-          "Monto Total de Cobertura",
-          "Monto Total de Cobertura"
-        ]
-      },
-      {
-        "label": "Tope de Consulta",
-        "values": [
-          "USD 73",
-          "USD 65",
-          "USD 65"
-        ]
-      },
-      {
-        "label": "Medicamentos después del deducible",
-        "values": [
-          "100%",
-          "100%",
-          "100% hasta $60.000 dentro de red ambulatoria, hasta el monto maximo red hospitalaria"
-        ]
-      },
-      {
-        "label": "Terapias Cardíacas, Físicas y Respiratorias",
-        "values": [
-          "Monto Total de Cobertura",
-          "Hasta USD $10.000",
-          "Máximo 40 sesiones por tipo de terapia"
-        ]
-      },
-      {
-        "label": "Cirugía Robótica",
-        "values": [
-          "Incluida",
-          "Incluida",
-          "Incluida"
-        ]
-      },
-      {
-        "label": "Trasplante de Organos",
-        "values": [
-          "Hasta USD $250.000",
-          "Hasta USD $250.000",
-          "Hasta USD $125.000"
-        ]
-      },
-      {
-        "label": "Maternidad",
-        "values": [
-          "Monto Total de Cobertura",
-          "Hasta USD $20.000",
-          "Prenatal hasta USD $1000, Parto y complicaciones hasta USD $10.000"
-        ]
-      },
-      {
-        "label": "Complicaciones de Maternidad",
-        "values": [
-          "Hasta USD $50.000",
-          "Dentro del monto de Maternidad",
-          "Dentro de la cobertura de Parto y complicaciones"
-        ]
-      },
-      {
-        "label": "Complicaciones Recién Nacido",
-        "values": [
-          "Monto Total de Cobertura",
-          "Hasta USD $10.000",
-          "Monto Total de Cobertura"
-        ]
-      },
-      {
-        "label": "Cobertura por enfermedad o accidentes en viajes al exterior",
-        "values": [
-          "USD 50.000",
-          "USD 40.000",
-          "No Incluye"
-        ]
-      },
-      {
-        "label": "Maximo dias por viaje",
-        "values": [
-          "30 Días Por Viaje",
-          "30 Días Por Viaje",
-          "No Incluye"
-        ]
-      },
-      {
-        "label": "Seguro de Vida",
-        "values": [
-          "USD 10.000",
-          "No Incluye",
-          "USD 5.000"
-        ]
-      },
-      {
-        "label": "Incapacidad total y permanente",
-        "values": [
-          "USD 10.000",
-          "No Incluye",
-          "No Incluye"
-        ]
-      },
-      {
-        "label": "Plan Exequial",
-        "values": [
-          "Incluido",
-          "Incluido",
-          "No Incluye"
-        ]
-      },
-      {
-        "label": "Plan Dental",
-        "values": [
-          "Descuentos Dentales",
-          "Descuentos Dentales",
-          "No Incluye"
-        ]
-      },
-      {
-        "label": "Cobertura Condiciones Medicas Preexistentes",
-        "values": [
-          "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses.",
+          "Desde el mes 13 USD 1500 solo ambulatoria y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses.",
           "Hasta 20 salarios basicos unificados USD 9.500 por año para todos los diagnosticos con carencia de 24 meses."
         ]

@@ -18,7 +18,6 @@ import { CalendarModule } from './modules/calendar/calendar.module'
 import { TrainingModule } from './modules/training/training.module'
 import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 import { ChatModule } from './modules/chat/chat.module'
-import { SeedModule } from './modules/seed/seed.module'
 
 @Module({
   imports: [
@@ -83,7 +82,6 @@ import { SeedModule } from './modules/seed/seed.module'
     TrainingModule,
     WhatsappChatModule,
     ChatModule,
-    SeedModule,
   ],
 })
 export class AppModule {}

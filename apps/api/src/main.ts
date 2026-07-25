@@ -44,6 +44,7 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT', 3001)
   await app.listen(port)
+  console.log('BUILD_MARKER v-operaciones-seed-2')
   console.log(`API running on http://localhost:${port}`)
   console.log(`Swagger docs: http://localhost:${port}/docs`)
 }

@@ -37,15 +37,6 @@ const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
 const OPS = ['OPERACIONES', 'JEFE_OPERACIONES']
 const COMUNES = [...ALL_ROLES, ...OPS]
 
-// Acceso especial a Comparativos mientras se hace el lanzamiento controlado
-// (ademas de SUPER_ADMIN). Debe coincidir con la lista en
-// apps/web/src/app/(dashboard)/comparativos/page.tsx
-const COMPARATIVOS_ALLOWED_EMAILS = [
-  'raviles@priority.ec', // Roxana Avilés
-  'comer@priority.ec', // Gianella Pozo
-  'pcarrillo@priority.ec', // Pablo Carrillo
-  'jsegovia@priority.ec', // Juan Fernando Segovia
-]
 
 const NAV_ITEMS = [
   { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: [...OPS, 'SUPER_ADMIN'] },
@@ -59,8 +50,8 @@ const NAV_ITEMS = [
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES },
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES },
-  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: COMUNES },
-  { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: COMUNES },
+  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: [...COMUNES, 'SUPER_ADMIN'] },
+  { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: [...COMUNES, 'SUPER_ADMIN'] },
   { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: COMUNES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },

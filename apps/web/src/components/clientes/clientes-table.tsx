@@ -49,7 +49,7 @@ export function ClientesTable() {
     return () => clearTimeout(t)
   }, [search])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['clientes', debounced, soloRevisar, page],
     queryFn: async () => {
       const params: Record<string, string | number> = { page, limit: 25 }
@@ -125,8 +125,16 @@ export function ClientesTable() {
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  No se pudo cargar la lista. Intenta de nuevo.
+                <TableCell colSpan={5} className="h-32 text-center text-sm text-muted-foreground">
+                  No se pudo cargar la lista.
+                  <br />
+                  <span className="text-xs">
+                    {(error as any)?.response?.status
+                      ? `Error ${(error as any).response.status}: ${
+                          (error as any).response?.data?.message ?? 'sin detalle'
+                        }`
+                      : (error as any)?.message ?? 'Sin conexión con el servidor'}
+                  </span>
                 </TableCell>
               </TableRow>
             ) : lista.length === 0 ? (
@@ -170,6 +178,16 @@ export function ClientesTable() {
       <div className="flex flex-col gap-3 md:hidden">
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Cargando…</p>
+        ) : isError ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No se pudo cargar la lista.
+            <br />
+            <span className="text-xs">
+              {(error as any)?.response?.status
+                ? `Error ${(error as any).response.status}`
+                : 'Sin conexión con el servidor'}
+            </span>
+          </p>
         ) : lista.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {debounced ? 'Ningún cliente coincide.' : 'Todavía no hay clientes.'}

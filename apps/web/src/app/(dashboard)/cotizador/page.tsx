@@ -6,14 +6,11 @@ import { CotizadorPage } from '@/components/cotizador/cotizador-page'
 
 export const metadata: Metadata = { title: 'Cotizador' }
 
-// Acceso al Cotizador: SUPER_ADMIN y el area de Operaciones (a veces cotizan).
-// El resto de vendedores todavia no.
-const ROLES_PERMITIDOS = ['SUPER_ADMIN', 'OPERACIONES', 'JEFE_OPERACIONES']
-
+// Cotizador abierto a todo el equipo con sesion iniciada (vendedores,
+// operaciones, jefes, admin). Ya no hay restriccion por rol.
 export default async function Page() {
   const session = await getServerSession(authOptions)
-  const user = session?.user as { role?: string } | undefined
-  if (!ROLES_PERMITIDOS.includes(user?.role ?? '')) redirect('/clientes')
+  if (!session?.user) redirect('/login')
 
   return <CotizadorPage />
 }

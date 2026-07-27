@@ -62,11 +62,8 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useUIStore()
   const { data: session } = useSession()
   const role = (session?.user as any)?.role ?? 'SALES_REP'
-  const email = ((session?.user as any)?.email ?? '').toLowerCase()
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => item.roles.includes(role) || (item.allowEmails && email && item.allowEmails.includes(email)),
-  )
+  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
 
   const navItemClass = (href: string) =>
     cn(

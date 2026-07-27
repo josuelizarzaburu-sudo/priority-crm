@@ -1,41 +1,34 @@
-import {
-  IsString,
-  IsOptional,
-  IsEmail,
-  IsEnum,
-  IsArray,
-  ValidateNested,
-  IsDateString,
-  IsNumber,
-} from 'class-validator'
+import { IsString, IsOptional, IsArray, ValidateNested, IsIn } from 'class-validator'
 import { Type } from 'class-transformer'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Genero, Parentesco } from '@prisma/client'
+import { ApiProperty } from '@nestjs/swagger'
+
+const GENEROS = ['MASCULINO', 'FEMENINO', 'OTRO']
+const PARENTESCOS = ['CONYUGE', 'HIJO', 'HIJA', 'PADRE', 'MADRE', 'HERMANO', 'HERMANA', 'OTRO']
 
 export class CreateDependienteDto {
   @ApiProperty()
   @IsString()
   nombres!: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   apellidos?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   identificacion?: string
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false })
+  @IsString()
   @IsOptional()
-  @IsDateString()
   fechaNacimiento?: string
 
-  @ApiPropertyOptional({ enum: Parentesco })
+  @ApiProperty({ required: false, enum: PARENTESCOS })
+  @IsIn(PARENTESCOS)
   @IsOptional()
-  @IsEnum(Parentesco)
-  parentesco?: Parentesco
+  parentesco?: string
 }
 
 export class CreateClienteDto {
@@ -51,56 +44,56 @@ export class CreateClienteDto {
   @IsString()
   identificacion!: string
 
-  @ApiPropertyOptional({ enum: Genero })
+  @ApiProperty({ required: false, enum: GENEROS })
+  @IsIn(GENEROS)
   @IsOptional()
-  @IsEnum(Genero)
-  genero?: Genero
+  genero?: string
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false })
+  @IsString()
   @IsOptional()
-  @IsDateString()
   fechaNacimiento?: string
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false })
+  @IsString()
   @IsOptional()
-  @IsEmail()
   email?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   telefono?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   celular?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   ciudad?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   direccion?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   notas?: string
 
   // Solo lo usa un jefe/admin; para OPERACIONES el servidor lo ignora.
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   ejecutivoId?: string
 
-  @ApiPropertyOptional({ type: [CreateDependienteDto] })
-  @IsOptional()
+  @ApiProperty({ required: false, type: [CreateDependienteDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateDependienteDto)
+  @IsOptional()
   dependientes?: CreateDependienteDto[]
 }

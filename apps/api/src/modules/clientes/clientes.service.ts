@@ -57,7 +57,7 @@ export class ClientesService {
 
     const [data, total] = await Promise.all([
       this.prisma.cliente.findMany({
-        where,
+        where: where as any,
         skip,
         take: limit,
         orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
@@ -75,7 +75,7 @@ export class ClientesService {
           _count: { select: { polizas: true } },
         },
       }),
-      this.prisma.cliente.count({ where }),
+      this.prisma.cliente.count({ where: where as any }),
     ])
 
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
@@ -130,16 +130,18 @@ export class ClientesService {
 
     const { dependientes, ...datosCliente } = dto
 
+    const data: any = {
+      ...datosCliente,
+      organizationId,
+      ejecutivoId,
+      createdById: userId,
+    }
+    if (dependientes?.length) {
+      data.dependientes = { create: dependientes.map(d => ({ ...d })) }
+    }
+
     return this.prisma.cliente.create({
-      data: {
-        ...datosCliente,
-        organizationId,
-        ejecutivoId,
-        createdById: userId,
-        dependientes: dependientes?.length
-          ? { create: dependientes.map(d => ({ ...d })) }
-          : undefined,
-      },
+      data,
       include: { dependientes: true },
     })
   }

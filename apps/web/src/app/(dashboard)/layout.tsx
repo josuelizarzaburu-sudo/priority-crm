@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { PushNotificationBanner } from '@/components/layout/push-notification-banner'
 
+// build marker: forzar reconstruccion tras fix de sidebar.tsx
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')

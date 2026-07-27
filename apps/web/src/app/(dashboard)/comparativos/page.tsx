@@ -7,25 +7,11 @@ import { ComparativosPage } from '@/components/comparativos/comparativos-page'
 
 export const metadata: Metadata = { title: 'Comparativos' }
 
-// Acceso a Comparativos: SUPER_ADMIN siempre entra, más esta lista de personas
-// autorizadas mientras se hace el lanzamiento controlado. Para agregar o quitar
-// a alguien, edita este arreglo.
-const ALLOWED_EMAILS = [
-  'raviles@priority.ec', // Roxana Avilés
-  'comer@priority.ec', // Gianella Pozo
-  'pcarrillo@priority.ec', // Pablo Carrillo
-  'jsegovia@priority.ec', // Juan Fernando Segovia
-]
-
+// Comparativos abierto a todo el equipo con sesion iniciada. Termino el
+// lanzamiento controlado por lista de correos; ya no hay restriccion por rol.
 export default async function Page() {
   const session = await getServerSession(authOptions)
-  const user = session?.user as { role?: string; email?: string } | undefined
-  const role = user?.role
-  const email = user?.email?.toLowerCase()
-  const esOperaciones = role === 'OPERACIONES' || role === 'JEFE_OPERACIONES'
-  const hasAccess =
-    role === 'SUPER_ADMIN' || esOperaciones || (email && ALLOWED_EMAILS.includes(email))
-  if (!hasAccess) redirect('/pipeline')
+  if (!session?.user) redirect('/login')
 
   return (
     <Suspense fallback={null}>

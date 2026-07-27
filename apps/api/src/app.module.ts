@@ -19,6 +19,7 @@ import { TrainingModule } from './modules/training/training.module'
 import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 import { ChatModule } from './modules/chat/chat.module'
 import { ClientesModule } from './modules/clientes/clientes.module'
+import { ResetComercialModule } from './modules/reset-comercial/reset-comercial.module'
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { ClientesModule } from './modules/clientes/clientes.module'
     WhatsappChatModule,
     ChatModule,
     ClientesModule,
+    ResetComercialModule,
   ],
 })
 export class AppModule {}

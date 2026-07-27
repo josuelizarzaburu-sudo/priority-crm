@@ -22,7 +22,9 @@ export default async function Page() {
   const user = session?.user as { role?: string; email?: string } | undefined
   const role = user?.role
   const email = user?.email?.toLowerCase()
-  const hasAccess = role === 'SUPER_ADMIN' || (email && ALLOWED_EMAILS.includes(email))
+  const esOperaciones = role === 'OPERACIONES' || role === 'JEFE_OPERACIONES'
+  const hasAccess =
+    role === 'SUPER_ADMIN' || esOperaciones || (email && ALLOWED_EMAILS.includes(email))
   if (!hasAccess) redirect('/pipeline')
 
   return (

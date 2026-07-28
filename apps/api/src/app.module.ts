@@ -19,7 +19,6 @@ import { TrainingModule } from './modules/training/training.module'
 import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 import { ChatModule } from './modules/chat/chat.module'
 import { ClientesModule } from './modules/clientes/clientes.module'
-import { CargaCrmModule } from './modules/carga-crm/carga-crm.module'
 
 @Module({
   imports: [
@@ -85,7 +84,6 @@ import { CargaCrmModule } from './modules/carga-crm/carga-crm.module'
     WhatsappChatModule,
     ChatModule,
     ClientesModule,
-    CargaCrmModule,
   ],
 })
 export class AppModule {}

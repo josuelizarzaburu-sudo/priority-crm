@@ -1129,6 +1129,21 @@ export function CotizadorPage() {
           </div>
         </div>
       )}
+
+      {/* Aviso de proteccion de datos: debe acompañar toda cotizacion/comparativo que se envie */}
+      <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
+        🔐 En SEGUROS IDEAL ASESORES PRODUCTORES DE SEGUROS SEGUROSIDEAL CIA.LTDA. nos preocupamos por tu seguridad: tus datos
+        personales se tratan conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador. Conoce más aquí 👉{' '}
+        <a
+          href="https://priority.ec/politicas/segurosideal"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+          style={{ color: NAVY }}
+        >
+          priority.ec/politicas/segurosideal
+        </a>
+      </p>
     </div>
   )
 }

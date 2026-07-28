@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { ClientesService } from './clientes.service'
@@ -47,6 +58,22 @@ export class ClientesController {
     return this.clientesService.crearPoliza(
       id,
       dto,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Delete(':id/polizas/:polizaId')
+  @ApiOperation({ summary: 'Eliminar una póliza del cliente' })
+  eliminarPoliza(
+    @Param('id') id: string,
+    @Param('polizaId') polizaId: string,
+    @Req() req: any,
+  ) {
+    return this.clientesService.eliminarPoliza(
+      id,
+      polizaId,
       req.user.organizationId,
       req.user.id,
       req.user.role,

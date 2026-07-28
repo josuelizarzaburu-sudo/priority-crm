@@ -38,7 +38,8 @@ export const PH15_JOVENES_TARIFAS: Record<string, number> = {"18F":47.4,"19F":47
 const SEGURO_CAMPESINO = 0.005
 
 // Descuento por Nº de personas (hoja "Datos" del cotizador oficial).
-// PH 15 tiene su propia columna: no da descuento a 2 personas y se topa en 30%.
+// PH 15 Familias tiene su propia columna: no da descuento a 2 personas y se topa
+// en 30%. PH 15 Jóvenes no entra en esta tabla: nunca lleva descuento.
 const DESCUENTOS: Record<number, { ph15: number; ph30: number; mh: number }> = {
   1: { ph15: 0, ph30: 0, mh: 0 },
   2: { ph15: 0, ph30: 0.09, mh: 0.15 },
@@ -52,7 +53,10 @@ const DESCUENTOS: Record<number, { ph15: number; ph30: number; mh: number }> = {
 function descuentoPlan(nPersonas: number, plan: HumanaPlan): number {
   const n = Math.min(Math.max(nPersonas, 1), 7)
   const d = DESCUENTOS[n]
-  if (plan === 'PH15' || plan === 'PH15J') return d.ph15
+  // PH 15 Jóvenes NO tiene descuento familiar: se cotiza siempre a tarifa plena.
+  // (Verificado contra el cotizador oficial: 44M+30F+40M = $228,92 sin descuento.)
+  if (plan === 'PH15J') return 0
+  if (plan === 'PH15') return d.ph15
   if (plan === 'PH30') return d.ph30
   return d.mh
 }

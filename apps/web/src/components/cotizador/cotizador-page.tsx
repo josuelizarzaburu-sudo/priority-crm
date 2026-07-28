@@ -580,6 +580,15 @@ export function CotizadorPage() {
                           <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
                             {r.label}
                           </td>
+                          {r.disponible === false ? (
+                            <td
+                              className="px-3 py-2 text-center text-xs text-muted-foreground"
+                              colSpan={4}
+                            >
+                              {r.motivoNoDisponible ?? 'No disponible para esta familia'}
+                            </td>
+                          ) : (
+                          <>
                           <td className="px-3 py-2 text-right text-[#333]">
                             ${money(r.subtotal)}
                           </td>
@@ -620,6 +629,8 @@ export function CotizadorPage() {
                               )
                             })()}
                           </td>
+                          </>
+                          )}
                         </tr>
                       ))}
                   </tbody>
@@ -632,6 +643,19 @@ export function CotizadorPage() {
                   const catalogId = HUMANA_CATALOG_ID[r.plan]
                   const selId = `humana-${r.plan}`
                   const sel = estaSeleccionado(selId)
+                  // Plan que no aplica a esta familia (ej. PH 15 con alguien de 66+)
+                  if (r.disponible === false) {
+                    return (
+                      <div key={r.plan} className="rounded-lg border border-dashed p-3">
+                        <div className="text-sm font-bold" style={{ color: NAVY }}>
+                          {r.label}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {r.motivoNoDisponible ?? 'No disponible para esta familia'}
+                        </p>
+                      </div>
+                    )
+                  }
                   return (
                     <div key={r.plan} className="rounded-lg border p-3">
                       <div className="mb-2 flex items-baseline justify-between gap-2">

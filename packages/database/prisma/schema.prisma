@@ -68,6 +68,7 @@ model User {
   clientesAsignados       Cliente[]           @relation("ClienteEjecutivo")
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
   polizasComoAgente       Poliza[]            @relation("PolizaAgente")
+  notasClientes           NotaCliente[]
 
   @@map("users")
 }
@@ -562,6 +563,7 @@ model Cliente {
   contact         Contact?      @relation(fields: [contactId], references: [id])
   polizas         Poliza[]
   dependientes    Dependiente[]
+  notas_          NotaCliente[]
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])
@@ -649,4 +651,27 @@ model PolizaDependiente {
   @@id([polizaId, dependienteId])
   @@index([dependienteId])
   @@map("poliza_dependientes")
+}
+
+// ─── Bitácora del cliente ────────────────────────────────────────────────
+// Notas que las ejecutivas van dejando: qué pidió el cliente, qué se acordó,
+// qué gestión quedó pendiente. A propósito NO se pueden editar ni borrar: es
+// un historial, no un campo de texto. Por eso tampoco tiene updatedAt.
+model NotaCliente {
+  id        String   @id @default(cuid())
+  contenido String
+
+  clienteId String
+  autorId   String?
+  // Nombre del autor guardado tal cual al momento de escribir, para que la
+  // nota siga siendo legible aunque esa persona ya no trabaje en Priority.
+  autorNombre String?
+
+  createdAt DateTime @default(now())
+
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  autor     User?    @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([clienteId, createdAt])
+  @@map("notas_cliente")
 }

@@ -10,12 +10,13 @@
 //
 // Validado: 3 personas (17F,41F,41M) subtotal PH30 = $359,94.
 
-export type HumanaPlan = 'PH15' | 'PH30' | 'MH50' | 'MH80' | 'MH150'
+export type HumanaPlan = 'PH15' | 'PH15J' | 'PH30' | 'MH50' | 'MH80' | 'MH150'
 export type Sexo = 'F' | 'M'
 
-export const HUMANA_PLANES: HumanaPlan[] = ['PH15', 'PH30', 'MH50', 'MH80', 'MH150']
+export const HUMANA_PLANES: HumanaPlan[] = ['PH15', 'PH15J', 'PH30', 'MH50', 'MH80', 'MH150']
 export const HUMANA_PLAN_LABEL: Record<HumanaPlan, string> = {
-  PH15: 'PH 15',
+  PH15: 'PH 15 Familias',
+  PH15J: 'PH 15 Jóvenes',
   PH30: 'PH 30',
   MH50: 'MH 50',
   MH80: 'MH 80',
@@ -25,6 +26,14 @@ export const HUMANA_PLAN_LABEL: Record<HumanaPlan, string> = {
 // PH 15 solo se emite hasta los 65 años. Si algún integrante pasa de esa edad,
 // el plan no se puede cotizar para esa familia.
 export const PH15_EDAD_MAXIMA = 65
+
+// PH 15 Jóvenes es un producto aparte, con tarifa propia y solo de 18 a 44 años.
+// En la version V11 Humana amplio el rango: antes llegaba a 35, ahora a 44.
+export const PH15J_EDAD_MINIMA = 18
+export const PH15J_EDAD_MAXIMA = 44
+
+// Tarifa mensual por persona de PH 15 Jóvenes: clave "edad+sexo" -> precio.
+export const PH15_JOVENES_TARIFAS: Record<string, number> = {"18F":47.4,"19F":47.4,"20F":47.4,"21F":47.4,"22F":47.4,"23F":47.4,"24F":62.54,"25F":62.54,"26F":62.54,"27F":62.54,"28F":62.54,"29F":62.54,"30F":62.54,"31F":62.54,"32F":62.54,"33F":62.54,"34F":62.54,"35F":62.54,"36F":104.75,"37F":104.75,"38F":104.75,"39F":104.75,"40F":104.75,"41F":104.75,"42F":104.75,"43F":104.75,"44F":104.75,"18M":40.69,"19M":40.69,"20M":40.69,"21M":40.69,"22M":40.69,"23M":40.69,"24M":57.05,"25M":57.05,"26M":57.05,"27M":57.05,"28M":57.05,"29M":57.05,"30M":57.05,"31M":57.05,"32M":57.05,"33M":57.05,"34M":57.05,"35M":57.05,"36M":82.62,"37M":82.62,"38M":82.62,"39M":82.62,"40M":82.62,"41M":82.62,"42M":82.62,"43M":82.62,"44M":82.62}
 
 const SEGURO_CAMPESINO = 0.005
 
@@ -43,7 +52,7 @@ const DESCUENTOS: Record<number, { ph15: number; ph30: number; mh: number }> = {
 function descuentoPlan(nPersonas: number, plan: HumanaPlan): number {
   const n = Math.min(Math.max(nPersonas, 1), 7)
   const d = DESCUENTOS[n]
-  if (plan === 'PH15') return d.ph15
+  if (plan === 'PH15' || plan === 'PH15J') return d.ph15
   if (plan === 'PH30') return d.ph30
   return d.mh
 }
@@ -74,6 +83,9 @@ export interface HumanaResultadoPlan {
 
 function precioPersona(persona: HumanaPersona, plan: HumanaPlan): number | null {
   const e = Math.max(0, Math.min(99, Math.round(persona.edad)))
+  if (plan === 'PH15J') {
+    return PH15_JOVENES_TARIFAS[`${e}${persona.sexo}`] ?? null
+  }
   const fila = HUMANA_TARIFAS[`${e}${persona.sexo}`]
   if (!fila) return null
   return fila[plan] ?? null
@@ -102,6 +114,21 @@ export function cotizarHumana(personas: HumanaPersona[]): HumanaResultadoPlan[] 
           ...vacio,
           disponible: false,
           motivoNoDisponible: `PH 15 se emite hasta los ${PH15_EDAD_MAXIMA} años (hay un integrante de ${Math.round(mayor.edad)})`,
+        }
+      }
+    }
+
+    // PH 15 Jóvenes solo se emite entre 18 y 44 años.
+    if (plan === 'PH15J') {
+      const fuera = personas.find((p) => {
+        const e = Math.round(p.edad)
+        return e < PH15J_EDAD_MINIMA || e > PH15J_EDAD_MAXIMA
+      })
+      if (fuera) {
+        return {
+          ...vacio,
+          disponible: false,
+          motivoNoDisponible: `PH 15 Jóvenes es de ${PH15J_EDAD_MINIMA} a ${PH15J_EDAD_MAXIMA} años (hay un integrante de ${Math.round(fuera.edad)})`,
         }
       }
     }

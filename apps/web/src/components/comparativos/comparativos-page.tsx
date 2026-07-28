@@ -708,11 +708,14 @@ export function ComparativosPage() {
                 <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp 099 591 5761</span>
                 <span>Información detallada de coberturas y beneficios, revisar en la ilustración adjunta de cada Plan Médico</span>
               </div>
+              {/* TEMPORAL: priority.ec todavia apunta al sitio viejo (otro servidor). Usamos la URL
+                  de Railway, que ya sirve la pagina de politica real. Cuando se haga el cambio de
+                  dominio, actualizar este href y el texto visible a https://priority.ec/politicas/segurosideal */}
               <div className="mt-2 border-t pt-2 text-center text-[9px] leading-relaxed text-muted-foreground">
                 🔐 En SEGUROS IDEAL ASESORES PRODUCTORES DE SEGUROS SEGUROSIDEAL CIA.LTDA. nos preocupamos por tu seguridad: tus datos
                 personales se tratan conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador. Conoce más aquí 👉{' '}
-                <a href="https://priority.ec/politicas/segurosideal" className="underline" style={{ color: NAVY }}>
-                  priority.ec/politicas/segurosideal
+                <a href="https://priority-web-production.up.railway.app/politicas/segurosideal" className="underline" style={{ color: NAVY }}>
+                  priority-web-production.up.railway.app/politicas/segurosideal
                 </a>
               </div>
             </div>

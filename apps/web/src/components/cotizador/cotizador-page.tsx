@@ -1130,18 +1130,21 @@ export function CotizadorPage() {
         </div>
       )}
 
-      {/* Aviso de proteccion de datos: debe acompañar toda cotizacion/comparativo que se envie */}
+      {/* Aviso de proteccion de datos: debe acompañar toda cotizacion/comparativo que se envie.
+          TEMPORAL: priority.ec todavia apunta al sitio viejo (otro servidor/programador).
+          Usamos la URL de Railway, que ya sirve la pagina real. Cuando se haga el cambio de
+          dominio, actualizar el href y el texto visible a https://priority.ec/politicas/segurosideal */}
       <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
         🔐 En SEGUROS IDEAL ASESORES PRODUCTORES DE SEGUROS SEGUROSIDEAL CIA.LTDA. nos preocupamos por tu seguridad: tus datos
         personales se tratan conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador. Conoce más aquí 👉{' '}
         <a
-          href="https://priority.ec/politicas/segurosideal"
+          href="https://priority-web-production.up.railway.app/politicas/segurosideal"
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
           style={{ color: NAVY }}
         >
-          priority.ec/politicas/segurosideal
+          priority-web-production.up.railway.app/politicas/segurosideal
         </a>
       </p>
     </div>

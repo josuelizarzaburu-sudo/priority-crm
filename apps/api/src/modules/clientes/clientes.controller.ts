@@ -64,6 +64,24 @@ export class ClientesController {
     )
   }
 
+  @Patch(':id/polizas/:polizaId')
+  @ApiOperation({ summary: 'Editar una póliza del cliente' })
+  actualizarPoliza(
+    @Param('id') id: string,
+    @Param('polizaId') polizaId: string,
+    @Body() dto: any,
+    @Req() req: any,
+  ) {
+    return this.clientesService.actualizarPoliza(
+      id,
+      polizaId,
+      dto,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Delete(':id/polizas/:polizaId')
   @ApiOperation({ summary: 'Eliminar una póliza del cliente' })
   eliminarPoliza(

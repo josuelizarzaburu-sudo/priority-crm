@@ -497,7 +497,18 @@ enum Parentesco {
   MADRE
   HERMANO
   HERMANA
+  CUNADO
   OTRO
+}
+
+// Los 4 ramos que maneja Priority. Cada uno muestra campos distintos en la
+// ficha: un auto necesita placa y marca, un seguro de vida necesita el tiempo
+// de cobertura, etc.
+enum TipoPoliza {
+  SALUD
+  AUTO
+  VIDA
+  HOGAR
 }
 
 model Cliente {
@@ -508,12 +519,26 @@ model Cliente {
   genero          Genero?
   fechaNacimiento DateTime?
 
+  // Como prefiere que le llamen. Se resalta en dorado dentro del nombre completo.
+  nombrePreferido String?
+  // Quien lo refirio. "NO APLICA" cuando no viene de una referencia.
+  referidoDe      String?
+  // A quien se contacta: "ASEGURADO", "NINGUNO" o el nombre de otra persona
+  // (esposa, hijo, asistente...). Texto libre a proposito: no siempre es
+  // alguien que exista en el sistema.
+  contactoSugerido String?
+
   email           String?
   telefono        String?
   celular         String?
   ciudad          String?
   direccion       String?
   notas           String?
+
+  // La cedula se puede corregir UNA sola vez por la ejecutiva (para arreglar
+  // un error de digitacion). Despues queda congelada para ella; el jefe de
+  // operaciones y el SUPER_ADMIN siguen pudiendo editarla siempre.
+  cedulaEditada   Boolean   @default(false)
 
   // Semáforo de calidad de datos: el registro entra igual, pero marcado.
   revisar         Boolean   @default(false)
@@ -547,6 +572,8 @@ model Cliente {
 
 model Poliza {
   id              String        @id @default(cuid())
+  // Define que campos se muestran/piden en la ficha.
+  tipo            TipoPoliza    @default(SALUD)
   numeroContrato  String?
   estado          EstadoPoliza?
   aseguradora     String?
@@ -556,6 +583,19 @@ model Poliza {
   fechaEmision    DateTime?
   fechaRenovacion DateTime?
   primaNeta       Decimal?      @db.Decimal(12, 2)
+  // Aplica a AUTO, VIDA y HOGAR.
+  sumaAsegurada   Decimal?      @db.Decimal(14, 2)
+
+  // ── Solo AUTO ──
+  marca           String?
+  modelo          String?
+  anio            Int?
+  placa           String?
+
+  // ── Solo VIDA ── periodo de cobertura, ej "30 AÑOS"
+  tiempoCobertura String?
+
+  observacion     String?
 
   revisar         Boolean       @default(false)
   revisarMotivo   String?
@@ -576,6 +616,7 @@ model Poliza {
   @@index([clienteId])
   @@index([organizationId, aseguradora])
   @@index([organizationId, fechaRenovacion])
+  @@index([organizationId, tipo])
   @@map("polizas")
 }
 

@@ -101,9 +101,12 @@ const BMI_CATALOG_ID: Record<BmiPlanId, string> = {
 }
 // Humana: plan del motor -> id catálogo
 const HUMANA_CATALOG_ID: Record<string, string> = {
+  PH30: 'ce1', // HUMANA 30 (red cerrada)
   MH50: 'ab3',
   MH80: 'ab4',
-  // PH30 y MH150 no tienen columna en el catálogo salud abierto; se omiten del match directo
+  MH150: 'ab14',
+  // PH15 se cotiza pero todavía no pasa al comparativo (pendiente de definir
+  // su columna, junto con PH 15 Jóvenes).
 }
 // Confiamed: deducible -> id catálogo
 const CONFIAMED_CATALOG_ID: Record<string, string> = {
@@ -601,7 +604,7 @@ export function CotizadorPage() {
                           <td className="px-2 py-2 text-center">
                             {(() => {
                               const catalogId = HUMANA_CATALOG_ID[r.plan]
-                              if (!catalogId) return null // PH30 y MH150 no van al comparativo por ahora
+                              if (!catalogId) return null // PH15 aún no tiene columna en el comparativo
                               const selId = `humana-${r.plan}`
                               const sel = estaSeleccionado(selId)
                               return (

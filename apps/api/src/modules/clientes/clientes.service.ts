@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
 import { UpdateClienteDto } from './dto/update-cliente.dto'
+import { CreatePolizaDto } from './dto/create-poliza.dto'
 
 // Roles que pueden ver TODOS los clientes de la organización.
 // El resto (OPERACIONES) solo ve los suyos.
@@ -164,5 +165,42 @@ export class ClientesService {
     }
 
     return this.prisma.cliente.update({ where: { id }, data })
+  }
+  /**
+   * Agrega una poliza a un cliente existente. Sirve para cuando el cliente
+   * contrata un ramo nuevo (ya tenia salud y ahora saca auto, por ejemplo).
+   * findOne valida que el usuario tenga acceso a ese cliente.
+   */
+  async crearPoliza(
+    clienteId: string,
+    dto: CreatePolizaDto,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    const cliente = await this.findOne(clienteId, organizationId, userId, role)
+
+    const { dependienteIds, fechaEmision, ...resto } = dto
+
+    // Solo se pueden cubrir dependientes que sean de ESTE cliente.
+    const idsValidos = new Set(cliente.dependientes.map((d: any) => d.id))
+    const cubre = (dependienteIds ?? []).filter((id) => idsValidos.has(id))
+
+    const data: any = {
+      ...resto,
+      fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+      clienteId,
+      organizationId,
+    }
+    if (cubre.length) {
+      data.dependientes = { create: cubre.map((dependienteId) => ({ dependienteId })) }
+    }
+
+    return this.prisma.poliza.create({
+      data,
+      include: {
+        dependientes: { include: { dependiente: { select: { id: true, nombres: true, apellidos: true } } } },
+      },
+    })
   }
 }

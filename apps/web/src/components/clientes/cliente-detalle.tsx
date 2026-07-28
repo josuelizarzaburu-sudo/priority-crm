@@ -11,6 +11,8 @@ import { api } from '@/lib/api'
 import { AgregarPoliza } from './agregar-poliza'
 import { EditarCliente } from './editar-cliente'
 import { EditarPoliza } from './editar-poliza'
+import { NotasCliente } from './notas-cliente'
+import { AgregarDependiente } from './agregar-dependiente'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -82,6 +84,12 @@ interface ClienteDetalle {
   ejecutivo: { id: string; name: string; email: string } | null
   dependientes: Dependiente[]
   polizas: Poliza[]
+  notas_: {
+    id: string
+    contenido: string
+    autorNombre: string | null
+    createdAt: string
+  }[]
 }
 
 const fmtFecha = (v: string | null) => {
@@ -261,7 +269,9 @@ export function ClienteDetalle({ id }: { id: string }) {
           <Users className="h-4 w-4" /> Dependientes ({c.dependientes.length})
         </h2>
         {c.dependientes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Este cliente no tiene dependientes registrados.</p>
+          <p className="text-sm text-muted-foreground">
+            Este cliente no tiene dependientes registrados.
+          </p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {c.dependientes.map((d) => (
@@ -280,6 +290,10 @@ export function ClienteDetalle({ id }: { id: string }) {
             ))}
           </div>
         )}
+
+        <div className="mt-3">
+          <AgregarDependiente clienteId={c.id} />
+        </div>
       </section>
 
       {/* ── Pólizas ── */}
@@ -412,6 +426,9 @@ export function ClienteDetalle({ id }: { id: string }) {
           <AgregarPoliza clienteId={c.id} dependientes={c.dependientes} />
         </div>
       </section>
+
+      {/* ── Bitácora ── */}
+      <NotasCliente clienteId={c.id} notas={c.notas_ ?? []} />
     </div>
   )
 }

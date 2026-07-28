@@ -232,4 +232,59 @@ export class CargaCrmService {
       log,
     }
   }
+
+  // Identificaciones de la base real entregada por Priority. Todo cliente que
+  // NO este en esta lista es de la carga de prueba inicial (cedulas inventadas)
+  // y se elimina. Al borrar el cliente, sus polizas y dependientes se van en
+  // cascada (definido en el esquema).
+  private readonly IDENTIFICACIONES_REALES: string[] = ["0501155048", "1707330237", "1708477722", "1710686799", "1712055118", "1716093495", "1720460805", "1721234274", "1793056326001"]
+
+  async limpiarPrueba(organizationId: string, simular: boolean) {
+    const aBorrar = await this.prisma.cliente.findMany({
+      where: {
+        organizationId,
+        identificacion: { notIn: this.IDENTIFICACIONES_REALES },
+      },
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        identificacion: true,
+        _count: { select: { polizas: true, dependientes: true } },
+      },
+    })
+
+    const detalle = aBorrar.map(
+      (c) =>
+        `${c.identificacion} ${c.nombres} ${c.apellidos} (${c._count.polizas} poliza(s), ${c._count.dependientes} dependiente(s))`,
+    )
+
+    if (simular) {
+      const conservados = await this.prisma.cliente.count({
+        where: { organizationId, identificacion: { in: this.IDENTIFICACIONES_REALES } },
+      })
+      return {
+        ok: true,
+        modo: 'SIMULACION — no se borro nada',
+        seEliminarian: aBorrar.length,
+        detalle,
+        seConservan: conservados,
+        siguientePaso: 'Repetir agregando &confirm=si-borrar para ejecutar',
+      }
+    }
+
+    const ids = aBorrar.map((c) => c.id)
+    await this.prisma.cliente.deleteMany({ where: { id: { in: ids } } })
+
+    const quedan = await this.prisma.cliente.count({ where: { organizationId } })
+    this.logger.log(`Limpieza de prueba: ${ids.length} clientes eliminados, quedan ${quedan}`)
+
+    return {
+      ok: true,
+      modo: 'EJECUTADO',
+      eliminados: aBorrar.length,
+      detalle,
+      clientesQueQuedan: quedan,
+    }
+  }
 }

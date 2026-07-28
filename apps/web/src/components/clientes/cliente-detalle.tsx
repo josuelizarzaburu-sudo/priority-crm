@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, AlertTriangle, User, Shield, Users, Trash2 } from 'lucide-react'
@@ -152,6 +153,10 @@ export function ClienteDetalle({ id }: { id: string }) {
   const router = useRouter()
 
   const qc = useQueryClient()
+  const { data: session } = useSession()
+  const rol = (session?.user as any)?.role ?? ''
+  // Borrar una poliza pierde datos: solo jefe de operaciones y admin.
+  const puedeEliminar = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol)
   const [borrando, setBorrando] = useState<string | null>(null)
 
   const { data: c, isLoading, isError, error } = useQuery({
@@ -297,7 +302,8 @@ export function ClienteDetalle({ id }: { id: string }) {
                     </Badge>
                   )}
 
-                  {/* Borrar: pide confirmacion en el mismo lugar, sin ventana aparte */}
+                  {/* Borrar: solo jefe/admin. Pide confirmacion en el mismo lugar. */}
+                  {puedeEliminar && (
                   <div className="ml-auto">
                     {borrando === p.id ? (
                       <div className="flex items-center gap-2">
@@ -327,6 +333,7 @@ export function ClienteDetalle({ id }: { id: string }) {
                       </button>
                     )}
                   </div>
+                  )}
                 </div>
 
                 {/* Campos comunes a todos los ramos */}

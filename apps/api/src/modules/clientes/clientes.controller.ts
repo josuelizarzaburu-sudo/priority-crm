@@ -64,6 +64,46 @@ export class ClientesController {
     )
   }
 
+  @Post(':id/notas')
+  @ApiOperation({ summary: 'Agregar una nota a la bitácora del cliente' })
+  agregarNota(@Param('id') id: string, @Body() dto: { contenido: string }, @Req() req: any) {
+    return this.clientesService.agregarNota(
+      id,
+      dto?.contenido,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Post(':id/dependientes')
+  @ApiOperation({ summary: 'Agregar un dependiente al cliente' })
+  agregarDependiente(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+    return this.clientesService.agregarDependiente(
+      id,
+      dto,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Delete(':id/dependientes/:dependienteId')
+  @ApiOperation({ summary: 'Eliminar un dependiente' })
+  eliminarDependiente(
+    @Param('id') id: string,
+    @Param('dependienteId') dependienteId: string,
+    @Req() req: any,
+  ) {
+    return this.clientesService.eliminarDependiente(
+      id,
+      dependienteId,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Patch(':id/polizas/:polizaId')
   @ApiOperation({ summary: 'Editar una póliza del cliente' })
   actualizarPoliza(

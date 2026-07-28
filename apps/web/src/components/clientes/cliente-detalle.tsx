@@ -1,8 +1,9 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertTriangle, User, Shield, Users } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, User, Shield, Users, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -150,9 +151,21 @@ function Dato({ label, valor }: { label: string; valor: string | null }) {
 export function ClienteDetalle({ id }: { id: string }) {
   const router = useRouter()
 
+  const qc = useQueryClient()
+  const [borrando, setBorrando] = useState<string | null>(null)
+
   const { data: c, isLoading, isError, error } = useQuery({
     queryKey: ['cliente', id],
     queryFn: async () => (await api.get(`/clientes/${id}`)).data as ClienteDetalle,
+  })
+
+  const eliminar = useMutation({
+    mutationFn: async (polizaId: string) =>
+      (await api.delete(`/clientes/${id}/polizas/${polizaId}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cliente', id] })
+      setBorrando(null)
+    },
   })
 
   if (isLoading) {
@@ -283,6 +296,37 @@ export function ClienteDetalle({ id }: { id: string }) {
                       Revisar
                     </Badge>
                   )}
+
+                  {/* Borrar: pide confirmacion en el mismo lugar, sin ventana aparte */}
+                  <div className="ml-auto">
+                    {borrando === p.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">¿Eliminar?</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          disabled={eliminar.isPending}
+                          onClick={() => eliminar.mutate(p.id)}
+                        >
+                          {eliminar.isPending ? 'Eliminando…' : 'Sí, eliminar'}
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setBorrando(null)}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setBorrando(p.id)}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                        aria-label="Eliminar póliza"
+                        title="Eliminar póliza"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Campos comunes a todos los ramos */}

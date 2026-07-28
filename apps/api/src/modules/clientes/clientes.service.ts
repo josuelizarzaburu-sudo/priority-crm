@@ -147,6 +147,16 @@ export class ClientesService {
     })
   }
 
+  /**
+   * Edita los datos del cliente.
+   *
+   * Reglas acordadas con Priority:
+   *  - Nombres, apellidos, fecha de nacimiento y ejecutiva asignada: la ejecutiva
+   *    NO los toca (son datos de identidad / asignación). Jefe y admin sí.
+   *  - Cédula: la ejecutiva puede corregirla UNA sola vez (para arreglar un error
+   *    de digitación). Después queda congelada para ella. Jefe y admin siempre
+   *    pueden, para que un error no quede grabado en piedra.
+   */
   async update(
     id: string,
     dto: UpdateClienteDto,
@@ -155,16 +165,111 @@ export class ClientesService {
     role: string,
   ) {
     // findOne ya valida existencia + permiso de acceso.
-    await this.findOne(id, organizationId, userId, role)
+    const actual = await this.findOne(id, organizationId, userId, role)
 
-    // Una ejecutiva no puede reasignar el cliente a otra persona.
     const data: any = { ...dto }
     delete data.dependientes // los dependientes se manejan en endpoints aparte
-    if (!VE_TODO.includes(role)) {
+
+    const esJefe = VE_TODO.includes(role)
+
+    if (!esJefe) {
+      // Campos que la ejecutiva no puede tocar. Se descartan en silencio en vez
+      // de fallar: la UI ya los muestra bloqueados, esto es la red de seguridad.
+      delete data.nombres
+      delete data.apellidos
+      delete data.fechaNacimiento
       delete data.ejecutivoId
+
+      // Cédula: una sola corrección.
+      const quiereCambiarCedula =
+        data.identificacion !== undefined && data.identificacion !== actual.identificacion
+
+      if (quiereCambiarCedula) {
+        if (actual.cedulaEditada) {
+          throw new ForbiddenException(
+            'La cédula ya fue corregida una vez. Pide al jefe de operaciones que haga el cambio.',
+          )
+        }
+        // Marcamos que ya usó su única corrección.
+        data.cedulaEditada = true
+      } else {
+        delete data.identificacion
+      }
+    }
+
+    // Nadie puede dejar dos clientes con la misma cédula.
+    if (data.identificacion && data.identificacion !== actual.identificacion) {
+      const repetido = await this.prisma.cliente.findUnique({
+        where: {
+          organizationId_identificacion: {
+            organizationId,
+            identificacion: data.identificacion,
+          },
+        },
+        select: { id: true, nombres: true, apellidos: true },
+      })
+      if (repetido && repetido.id !== id) {
+        throw new ForbiddenException(
+          `Ya existe otro cliente con la cédula ${data.identificacion}: ${repetido.nombres} ${repetido.apellidos}`,
+        )
+      }
     }
 
     return this.prisma.cliente.update({ where: { id }, data })
+  }
+
+  /**
+   * Edita una póliza existente. Es la salida que tiene la ejecutiva cuando se
+   * equivocó al cargarla, ya que borrar está reservado al jefe.
+   */
+  async actualizarPoliza(
+    clienteId: string,
+    polizaId: string,
+    dto: any,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    await this.findOne(clienteId, organizationId, userId, role)
+
+    const poliza = await this.prisma.poliza.findFirst({
+      where: { id: polizaId, clienteId, organizationId },
+      select: { id: true },
+    })
+    if (!poliza) throw new NotFoundException('Póliza no encontrada')
+
+    const { dependienteIds, fechaEmision, ...resto } = dto
+    const data: any = { ...resto }
+    if (fechaEmision !== undefined) {
+      data.fechaEmision = fechaEmision ? new Date(fechaEmision) : null
+    }
+
+    // Si mandan la lista de cubiertos, se reemplaza completa.
+    if (Array.isArray(dependienteIds)) {
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: clienteId },
+        select: { dependientes: { select: { id: true } } },
+      })
+      const validos = new Set((cliente?.dependientes ?? []).map((d) => d.id))
+      const cubre = dependienteIds.filter((x: string) => validos.has(x))
+
+      await this.prisma.polizaDependiente.deleteMany({ where: { polizaId } })
+      if (cubre.length) {
+        await this.prisma.polizaDependiente.createMany({
+          data: cubre.map((dependienteId: string) => ({ polizaId, dependienteId })),
+        })
+      }
+    }
+
+    return this.prisma.poliza.update({
+      where: { id: polizaId },
+      data,
+      include: {
+        dependientes: {
+          include: { dependiente: { select: { id: true, nombres: true, apellidos: true } } },
+        },
+      },
+    })
   }
   /**
    * Agrega una poliza a un cliente existente. Sirve para cuando el cliente

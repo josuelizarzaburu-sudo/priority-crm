@@ -239,52 +239,86 @@ export class CargaCrmService {
   // cascada (definido en el esquema).
   private readonly IDENTIFICACIONES_REALES: string[] = ["0501155048", "1707330237", "1708477722", "1710686799", "1712055118", "1716093495", "1720460805", "1721234274", "1793056326001"]
 
+    // Polizas reales por cliente (clave tipo|contrato). Sirve para detectar
+  // polizas de la carga de prueba que quedaron colgando de un cliente real.
+  private readonly POLIZAS_REALES: Record<string, string[]> = {"1793056326001": ["AUTO|580203", "AUTO|580203", "AUTO|580203", "HOGAR|504695"], "1716093495": ["AUTO|94323847"], "0501155048": ["AUTO|487323"], "1712055118": ["HOGAR|516245", "SALUD|266700462"], "1708477722": ["SALUD|AI15Q00904"], "1721234274": ["SALUD|IV25Q01961"], "1720460805": ["SALUD|IV25Q01969"], "1710686799": ["SALUD|133853", "SALUD|GM24Q47934"], "1707330237": ["VIDA|MT25Q07412"]}
+
   async limpiarPrueba(organizationId: string, simular: boolean) {
-    const aBorrar = await this.prisma.cliente.findMany({
+    // ── 1. Clientes que no estan en la base real ──
+    const clientesABorrar = await this.prisma.cliente.findMany({
       where: {
         organizationId,
         identificacion: { notIn: this.IDENTIFICACIONES_REALES },
       },
       select: {
-        id: true,
-        nombres: true,
-        apellidos: true,
-        identificacion: true,
+        id: true, nombres: true, apellidos: true, identificacion: true,
         _count: { select: { polizas: true, dependientes: true } },
       },
     })
 
-    const detalle = aBorrar.map(
-      (c) =>
-        `${c.identificacion} ${c.nombres} ${c.apellidos} (${c._count.polizas} poliza(s), ${c._count.dependientes} dependiente(s))`,
+    // ── 2. Polizas de prueba que quedaron en clientes reales ──
+    const clientesReales = await this.prisma.cliente.findMany({
+      where: { organizationId, identificacion: { in: this.IDENTIFICACIONES_REALES } },
+      select: {
+        id: true, nombres: true, identificacion: true,
+        polizas: {
+          select: { id: true, tipo: true, numeroContrato: true, aseguradora: true, plan: true },
+        },
+      },
+    })
+
+    const polizasABorrar: { id: string; detalle: string }[] = []
+    for (const cli of clientesReales) {
+      const reales = this.POLIZAS_REALES[cli.identificacion] ?? []
+      for (const p of cli.polizas) {
+        const clave = p.numeroContrato
+          ? `${p.tipo}|${norm(p.numeroContrato)}`
+          : `${p.tipo}|${norm(p.aseguradora ?? '')}|${norm(p.plan ?? '')}`
+        if (!reales.includes(clave)) {
+          polizasABorrar.push({
+            id: p.id,
+            detalle: `${cli.nombres} — ${p.tipo} ${p.aseguradora ?? ''} ${p.plan ?? ''} (contrato ${p.numeroContrato ?? 'sin numero'})`,
+          })
+        }
+      }
+    }
+
+    const detalleClientes = clientesABorrar.map(
+      (c) => `${c.identificacion} ${c.nombres} ${c.apellidos} (${c._count.polizas} poliza(s), ${c._count.dependientes} dependiente(s))`,
     )
+    const detallePolizas = polizasABorrar.map((p) => p.detalle)
 
     if (simular) {
-      const conservados = await this.prisma.cliente.count({
-        where: { organizationId, identificacion: { in: this.IDENTIFICACIONES_REALES } },
-      })
       return {
         ok: true,
         modo: 'SIMULACION — no se borro nada',
-        seEliminarian: aBorrar.length,
-        detalle,
-        seConservan: conservados,
+        clientesDePrueba: clientesABorrar.length,
+        detalleClientes,
+        polizasDePruebaEnClientesReales: polizasABorrar.length,
+        detallePolizas,
         siguientePaso: 'Repetir agregando &confirm=si-borrar para ejecutar',
       }
     }
 
-    const ids = aBorrar.map((c) => c.id)
-    await this.prisma.cliente.deleteMany({ where: { id: { in: ids } } })
+    if (polizasABorrar.length) {
+      await this.prisma.poliza.deleteMany({ where: { id: { in: polizasABorrar.map((p) => p.id) } } })
+    }
+    if (clientesABorrar.length) {
+      await this.prisma.cliente.deleteMany({ where: { id: { in: clientesABorrar.map((c) => c.id) } } })
+    }
 
     const quedan = await this.prisma.cliente.count({ where: { organizationId } })
-    this.logger.log(`Limpieza de prueba: ${ids.length} clientes eliminados, quedan ${quedan}`)
+    const quedanPolizas = await this.prisma.poliza.count({ where: { organizationId } })
+    this.logger.log(`Limpieza: ${clientesABorrar.length} clientes y ${polizasABorrar.length} polizas eliminados`)
 
     return {
       ok: true,
       modo: 'EJECUTADO',
-      eliminados: aBorrar.length,
-      detalle,
-      clientesQueQuedan: quedan,
+      clientesEliminados: clientesABorrar.length,
+      detalleClientes,
+      polizasEliminadas: polizasABorrar.length,
+      detallePolizas,
+      quedanEnBase: { clientes: quedan, polizas: quedanPolizas },
     }
   }
 }

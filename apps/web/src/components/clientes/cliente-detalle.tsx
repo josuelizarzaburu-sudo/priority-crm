@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { AgregarPoliza } from './agregar-poliza'
+import { EditarCliente } from './editar-cliente'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -65,6 +66,7 @@ interface ClienteDetalle {
   nombrePreferido: string | null
   referidoDe: string | null
   contactoSugerido: string | null
+  cedulaEditada: boolean
   genero: string | null
   fechaNacimiento: string | null
   email: string | null
@@ -226,9 +228,12 @@ export function ClienteDetalle({ id }: { id: string }) {
 
       {/* ── Datos personales ── */}
       <section className="rounded-lg border bg-card p-4">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-bold" style={{ color: NAVY }}>
-          <User className="h-4 w-4" /> Datos personales
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-bold" style={{ color: NAVY }}>
+            <User className="h-4 w-4" /> Datos personales
+          </h2>
+          <EditarCliente cliente={c as any} />
+        </div>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Dato label="Celular" valor={c.celular} />
           <Dato label="Teléfono" valor={c.telefono} />

@@ -6,6 +6,7 @@ import { ArrowLeft, AlertTriangle, User, Shield, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
+import { AgregarPoliza } from './agregar-poliza'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -338,6 +339,11 @@ export function ClienteDetalle({ id }: { id: string }) {
             ))}
           </div>
         )}
+
+        {/* Permite sumar una poliza cuando el cliente contrata un ramo nuevo */}
+        <div className="mt-4">
+          <AgregarPoliza clienteId={c.id} dependientes={c.dependientes} />
+        </div>
       </section>
     </div>
   )

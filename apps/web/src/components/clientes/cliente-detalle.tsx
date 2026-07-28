@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 
 const NAVY = '#0C2057'
+const GOLD = '#DBAA59'
+
+const TIPO_LABEL: Record<string, string> = {
+  SALUD: 'Salud',
+  AUTO: 'Auto',
+  VIDA: 'Vida',
+  HOGAR: 'Hogar',
+}
 
 interface Dependiente {
   id: string
@@ -24,7 +32,15 @@ interface PolizaDependiente {
 
 interface Poliza {
   id: string
+  tipo: 'SALUD' | 'AUTO' | 'VIDA' | 'HOGAR'
   numeroContrato: string | null
+  sumaAsegurada: string | number | null
+  marca: string | null
+  modelo: string | null
+  anio: number | null
+  placa: string | null
+  tiempoCobertura: string | null
+  observacion: string | null
   estado: string | null
   aseguradora: string | null
   plan: string | null
@@ -43,6 +59,9 @@ interface ClienteDetalle {
   nombres: string
   apellidos: string
   identificacion: string
+  nombrePreferido: string | null
+  referidoDe: string | null
+  contactoSugerido: string | null
   genero: string | null
   fechaNacimiento: string | null
   email: string | null
@@ -73,6 +92,50 @@ const fmtMonto = (v: string | number | null) => {
 
 const bonito = (v: string | null) =>
   v ? v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ') : '—'
+
+// Resalta en dorado como prefiere que le llamen. Ej: "PABLO ALEJANDRO CARRILLO"
+// con preferido "PABLO" -> pinta solo esa palabra.
+function NombreConPreferido({
+  nombres,
+  apellidos,
+  preferido,
+}: {
+  nombres: string
+  apellidos: string
+  preferido: string | null
+}) {
+  const completo = `${nombres} ${apellidos}`.trim()
+  if (!preferido) return <>{completo}</>
+
+  const limpia = (t: string) =>
+    t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+
+  const objetivo = limpia(preferido.trim())
+  const palabras = completo.split(/\s+/)
+  // Si el preferido no aparece dentro del nombre (ej. empresa "SEGUROS IDEAL"
+  // con preferido "PRIORITY"), lo mostramos aparte en vez de perderlo.
+  const apareceDentro = palabras.some((p) => limpia(p) === objetivo)
+
+  if (!apareceDentro) {
+    return (
+      <>
+        {completo}{' '}
+        <span style={{ color: GOLD }}>({preferido})</span>
+      </>
+    )
+  }
+
+  return (
+    <>
+      {palabras.map((p, i) => (
+        <span key={i} style={limpia(p) === objetivo ? { color: GOLD } : undefined}>
+          {p}
+          {i < palabras.length - 1 ? ' ' : ''}
+        </span>
+      ))}
+    </>
+  )
+}
 
 function Dato({ label, valor }: { label: string; valor: string | null }) {
   return (
@@ -122,7 +185,11 @@ export function ClienteDetalle({ id }: { id: string }) {
         </Button>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>
-            {c.nombres} {c.apellidos}
+            <NombreConPreferido
+              nombres={c.nombres}
+              apellidos={c.apellidos}
+              preferido={c.nombrePreferido}
+            />
           </h1>
           {c.revisar && (
             <Badge variant="outline" className="border-amber-500 text-amber-600">
@@ -151,6 +218,8 @@ export function ClienteDetalle({ id }: { id: string }) {
           <Dato label="Género" valor={bonito(c.genero)} />
           <Dato label="Ciudad" valor={c.ciudad} />
           <Dato label="Dirección" valor={c.direccion} />
+          <Dato label="Contacto sugerido" valor={c.contactoSugerido} />
+          <Dato label="Referido de" valor={c.referidoDe} />
           <Dato label="Ejecutiva" valor={c.ejecutivo?.name ?? c.ejecutivoNombre} />
         </div>
         {c.notas && (
@@ -200,6 +269,9 @@ export function ClienteDetalle({ id }: { id: string }) {
             {c.polizas.map((p) => (
               <div key={p.id} className="rounded-md border p-4">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge style={{ backgroundColor: NAVY, color: '#fff' }}>
+                    {TIPO_LABEL[p.tipo] ?? p.tipo}
+                  </Badge>
                   <span className="font-bold" style={{ color: NAVY }}>
                     {p.aseguradora ?? 'Sin aseguradora'}
                   </span>
@@ -211,14 +283,39 @@ export function ClienteDetalle({ id }: { id: string }) {
                     </Badge>
                   )}
                 </div>
+
+                {/* Campos comunes a todos los ramos */}
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <Dato label="Contrato" valor={p.numeroContrato} />
                   <Dato label="Prima neta" valor={fmtMonto(p.primaNeta)} />
-                  <Dato label="Deducible" valor={p.deducible} />
                   <Dato label="Forma de pago" valor={bonito(p.formaPago)} />
                   <Dato label="Emisión" valor={fmtFecha(p.fechaEmision)} />
+                  {p.tipo !== 'SALUD' && (
+                    <Dato label="Suma asegurada" valor={fmtMonto(p.sumaAsegurada)} />
+                  )}
+                  {(p.tipo === 'SALUD' || p.tipo === 'AUTO') && (
+                    <Dato label="Deducible" valor={p.deducible} />
+                  )}
+                  {p.tipo === 'VIDA' && (
+                    <Dato label="Tiempo de cobertura" valor={p.tiempoCobertura} />
+                  )}
                   <Dato label="Agente" valor={p.agenteNombre} />
                 </div>
+
+                {/* Datos del vehículo, solo para pólizas de auto */}
+                {p.tipo === 'AUTO' && (p.marca || p.placa) && (
+                  <div className="mt-3 rounded-md bg-muted/40 p-3">
+                    <div className="mb-2 text-xs font-semibold" style={{ color: NAVY }}>
+                      Vehículo
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <Dato label="Marca" valor={p.marca} />
+                      <Dato label="Modelo" valor={p.modelo} />
+                      <Dato label="Año" valor={p.anio ? String(p.anio) : null} />
+                      <Dato label="Placa" valor={p.placa} />
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3 border-t pt-2">
                   <div className="text-xs text-muted-foreground">
                     Cubre a{' '}
@@ -229,6 +326,11 @@ export function ClienteDetalle({ id }: { id: string }) {
                           .join(', ')}
                   </div>
                 </div>
+                {p.observacion && (
+                  <p className="mt-2 rounded-md bg-[#f7f8fc] px-3 py-2 text-xs text-[#2a3350]">
+                    <span className="font-semibold">Observación:</span> {p.observacion}
+                  </p>
+                )}
                 {p.revisar && p.revisarMotivo && (
                   <p className="mt-2 text-xs text-amber-700">{p.revisarMotivo}</p>
                 )}

@@ -88,6 +88,8 @@ export class ClientesService {
       include: {
         ejecutivo: { select: { id: true, name: true, email: true } },
         dependientes: { orderBy: { createdAt: 'asc' } },
+        // Bitácora: lo más reciente primero.
+        notas_: { orderBy: { createdAt: 'desc' } },
         polizas: {
           orderBy: { createdAt: 'asc' },
           include: {
@@ -343,5 +345,89 @@ export class ClientesService {
     await this.prisma.poliza.delete({ where: { id: polizaId } })
 
     return { ok: true, eliminada: poliza }
+  }
+  /**
+   * Agrega una nota a la bitácora del cliente.
+   * Las notas no se editan ni se borran a propósito: son historial. Guardamos
+   * el nombre del autor además de su id, para que la nota siga siendo legible
+   * aunque esa persona ya no esté en la empresa.
+   */
+  async agregarNota(
+    clienteId: string,
+    contenido: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    await this.findOne(clienteId, organizationId, userId, role)
+
+    const texto = (contenido ?? '').trim()
+    if (!texto) throw new ForbiddenException('La nota no puede estar vacía')
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    return this.prisma.notaCliente.create({
+      data: {
+        contenido: texto,
+        clienteId,
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+      },
+    })
+  }
+
+  /** Suma un dependiente a un cliente que ya existe (ej. le nació un hijo). */
+  async agregarDependiente(
+    clienteId: string,
+    dto: any,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    await this.findOne(clienteId, organizationId, userId, role)
+
+    return this.prisma.dependiente.create({
+      data: {
+        nombres: dto.nombres,
+        apellidos: dto.apellidos ?? null,
+        identificacion: dto.identificacion ?? null,
+        fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : null,
+        parentesco: dto.parentesco ?? 'OTRO',
+        clienteId,
+      } as any,
+    })
+  }
+
+  /**
+   * Quita un dependiente. Solo jefe/admin, por la misma razón que las pólizas:
+   * borrar pierde datos. Al quitarlo se elimina también su cobertura en las
+   * pólizas donde estaba marcado (cascada del esquema).
+   */
+  async eliminarDependiente(
+    clienteId: string,
+    dependienteId: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    await this.findOne(clienteId, organizationId, userId, role)
+
+    if (!VE_TODO.includes(role)) {
+      throw new ForbiddenException(
+        'Solo el jefe de operaciones o un administrador pueden eliminar un dependiente.',
+      )
+    }
+
+    const dep = await this.prisma.dependiente.findFirst({
+      where: { id: dependienteId, clienteId },
+      select: { id: true, nombres: true, apellidos: true },
+    })
+    if (!dep) throw new NotFoundException('Dependiente no encontrado')
+
+    await this.prisma.dependiente.delete({ where: { id: dependienteId } })
+    return { ok: true, eliminado: dep }
   }
 }

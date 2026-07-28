@@ -203,4 +203,31 @@ export class ClientesService {
       },
     })
   }
+  /**
+   * Elimina una poliza. Pensado sobre todo para deshacer una carga equivocada.
+   * Se valida que la poliza sea de un cliente al que el usuario tiene acceso,
+   * asi una ejecutiva no puede borrar la poliza de un cliente ajeno.
+   */
+  async eliminarPoliza(
+    clienteId: string,
+    polizaId: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    // Valida existencia del cliente y permiso de acceso.
+    await this.findOne(clienteId, organizationId, userId, role)
+
+    const poliza = await this.prisma.poliza.findFirst({
+      where: { id: polizaId, clienteId, organizationId },
+      select: { id: true, tipo: true, aseguradora: true, plan: true, numeroContrato: true },
+    })
+    if (!poliza) throw new NotFoundException('Póliza no encontrada')
+
+    // Las filas de poliza_dependientes se borran en cascada (definido en el esquema);
+    // los dependientes en si NO se tocan: siguen colgando del cliente.
+    await this.prisma.poliza.delete({ where: { id: polizaId } })
+
+    return { ok: true, eliminada: poliza }
+  }
 }

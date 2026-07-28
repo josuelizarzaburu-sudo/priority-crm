@@ -33,6 +33,7 @@ model Organization {
   trainingVideos TrainingVideo[]
   clientes    Cliente[]
   polizas     Poliza[]
+  reclamos    Reclamo[]
 
   @@map("organizations")
 }
@@ -69,6 +70,7 @@ model User {
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
   polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   notasClientes           NotaCliente[]
+  reclamosGestionados     Reclamo[]
 
   @@map("users")
 }
@@ -564,6 +566,7 @@ model Cliente {
   polizas         Poliza[]
   dependientes    Dependiente[]
   notas_          NotaCliente[]
+  reclamos        Reclamo[]
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])
@@ -674,4 +677,63 @@ model NotaCliente {
 
   @@index([clienteId, createdAt])
   @@map("notas_cliente")
+}
+
+// ─── Reclamos / reembolsos ───────────────────────────────────────────────
+enum EstadoReclamo {
+  EN_TRAMITE // enviado a la aseguradora, sin respuesta todavía
+  LIQUIDADO  // la aseguradora ya liquidó
+  NEGADO     // la aseguradora lo negó
+  DEVUELTO   // devuelto para completar documentación
+}
+
+model Reclamo {
+  id             String        @id @default(cuid())
+  organizationId String
+
+  // El vínculo con el cliente es OPCIONAL a propósito: los reclamos históricos
+  // vienen del Excel sin cédula, así que se cargan con el nombre en texto y se
+  // enganchan después, cuando esté completa la base de clientes.
+  clienteId      String?
+  clienteNombre  String
+  // Quién recibió la atención. Puede ser el titular o un dependiente.
+  pacienteNombre String?
+
+  aseguradora    String?
+  // "INDIVIDUAL" o el nombre de la empresa en contratos corporativos (ej. FAES FARMA)
+  contrato       String?
+  diagnostico    String?
+
+  // Solo la hoja corporativa la usa; en las individuales no existe.
+  fechaRecepcion       DateTime?
+  fechaEnvioAseguradora DateTime?
+  // Número de liquidación. Va como texto porque a veces trae letras.
+  liquidacion          String?
+  fechaLiquidacion     DateTime?
+  fechaEnvioCliente    DateTime?
+
+  valor          Decimal?      @db.Decimal(12, 2)
+  estado         EstadoReclamo @default(EN_TRAMITE)
+
+  medioComunicacion String?
+  observaciones     String?
+  detalle           String?
+
+  // Igual que en clientes: id si la persona existe como usuario, y el nombre
+  // siempre en texto (hay reclamos gestionados por gente que ya no trabaja aquí).
+  ejecutivoId    String?
+  ejecutivoNombre String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cliente        Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, ejecutivoId])
+  @@index([organizationId, estado])
+  @@index([clienteId])
+  @@index([organizationId, fechaEnvioAseguradora])
+  @@map("reclamos")
 }

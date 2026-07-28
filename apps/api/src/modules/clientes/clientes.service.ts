@@ -218,6 +218,15 @@ export class ClientesService {
     // Valida existencia del cliente y permiso de acceso.
     await this.findOne(clienteId, organizationId, userId, role)
 
+    // Borrar una poliza pierde datos sin vuelta atras (contrato, prima, historial),
+    // asi que queda reservado al jefe de operaciones y al admin. Una ejecutiva que
+    // se equivoco al cargarla debe corregirla editandola, no borrandola.
+    if (!VE_TODO.includes(role)) {
+      throw new ForbiddenException(
+        'Solo el jefe de operaciones o un administrador pueden eliminar una póliza. Si hay un error en los datos, edítala.',
+      )
+    }
+
     const poliza = await this.prisma.poliza.findFirst({
       where: { id: polizaId, clienteId, organizationId },
       select: { id: true, tipo: true, aseguradora: true, plan: true, numeroContrato: true },

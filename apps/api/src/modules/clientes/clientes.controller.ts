@@ -5,6 +5,7 @@ import { ClientesService } from './clientes.service'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
 import { UpdateClienteDto } from './dto/update-cliente.dto'
+import { CreatePolizaDto } from './dto/create-poliza.dto'
 
 // Base de clientes del área de Operaciones.
 // Todas las rutas exigen sesión iniciada. El filtro por ejecutiva vive en el
@@ -38,6 +39,18 @@ export class ClientesController {
   @ApiOperation({ summary: 'Crear un cliente nuevo' })
   create(@Body() dto: CreateClienteDto, @Req() req: any) {
     return this.clientesService.create(dto, req.user.organizationId, req.user.id, req.user.role)
+  }
+
+  @Post(':id/polizas')
+  @ApiOperation({ summary: 'Agregar una póliza a un cliente existente' })
+  crearPoliza(@Param('id') id: string, @Body() dto: CreatePolizaDto, @Req() req: any) {
+    return this.clientesService.crearPoliza(
+      id,
+      dto,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
   }
 
   @Patch(':id')

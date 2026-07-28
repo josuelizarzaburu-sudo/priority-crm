@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { AgregarPoliza } from './agregar-poliza'
 import { EditarCliente } from './editar-cliente'
+import { EditarPoliza } from './editar-poliza'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -307,9 +308,19 @@ export function ClienteDetalle({ id }: { id: string }) {
                     </Badge>
                   )}
 
+                  {/* Editar: disponible para todos. Es la salida de la ejecutiva
+                      cuando se equivoco, ya que borrar esta reservado al jefe. */}
+                  <div className={puedeEliminar ? 'ml-auto' : 'ml-auto flex items-center'}>
+                    <EditarPoliza
+                      clienteId={c.id}
+                      poliza={p as any}
+                      dependientes={c.dependientes}
+                    />
+                  </div>
+
                   {/* Borrar: solo jefe/admin. Pide confirmacion en el mismo lugar. */}
                   {puedeEliminar && (
-                  <div className="ml-auto">
+                  <div>
                     {borrando === p.id ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">¿Eliminar?</span>

@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
   Calculator,
   ClipboardList,
+  FileText,
   X,
   LogOut,
 } from 'lucide-react'
@@ -40,6 +41,7 @@ const COMUNES = [...ALL_ROLES, ...OPS]
 
 const NAV_ITEMS = [
   { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: [...OPS, 'SUPER_ADMIN'] },
+  { href: '/reclamos',         label: 'Reclamos',           icon: FileText,        roles: [...OPS, 'SUPER_ADMIN'] },
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
   { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ELEVATED },

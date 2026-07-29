@@ -224,7 +224,12 @@ export class PipelineService {
     })
 
     // Un deal sin contacto no tiene a quién convertir en cliente.
-    if (!deal?.contact) return null
+    if (!deal?.contact) {
+      this.logger.warn(
+        `[crearClienteDesdeDeal] el deal ${dealId} no tiene contacto, no se crea cliente`,
+      )
+      return null
+    }
 
     // Si ese contacto ya tiene ficha, no se toca (el candado real es el @unique).
     const yaExiste = await this.prisma.cliente.findUnique({
@@ -244,7 +249,7 @@ export class PipelineService {
     const identificacion = tieneCedula ? cedula : `PENDIENTE-${deal.contact.id.slice(-8)}`
 
     try {
-      return await this.prisma.cliente.create({
+      const creado = await this.prisma.cliente.create({
         data: {
           nombres: deal.contact.firstName,
           apellidos: deal.contact.lastName ?? '',
@@ -263,10 +268,14 @@ export class PipelineService {
         },
         select: { id: true },
       })
+      this.logger.log(
+        `[crearClienteDesdeDeal] cliente ${creado.id} creado desde el deal ${dealId} (cedula: ${identificacion})`,
+      )
+      return creado
     } catch (e) {
       // Puede chocar el unique de (organizationId, identificacion) si ya existía
       // una ficha con esa cédula cargada a mano. No es motivo para romper el cierre.
-      this.logger?.warn?.(
+      this.logger.error(
         `[crearClienteDesdeDeal] no se pudo crear el cliente del deal ${dealId}: ${e}`,
       )
       return null
@@ -473,6 +482,15 @@ export class PipelineService {
     this.gateway.broadcastDealMoved(organizationId, updated)
 
     if (isMovingToWon) {
+      // Entrega a operaciones. Va tambien aca, no solo en closeDeal, porque
+      // arrastrar la tarjeta a la columna Ganado es otro camino distinto y era
+      // el que se estaba usando: el cliente no se creaba.
+      try {
+        await this.crearClienteDesdeDeal(id, organizationId, userId)
+      } catch (e) {
+        this.logger.error(`[moveDeal] fallo la entrega a operaciones del deal ${id}: ${e}`)
+      }
+
       const c = updated.contact as any
       const cf = updated.customFields as any
       const contactName = c ? `${c.firstName}${c.lastName ? ` ${c.lastName}` : ''}` : updated.title

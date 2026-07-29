@@ -817,7 +817,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
     "plans": [
       {
         "id": "in0",
-        "name": "BMI IDEAL",
+        "name": "BMI IDEAL 2M",
         "insurer": "BMI"
       },
       {
@@ -834,6 +834,11 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "id": "in3",
         "name": "BESTDOCTORS MEDICAL CARE",
         "insurer": "BestDoctors"
+      },
+      {
+        "id": "in4",
+        "name": "BMI IDEAL 1M",
+        "insurer": "BMI"
       }
     ],
     "benefits": [
@@ -843,7 +848,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "2 Millones",
           "3 Millones",
           "2 Millones",
-          "2 Millones"
+          "2 Millones",
+          "1 Millón"
         ]
       },
       {
@@ -852,6 +858,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "A Elección",
           "A Elección",
           "USD 10.000",
+          "A Elección",
           "A Elección"
         ]
       },
@@ -861,7 +868,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Amplia red médica con más de 5.000 puntos en USA, incluye los mejores hospitales como MD Anderson Cancer Center, Mayo Clinic, Cleveland Clinic entre otros, y libre elección de médicos y hospitales en el resto del mundo.",
           "Red médica en USA, no incluye Mayo Clinic ni MD Anderson Center, y libre elección en el resto del mundo.",
           "Red médica Blue Cross Blue Shield en USA y libre elección en el resto del mundo.",
-          "Red médica en USA y libre elección en el resto del mundo."
+          "Red médica en USA y libre elección en el resto del mundo.",
+          "Amplia red médica con más de 5.000 puntos en USA, incluye los mejores hospitales como MD Anderson Cancer Center, Mayo Clinic, Cleveland Clinic entre otros, y libre elección de médicos y hospitales en el resto del mundo."
         ]
       },
       {
@@ -870,7 +878,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "30 días Ambulatorio y Hospitalario",
           "30 días Ambulatorio y 90 Hospitalario",
           null,
-          "30 días Ambulatorio y 90 Hospitalario"
+          "30 días Ambulatorio y 90 Hospitalario",
+          "30 días Ambulatorio y Hospitalario"
         ]
       },
       {
@@ -879,12 +888,14 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta Monto Total Contratado",
           "Hasta Monto Total Contratado",
           null,
-          "USD 100.000 si el diagnóstico es antes de los 18 años, si es luego al 100%"
+          "USD 100.000 si el diagnóstico es antes de los 18 años, si es luego al 100%",
+          "Hasta Monto Total Contratado"
         ]
       },
       {
         "label": "Cobertura Hospitalaria",
         "values": [
+          "100%",
           "100%",
           "100%",
           "100%",
@@ -897,6 +908,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta el Monto Contratado",
           "Hasta el Monto Contratado",
           "Ilimitadas",
+          "Hasta el Monto Contratado",
           "Hasta el Monto Contratado"
         ]
       },
@@ -906,7 +918,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "1 Millón",
           "Hasta 1.5 Millones",
           "2 Millones en Ecuador y USD 500.000 fuera",
-          "1 Millón de por vida"
+          "1 Millón de por vida",
+          "USD 500.000"
         ]
       },
       {
@@ -915,7 +928,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "100%",
           "Solo hasta 45 días",
           "100%",
-          null
+          null,
+          "100%"
         ]
       },
       {
@@ -924,12 +938,14 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Tope del plan al 100%",
           "Hasta USD 6.000",
           "Tope del Plan",
-          "Hasta USD 4.000"
+          "Hasta USD 4.000",
+          "Tope del plan al 100%"
         ]
       },
       {
         "label": "Cobertura Ambulatoria",
         "values": [
+          "100%",
           "100%",
           "100%",
           "100%",
@@ -942,7 +958,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "En el Ecuador hasta monto total de cobertura, fuera hasta USD 5.000. Durante hospitalización al 100%. Medicamentos especializados al 100%",
           "En el Ecuador hasta monto total de cobertura, fuera hasta USD 10.000. Durante hospitalización al 100%",
           "100%",
-          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 10.000. Durante hospitalización al 100%"
+          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 10.000. Durante hospitalización al 100%",
+          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 5.000. Durante hospitalización al 100%. Medicamentos especializados al 100%"
         ]
       },
       {
@@ -951,6 +968,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Incluida",
           "Incluida",
           "USD 35.000",
+          "Incluida",
           "Incluida"
         ]
       },
@@ -960,12 +978,14 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Cobertura al 100% sin deducible los primeros 45 días de viaje.",
           "USD 100.000 los primeros 60 días de viaje.",
           "Incluida",
-          "Incluida"
+          "Incluida",
+          "Cobertura al 100% sin deducible los primeros 45 días de viaje."
         ]
       },
       {
         "label": "Cobertura de Preexistencias",
         "values": [
+          "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
           "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
           "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
           "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
@@ -978,7 +998,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Sin límite",
           "Hasta 12 consultas al año",
           "Sin límite",
-          null
+          null,
+          "Sin límite"
         ]
       },
       {
@@ -987,6 +1008,7 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No incluye",
           "Cashback hasta el 20% del valor del plan anual con metas de ejercicio y buen estilo de vida.",
           null,
+          "No incluye",
           "No incluye"
         ]
       }

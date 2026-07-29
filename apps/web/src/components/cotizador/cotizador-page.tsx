@@ -18,6 +18,12 @@ import {
   type ConfiamedRed,
 } from '@/lib/confiamed-tarifas'
 import { cotizarProteger, cotizarConfiamedGmm } from '@/lib/gmm-tarifas'
+import {
+  cotizarBmiIntlPlan,
+  BMI_INTL_PLAN_LABEL,
+  type BmiIntlPlanId,
+  type BmiIntlGrupoFamiliar,
+} from '@/lib/bmi-internacional-tarifas'
 import { CATALOGS } from '@/lib/comparativos-data'
 
 const NAVY = '#0C2057'
@@ -80,6 +86,18 @@ function CardStat({ label, value }: { label: string; value: string }) {
 }
 
 const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
+
+// ── BMI Internacional ──────────────────────────────────────────────────────
+// Josue pidió activar solo Ideal por ahora (1M y 2M). Azure, Support y Meridian II
+// ya tienen motor de cálculo pero todavía no columna en el comparativo.
+const PLAN_ORDER_INTL: BmiIntlPlanId[] = ['ideal1m', 'ideal2m']
+
+// Plan internacional del cotizador -> id del plan en el catálogo del comparativo
+const BMI_INTL_CATALOG_ID: Record<string, string> = {
+  ideal1m: 'in4', // BMI IDEAL 1M
+  ideal2m: 'in0', // BMI IDEAL 2M
+}
+
 
 // Una opción marcada para pasar al comparativo.
 interface SeleccionComparativo {
@@ -247,6 +265,35 @@ export function CotizadorPage() {
     if (personas.length === 0) return null
     return cotizarBmiTodos(region, personas.map((p) => ({ edad: p.edad })))
   }, [region, personas])
+
+  // BMI Internacional: a diferencia de los planes nacionales, aquí SÍ importa el
+  // parentesco. Los hijos menores de 24 se cobran por tramo de cantidad (1, 2, 3+)
+  // y no por edad, así que hay que agruparlos en vez de mandar una lista plana.
+  const grupoIntl = useMemo<BmiIntlGrupoFamiliar | null>(() => {
+    const conEdad = miembros
+      .map((m) => ({ parentesco: m.parentesco, edad: parseInt(m.edad, 10) }))
+      .filter((m) => Number.isFinite(m.edad) && m.edad >= 0 && m.edad <= 105)
+
+    const titular = conEdad.find((m) => m.parentesco === 'Titular')
+    if (!titular) return null
+
+    return {
+      titular: titular.edad,
+      conyuge: conEdad.find((m) => m.parentesco === 'Cónyuge')?.edad,
+      hijos: conEdad.filter((m) => m.parentesco === 'Hijo/a').map((m) => m.edad),
+      otrosDependientes: conEdad
+        .filter((m) => m.parentesco === 'Dependiente')
+        .map((m) => m.edad),
+    }
+  }, [miembros])
+
+  const bmiIntl = useMemo(() => {
+    if (!grupoIntl) return null
+    return {
+      ideal1m: cotizarBmiIntlPlan('ideal1m', grupoIntl),
+      ideal2m: cotizarBmiIntlPlan('ideal2m', grupoIntl),
+    }
+  }, [grupoIntl])
 
   const humana = useMemo(() => {
     if (personas.length === 0) return null
@@ -542,6 +589,140 @@ export function CotizadorPage() {
                                   plan: BMI_PLAN_LABEL[plan],
                                   detalle: r.label,
                                   mensual: r.mensualNormal,
+                                  deducible: r.deducible,
+                                })
+                              }
+                              className="w-full py-2 text-xs"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* ── BMI Internacional ── */}
+          <div>
+            <h2 className="mb-2 text-base font-bold" style={{ color: NAVY }}>
+              BMI Internacional
+            </h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Tarifa única a nivel nacional (no varía por región). Los hijos menores de 24
+              años se cobran por tramo de cantidad, no por edad.
+            </p>
+            <div className="space-y-4">
+              {bmiIntl &&
+                PLAN_ORDER_INTL.map((plan) => (
+                  <div key={plan} className="rounded-xl border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
+                      {BMI_INTL_PLAN_LABEL[plan]}
+                    </h3>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
+                            <th className="px-3 py-2 text-left font-semibold">Deducible</th>
+                            <th className="px-3 py-2 text-right font-semibold">Mensual</th>
+                            <th className="px-3 py-2 text-right font-semibold">Anual</th>
+                            <th className="px-3 py-2 text-right font-semibold">Contado −9%</th>
+                            <th className="px-3 py-2 text-right font-semibold">Diferido −5%</th>
+                            <th className="px-3 py-2 text-center font-semibold"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bmiIntl[plan].map((r, i) => {
+                            const selId = `bmi-intl-${plan}-${r.deducible}`
+                            const sel = estaSeleccionado(selId)
+                            return (
+                              <tr
+                                key={r.deducible}
+                                style={i % 2 === 1 ? { backgroundColor: '#f8f9fc' } : undefined}
+                              >
+                                <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
+                                  {r.label}
+                                </td>
+                                <td
+                                  className="px-3 py-2 text-right font-bold"
+                                  style={{ color: NAVY }}
+                                >
+                                  ${money(r.mensualFinanciado)}
+                                </td>
+                                <td className="px-3 py-2 text-right text-[#333]">
+                                  ${money(r.anualFinanciado)}
+                                </td>
+                                <td className="px-3 py-2 text-right text-[#333]">
+                                  ${money(r.anualContado)}
+                                </td>
+                                <td className="px-3 py-2 text-right text-[#333]">
+                                  ${money(r.anualDiferido)}
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      toggleSeleccion({
+                                        id: selId,
+                                        catalogId: BMI_INTL_CATALOG_ID[plan],
+                                        aseguradora: 'BMI',
+                                        plan: BMI_INTL_PLAN_LABEL[plan],
+                                        detalle: r.label,
+                                        mensual: r.mensualFinanciado,
+                                        deducible: r.deducible,
+                                      })
+                                    }
+                                    className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
+                                    style={{
+                                      borderColor: GOLD,
+                                      backgroundColor: sel ? GOLD : '#fff',
+                                      color: sel ? '#fff' : NAVY,
+                                    }}
+                                  >
+                                    {sel ? '✓ Añadido' : '+ Comparar'}
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile: cards apiladas por deducible */}
+                    <div className="space-y-3 md:hidden">
+                      {bmiIntl[plan].map((r) => {
+                        const selId = `bmi-intl-${plan}-${r.deducible}`
+                        const sel = estaSeleccionado(selId)
+                        return (
+                          <div key={r.deducible} className="rounded-lg border p-3">
+                            <div className="mb-2 flex items-baseline justify-between gap-2">
+                              <span className="text-sm font-bold" style={{ color: NAVY }}>
+                                {r.label}
+                              </span>
+                              <span className="text-base font-bold" style={{ color: NAVY }}>
+                                ${money(r.mensualFinanciado)}
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  {' '}
+                                  /mes
+                                </span>
+                              </span>
+                            </div>
+                            <div className="mb-3 space-y-1 border-t pt-2">
+                              <CardStat label="Anual" value={`$${money(r.anualFinanciado)}`} />
+                              <CardStat label="Contado −9%" value={`$${money(r.anualContado)}`} />
+                              <CardStat label="Diferido −5%" value={`$${money(r.anualDiferido)}`} />
+                            </div>
+                            <CompararBtn
+                              sel={sel}
+                              onClick={() =>
+                                toggleSeleccion({
+                                  id: selId,
+                                  catalogId: BMI_INTL_CATALOG_ID[plan],
+                                  aseguradora: 'BMI',
+                                  plan: BMI_INTL_PLAN_LABEL[plan],
+                                  detalle: r.label,
+                                  mensual: r.mensualFinanciado,
                                   deducible: r.deducible,
                                 })
                               }

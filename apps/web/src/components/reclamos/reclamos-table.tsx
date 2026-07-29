@@ -174,6 +174,7 @@ export function ReclamosTable() {
             <TableRow>
               <TableHead>Cliente / Paciente</TableHead>
               <TableHead>Aseguradora</TableHead>
+              <TableHead>Liquidación</TableHead>
               <TableHead>Diagnóstico</TableHead>
               <TableHead>Envío</TableHead>
               <TableHead className="text-center">Días</TableHead>
@@ -185,13 +186,13 @@ export function ReclamosTable() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="h-32 text-center text-sm text-muted-foreground">
                   No se pudo cargar.
                   <br />
                   <span className="text-xs">
@@ -203,7 +204,7 @@ export function ReclamosTable() {
               </TableRow>
             ) : lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                   {debounced || estado
                     ? 'Ningún reclamo coincide con la búsqueda.'
                     : 'Todavía no hay reclamos.'}
@@ -228,6 +229,9 @@ export function ReclamosTable() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm">{r.aseguradora ?? '—'}</TableCell>
+                    <TableCell className="text-sm font-medium tabular-nums">
+                      {r.liquidacion ?? '—'}
+                    </TableCell>
                     <TableCell className="max-w-[180px] truncate text-sm" title={r.diagnostico ?? ''}>
                       {r.diagnostico ?? '—'}
                     </TableCell>
@@ -282,6 +286,10 @@ export function ReclamosTable() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Aseguradora</span>
                   <span>{r.aseguradora ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Liquidación</span>
+                  <span className="font-medium tabular-nums">{r.liquidacion ?? '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Valor</span>

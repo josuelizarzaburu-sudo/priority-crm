@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
+import { BuscadorCliente, type ClienteSugerido } from './buscador-cliente'
 
 const NAVY = '#0C2057'
 const JEFES = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES']
@@ -52,6 +53,9 @@ export function ReclamoForm({
 
   const [error, setError] = useState<string | null>(null)
   const [confirmarBorrar, setConfirmarBorrar] = useState(false)
+  // Id del cliente de la base cuando el reclamo quedó enganchado a una ficha.
+  // Va aparte de `form` porque `form` es todo strings y este puede ser null.
+  const [clienteId, setClienteId] = useState<string | null>(reclamo?.clienteId ?? null)
   const [form, setForm] = useState<Record<string, string>>({
     clienteNombre: txt(reclamo?.clienteNombre),
     pacienteNombre: txt(reclamo?.pacienteNombre),
@@ -89,6 +93,8 @@ export function ReclamoForm({
         }
       }
       payload.clienteNombre = (form.clienteNombre ?? '').trim()
+      // Solo va enganchado si el asesor eligió un cliente de la base.
+      payload.clienteId = clienteId
       return editando
         ? (await api.patch(`/reclamos/${reclamo.id}`, payload)).data
         : (await api.post('/reclamos', payload)).data
@@ -137,9 +143,18 @@ export function ReclamoForm({
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Campo label="Cliente (titular) *">
-            <Input
-              value={form.clienteNombre}
-              onChange={(e) => set('clienteNombre', e.target.value)}
+            <BuscadorCliente
+              valor={form.clienteNombre}
+              clienteId={clienteId}
+              onSeleccionar={(c: ClienteSugerido) => {
+                set('clienteNombre', `${c.nombres} ${c.apellidos}`.trim())
+                setClienteId(c.id)
+              }}
+              onTextoLibre={(texto) => {
+                set('clienteNombre', texto)
+                // Si vuelve a escribir, deja de estar enganchado a la ficha
+                setClienteId(null)
+              }}
             />
           </Campo>
           <Campo label="Paciente">

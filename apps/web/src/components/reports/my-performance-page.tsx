@@ -105,6 +105,10 @@ export function MyPerformancePage() {
     const leadsThisMonth = deals.filter((d) => new Date(d.createdAt) >= startOfMonth)
 
     const totalPipelineValue = open.reduce((s, d) => s + (d.value ?? 0), 0)
+    // Lo que el vendedor lleva VENDIDO (deals ganados). Es distinto del valor del
+    // pipeline, que solo suma lo abierto y se vacia justo al ganar el deal.
+    const wonValueThisMonth = wonThisMonth.reduce((s, d) => s + (d.value ?? 0), 0)
+    const wonValueTotal = won.reduce((s, d) => s + (d.value ?? 0), 0)
     const closedTotal = won.length + lost.length
     const conversionRate = closedTotal > 0 ? Math.round((won.length / closedTotal) * 100) : 0
 
@@ -144,6 +148,8 @@ export function MyPerformancePage() {
       wonThisMonth: wonThisMonth.length,
       leadsThisMonth: leadsThisMonth.length,
       totalPipelineValue,
+      wonValueThisMonth,
+      wonValueTotal,
       conversionRate,
       callsThisWeek,
       notesThisWeek,
@@ -169,7 +175,7 @@ export function MyPerformancePage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard
           label="Leads este mes"
           value={String(metrics.leadsThisMonth)}
@@ -184,6 +190,13 @@ export function MyPerformancePage() {
           highlight={metrics.wonThisMonth > 0}
         />
         <StatCard
+          label="Vendido este mes"
+          value={formatCurrency(metrics.wonValueThisMonth)}
+          icon={<DollarSign className="h-4 w-4 text-emerald-600" />}
+          sub={`${formatCurrency(metrics.wonValueTotal)} en total`}
+          highlight={metrics.wonValueThisMonth > 0}
+        />
+        <StatCard
           label="Tasa de conversión"
           value={`${metrics.conversionRate}%`}
           icon={<TrendingUp className="h-4 w-4 text-[#d3ac76]" />}
@@ -194,7 +207,7 @@ export function MyPerformancePage() {
           label="Valor del pipeline"
           value={formatCurrency(metrics.totalPipelineValue)}
           icon={<DollarSign className="h-4 w-4 text-green-600" />}
-          sub={`${metrics.open} deals abiertos`}
+          sub={`${metrics.open} deals abiertos, por cerrar`}
         />
       </div>
 
@@ -380,7 +393,7 @@ function LoadingSkeleton() {
         <Skeleton className="h-7 w-40" />
         <Skeleton className="h-4 w-56 mt-1" />
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-4">

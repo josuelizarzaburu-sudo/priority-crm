@@ -12,12 +12,11 @@
 // esas edades por fila — el valor de "3 años" aplica a todo ese rango). El lookup hace
 // floor al año definido más cercano hacia abajo.
 //
-// NOTA 2 (pendiente, no bloquea Titular/Cónyuge): en el Excel oficial, "hijos<=17",
-// "hijos 24 a 29" y "Otros Dependientes" usan tablas de tarifa DISTINTAS a la de
-// Titular/Cónyuge (columnas M/N/O de las hojas CALC, con sus propias sub-tablas).
-// Esta versión cotiza cualquier persona (titular, cónyuge o dependiente) contra la
-// MISMA tabla de adultos — válido para Titular/Cónyuge, pero para familias con hijos
-// hay que sumarle esa tabla aparte antes de confiar el número al 100%.
+// NOTA 2: el Excel trae sub-tablas separadas para "hijos<=17", "hijos 24 a 29" y
+// "Otros Dependientes" (columnas M/N/O de las hojas CALC), pero en la práctica esto
+// solo aplica a Gastos Mayores (GMM, plan nacional) — en Ideal/Support cualquier
+// persona (titular, cónyuge o dependiente) se cotiza con la misma tabla de adultos
+// y da correcto, confirmado por Josue.
 
 export type BmiIntlPlanId = 'ideal1m' | 'ideal2m' | 'support'
 

@@ -8,6 +8,11 @@
 //   Ideal 2M  D1000 (Titular 40a) => Financiado $4.441,99 · Contado $4.047,08 · Diferido $4.217,05
 //   Support   D5000 (Titular 40a) => Financiado $1.648,80 · Contado $1.509,61 · Diferido $1.571,48
 //
+// Validado también con grupo familiar (confirma la lógica de tramos por hijos):
+//   Ideal 1M  D1000 (Titular 40 + Cónyuge 30 + hijos de 15 y 14)
+//     => Financiado $9.256,86 · Mensual $771,41 · Diferido $8.791,18 · Contado $8.428,61
+//     (los dos hijos se cobran como UN cargo de $2.629,36 = tramo "2 hijos", no por edad)
+//
 // ── CÓMO SE COBRA CADA INTEGRANTE (lógica real del Excel) ──────────────────
 // OJO: las filas 1, 2 y 3 de la tabla NO son edades, son TRAMOS POR CANTIDAD de
 // hijos menores de 24. Por eso no existen las edades 4 a 17.

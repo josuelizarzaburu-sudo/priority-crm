@@ -15,6 +15,12 @@ export class ClientesQueryDto {
   @IsOptional()
   revisar?: string
 
+  // 'true' para la bandeja de nuevos por asignar (clientes sin ejecutiva).
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  sinAsignar?: string
+
   // Solo jefes/admin: filtrar por una ejecutiva concreta.
   @ApiProperty({ required: false })
   @IsString()

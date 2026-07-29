@@ -40,6 +40,13 @@ export class ClientesService {
 
     if (revisar === 'true') where.revisar = true
 
+    // Bandeja de nuevos por asignar: los que llegaron de un deal ganado y todavía
+    // no tienen ejecutiva. Solo tiene sentido para quien puede asignar, porque a
+    // una OPERACIONES baseWhere ya la dejó viendo únicamente lo suyo.
+    if (query.sinAsignar === 'true' && VE_TODO.includes(role)) {
+      where.ejecutivoId = null
+    }
+
     if (search) {
       const s = search.trim()
       where.OR = [

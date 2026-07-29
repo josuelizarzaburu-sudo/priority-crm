@@ -195,6 +195,84 @@ export class PipelineService {
     })
   }
 
+  /**
+   * Entrega comercial → operaciones.
+   *
+   * Cuando un deal se marca como Ganado, esa persona deja de ser una oportunidad
+   * y pasa a ser cliente. Se crea automáticamente, sin paso intermedio y sin
+   * ejecutiva asignada, para que aparezca en la bandeja de Yessenia.
+   *
+   * Detalles que importan:
+   * - `Cliente.contactId` es único, así que si el deal se cierra dos veces (o hay
+   *   varios deals del mismo contacto) NO se duplica el cliente.
+   * - `identificacion` es obligatoria pero el contacto comercial casi nunca trae
+   *   cédula. Si no la encuentra, entra igual con un marcador y queda con el
+   *   semáforo `revisar` encendido, para que la ejecutiva la complete.
+   * - Nunca tumba el cierre del deal: si algo falla acá, se registra y ya. Cerrar
+   *   la venta es lo crítico; la ficha se puede crear después a mano.
+   */
+  private async crearClienteDesdeDeal(dealId: string, organizationId: string, userId: string) {
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, organizationId },
+      select: {
+        id: true,
+        customFields: true,
+        contact: {
+          select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+        },
+      },
+    })
+
+    // Un deal sin contacto no tiene a quién convertir en cliente.
+    if (!deal?.contact) return null
+
+    // Si ese contacto ya tiene ficha, no se toca (el candado real es el @unique).
+    const yaExiste = await this.prisma.cliente.findUnique({
+      where: { contactId: deal.contact.id },
+      select: { id: true },
+    })
+    if (yaExiste) return yaExiste
+
+    // La cédula puede venir del formulario de auto o de campos sueltos del lead.
+    const cf = (deal.customFields ?? {}) as any
+    const posible = cf?.autoData?.cedulaRuc ?? cf?.cedula ?? cf?.cedulaRuc ?? null
+    const cedula = typeof posible === 'string' ? posible.trim() : ''
+    const tieneCedula = /^\d{10,13}$/.test(cedula)
+
+    // Sin cédula real se usa un marcador: cumple el unique y se ve claramente
+    // que está pendiente. La ejecutiva lo corrige al completar la ficha.
+    const identificacion = tieneCedula ? cedula : `PENDIENTE-${deal.contact.id.slice(-8)}`
+
+    try {
+      return await this.prisma.cliente.create({
+        data: {
+          nombres: deal.contact.firstName,
+          apellidos: deal.contact.lastName ?? '',
+          identificacion,
+          email: deal.contact.email,
+          celular: deal.contact.phone,
+          organizationId,
+          contactId: deal.contact.id,
+          createdById: userId,
+          // Sin ejecutiva: así cae en la bandeja de "nuevos por asignar".
+          ejecutivoId: null,
+          revisar: true,
+          revisarMotivo: tieneCedula
+            ? 'Cliente creado automáticamente desde un deal ganado. Falta completar la ficha.'
+            : 'Cliente creado automáticamente desde un deal ganado. Falta la cédula.',
+        },
+        select: { id: true },
+      })
+    } catch (e) {
+      // Puede chocar el unique de (organizationId, identificacion) si ya existía
+      // una ficha con esa cédula cargada a mano. No es motivo para romper el cierre.
+      this.logger?.warn?.(
+        `[crearClienteDesdeDeal] no se pudo crear el cliente del deal ${dealId}: ${e}`,
+      )
+      return null
+    }
+  }
+
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
     const deal = await this.getDeal(id, organizationId, userId, role)
 
@@ -246,6 +324,17 @@ export class PipelineService {
         userId,
       },
     })
+
+    // Entrega a operaciones: el ganado se vuelve cliente al instante, sin paso
+    // intermedio. Aislado en su propio try para que un fallo acá nunca impida
+    // cerrar la venta.
+    if (dto.status === 'WON') {
+      try {
+        await this.crearClienteDesdeDeal(id, organizationId, userId)
+      } catch (e) {
+        this.logger.error(`[closeDeal] fallo la entrega a operaciones del deal ${id}: ${e}`)
+      }
+    }
 
     this.gateway.broadcastDealUpdated(organizationId, updated)
     return updated

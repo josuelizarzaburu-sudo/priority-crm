@@ -123,24 +123,28 @@ export function ReportesOperacionesPage() {
           Email: c.email ?? '',
           Ejecutiva: c.ejecutivo?.name ?? c.ejecutivoNombre ?? 'Sin asignar',
           Pólizas: c._count?.polizas ?? 0,
+          'Prima total': Number(c.primaTotal) || 0,
           'Por revisar': c.revisar ? 'Sí' : 'No',
         }))
         filas.push({} as any)
         filas.push({
           Nombres: `TOTAL (${datos.length} clientes)`,
           Pólizas: datos.reduce((s, c) => s + (c._count?.polizas ?? 0), 0),
+          'Prima total':
+            Math.round(datos.reduce((s, c) => s + (Number(c.primaTotal) || 0), 0) * 100) / 100,
         } as any)
         descargar(filas, 'Clientes', 'clientes-y-polizas')
         return
       }
 
       // Producción por ejecutiva: cuántos clientes y pólizas lleva cada una.
-      const porEjecutiva = new Map<string, { clientes: number; polizas: number; revisar: number }>()
+      const porEjecutiva = new Map<string, { clientes: number; polizas: number; revisar: number; prima: number }>()
       for (const c of datos) {
         const nombre = c.ejecutivo?.name ?? c.ejecutivoNombre ?? 'Sin asignar'
-        const acc = porEjecutiva.get(nombre) ?? { clientes: 0, polizas: 0, revisar: 0 }
+        const acc = porEjecutiva.get(nombre) ?? { clientes: 0, polizas: 0, revisar: 0, prima: 0 }
         acc.clientes += 1
         acc.polizas += c._count?.polizas ?? 0
+        acc.prima += Number(c.primaTotal) || 0
         if (c.revisar) acc.revisar += 1
         porEjecutiva.set(nombre, acc)
       }
@@ -149,10 +153,11 @@ export function ReportesOperacionesPage() {
           Ejecutiva,
           Clientes: v.clientes,
           Pólizas: v.polizas,
+          'Prima total': Math.round(v.prima * 100) / 100,
           'Pólizas por cliente': v.clientes ? +(v.polizas / v.clientes).toFixed(2) : 0,
           'Fichas por revisar': v.revisar,
         }))
-        .sort((a, b) => b.Clientes - a.Clientes)
+        .sort((a, b) => b['Prima total'] - a['Prima total'])
       const totClientes = filas.reduce((s, f) => s + f.Clientes, 0)
       const totPolizas = filas.reduce((s, f) => s + f.Pólizas, 0)
       filas.push({} as any)
@@ -160,6 +165,8 @@ export function ReportesOperacionesPage() {
         Ejecutiva: 'TOTAL',
         Clientes: totClientes,
         Pólizas: totPolizas,
+        'Prima total':
+          Math.round(filas.reduce((s, f) => s + (f['Prima total'] || 0), 0) * 100) / 100,
         'Pólizas por cliente': totClientes ? +(totPolizas / totClientes).toFixed(2) : 0,
         'Fichas por revisar': filas.reduce((s, f) => s + (f['Fichas por revisar'] || 0), 0),
       } as any)

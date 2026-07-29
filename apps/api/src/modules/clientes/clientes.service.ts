@@ -81,12 +81,32 @@ export class ClientesService {
           revisar: true,
           ejecutivo: { select: { id: true, name: true } },
           _count: { select: { polizas: true } },
+          // Solo la prima de cada póliza, para poder totalizar lo vendido por
+          // cliente y por ejecutiva en los reportes.
+          polizas: { select: { primaNeta: true } },
         },
       }),
       this.prisma.cliente.count({ where: where as any }),
     ])
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+    return {
+      data: data.map((c: any) => {
+        const { polizas, ...resto } = c
+        return {
+          ...resto,
+          // Suma de las primas de sus pólizas. Prisma devuelve Decimal, se manda
+          // como número para que el front no tenga que convertir.
+          primaTotal: (polizas ?? []).reduce(
+            (s: number, p: any) => s + (Number(p.primaNeta) || 0),
+            0,
+          ),
+        }
+      }),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   }
 
   async findOne(id: string, organizationId: string, userId: string, role: string) {

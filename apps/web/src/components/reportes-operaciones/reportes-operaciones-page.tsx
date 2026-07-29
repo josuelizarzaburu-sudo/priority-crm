@@ -97,6 +97,14 @@ export function ReportesOperacionesPage() {
           Observaciones: r.observaciones ?? '',
         }))
         if (filas.length === 0) throw new Error('No hay reclamos en ese rango de fechas.')
+        // Fila de totales al final: suma del valor y conteo, para no tener que
+        // sumar a mano en Excel.
+        const totalValor = enRango.reduce((s, r) => s + (Number(r.valor) || 0), 0)
+        filas.push({} as any)
+        filas.push({
+          Cliente: `TOTAL (${enRango.length} reclamos)`,
+          Valor: Math.round(totalValor * 100) / 100,
+        } as any)
         descargar(filas, 'Reclamos', 'reclamos')
         return
       }
@@ -117,6 +125,11 @@ export function ReportesOperacionesPage() {
           Pólizas: c._count?.polizas ?? 0,
           'Por revisar': c.revisar ? 'Sí' : 'No',
         }))
+        filas.push({} as any)
+        filas.push({
+          Nombres: `TOTAL (${datos.length} clientes)`,
+          Pólizas: datos.reduce((s, c) => s + (c._count?.polizas ?? 0), 0),
+        } as any)
         descargar(filas, 'Clientes', 'clientes-y-polizas')
         return
       }
@@ -140,6 +153,16 @@ export function ReportesOperacionesPage() {
           'Fichas por revisar': v.revisar,
         }))
         .sort((a, b) => b.Clientes - a.Clientes)
+      const totClientes = filas.reduce((s, f) => s + f.Clientes, 0)
+      const totPolizas = filas.reduce((s, f) => s + f.Pólizas, 0)
+      filas.push({} as any)
+      filas.push({
+        Ejecutiva: 'TOTAL',
+        Clientes: totClientes,
+        Pólizas: totPolizas,
+        'Pólizas por cliente': totClientes ? +(totPolizas / totClientes).toFixed(2) : 0,
+        'Fichas por revisar': filas.reduce((s, f) => s + (f['Fichas por revisar'] || 0), 0),
+      } as any)
       descargar(filas, 'Producción', 'produccion-por-ejecutiva')
     } catch (e: any) {
       setError(e?.message ?? 'No se pudo generar el reporte.')

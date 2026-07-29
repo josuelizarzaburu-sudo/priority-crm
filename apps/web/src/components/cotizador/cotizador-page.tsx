@@ -90,10 +90,14 @@ const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
 // ── BMI Internacional ──────────────────────────────────────────────────────
 // Josue pidió activar solo Ideal por ahora (1M y 2M). Azure, Support y Meridian II
 // ya tienen motor de cálculo pero todavía no columna en el comparativo.
-const PLAN_ORDER_INTL: BmiIntlPlanId[] = ['ideal1m', 'ideal2m']
+// Este tipo son los planes ACTIVOS en el cotizador: debe coincidir exactamente con
+// las llaves del objeto `bmiIntl`, si no TypeScript no puede indexarlo.
+type BmiIntlPlanActivo = Extract<BmiIntlPlanId, 'ideal1m' | 'ideal2m'>
+
+const PLAN_ORDER_INTL: BmiIntlPlanActivo[] = ['ideal1m', 'ideal2m']
 
 // Plan internacional del cotizador -> id del plan en el catálogo del comparativo
-const BMI_INTL_CATALOG_ID: Record<string, string> = {
+const BMI_INTL_CATALOG_ID: Record<BmiIntlPlanActivo, string> = {
   ideal1m: 'in4', // BMI IDEAL 1M
   ideal2m: 'in0', // BMI IDEAL 2M
 }

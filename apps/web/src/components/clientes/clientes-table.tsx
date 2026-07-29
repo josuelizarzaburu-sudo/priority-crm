@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, AlertTriangle, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -34,9 +35,16 @@ interface ClienteListado {
 
 export function ClientesTable() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const rol = (session?.user as any)?.role ?? ''
+  // Asignar ejecutiva es cosa de Yessenia (o admin), igual que en la ficha.
+  const puedeAsignar = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol)
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [soloRevisar, setSoloRevisar] = useState(false)
+  // Bandeja de entrega comercial: clientes que llegaron de un deal ganado y
+  // todavia no tienen ejecutiva. Solo la ve quien puede asignar.
+  const [soloSinAsignar, setSoloSinAsignar] = useState(false)
   const [page, setPage] = useState(1)
 
   // Esperamos a que deje de escribir antes de consultar: con ~1000 clientes
@@ -50,11 +58,12 @@ export function ClientesTable() {
   }, [search])
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['clientes', debounced, soloRevisar, page],
+    queryKey: ['clientes', debounced, soloRevisar, soloSinAsignar, page],
     queryFn: async () => {
       const params: Record<string, string | number> = { page, limit: 25 }
       if (debounced.trim()) params.search = debounced.trim()
       if (soloRevisar) params.revisar = 'true'
+      if (soloSinAsignar) params.sinAsignar = 'true'
       const r = await api.get('/clientes', { params })
       return r.data as {
         data: ClienteListado[]
@@ -86,6 +95,21 @@ export function ClientesTable() {
           />
         </div>
         <div className="flex items-center gap-3">
+          {puedeAsignar && (
+            <Button
+              type="button"
+              variant={soloSinAsignar ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setSoloSinAsignar((v) => !v)
+                setPage(1)
+              }}
+              title="Clientes que llegaron de un deal ganado y aún no tienen ejecutiva"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nuevos por asignar
+            </Button>
+          )}
           <Button
             type="button"
             variant={soloRevisar ? 'default' : 'outline'}

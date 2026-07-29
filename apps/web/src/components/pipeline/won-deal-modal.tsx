@@ -19,6 +19,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, X } from 'lucide-react'
+import {
+  RAMOS,
+  ASEGURADORAS_POR_RAMO,
+  pideDatosVehiculo,
+  pideSumaAsegurada,
+  type RamoId,
+} from '@/lib/ramos-seguros'
 
 export interface WonInsuranceData {
   netPremium: number
@@ -27,27 +34,51 @@ export interface WonInsuranceData {
   issueDate?: string
   holderName?: string
   aseguradora?: string
+  // Ramo: mismo valor que el enum TipoPoliza del CRM operativo, para que la
+  // poliza se cree alla sin traducir nada.
+  ramo?: RamoId
+  // Solo si el ramo es AUTO
+  marca?: string
+  modelo?: string
+  anio?: string
+  placa?: string
+  // Solo si el ramo es VIDA u HOGAR
+  sumaAsegurada?: number
+  // Nota del comercial para la ejecutiva que reciba el cliente en el operativo.
+  notaOperaciones?: string
 }
 
 interface EntryDraft {
   id: string
+  ramo: RamoId
   holderName: string
   plan: string
   paymentFrequency: string
   aseguradora: string
   issueDate: string
   netPremium: string
+  marca: string
+  modelo: string
+  anio: string
+  placa: string
+  sumaAsegurada: string
 }
 
 function emptyEntry(): EntryDraft {
   return {
     id: `${Date.now()}-${Math.random()}`,
+    ramo: 'SALUD',
     holderName: '',
     plan: '',
     paymentFrequency: 'debito-mensual',
     aseguradora: '',
     issueDate: '',
     netPremium: '',
+    marca: '',
+    modelo: '',
+    anio: '',
+    placa: '',
+    sumaAsegurada: '',
   }
 }
 
@@ -60,9 +91,14 @@ interface WonDealModalProps {
 
 export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModalProps) {
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
+  // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
+  const [notaOperaciones, setNotaOperaciones] = useState('')
 
   useEffect(() => {
-    if (open) setEntries([emptyEntry()])
+    if (open) {
+      setEntries([emptyEntry()])
+      setNotaOperaciones('')
+    }
   }, [open])
 
   const canConfirm = entries.length > 0 && entries.every(
@@ -91,6 +127,21 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
         ...(e.issueDate ? { issueDate: e.issueDate } : {}),
         ...(e.holderName.trim() ? { holderName: e.holderName.trim() } : {}),
         ...(e.aseguradora ? { aseguradora: e.aseguradora } : {}),
+        ramo: e.ramo,
+        ...(pideDatosVehiculo(e.ramo)
+          ? {
+              ...(e.marca.trim() ? { marca: e.marca.trim() } : {}),
+              ...(e.modelo.trim() ? { modelo: e.modelo.trim() } : {}),
+              ...(e.anio.trim() ? { anio: e.anio.trim() } : {}),
+              ...(e.placa.trim() ? { placa: e.placa.trim().toUpperCase() } : {}),
+            }
+          : {}),
+        ...(pideSumaAsegurada(e.ramo) && e.sumaAsegurada.trim()
+          ? { sumaAsegurada: parseFloat(e.sumaAsegurada) }
+          : {}),
+        // La nota es del cierre completo; se adjunta a cada entrada para que
+        // llegue igual sin importar cual poliza procese primero el operativo.
+        ...(notaOperaciones.trim() ? { notaOperaciones: notaOperaciones.trim() } : {}),
       })),
     )
   }
@@ -133,19 +184,93 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Aseguradora</Label>
-                  <Select value={entry.aseguradora} onValueChange={(v) => updateEntry(idx, 'aseguradora', v)}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BMI">BMI</SelectItem>
-                      <SelectItem value="Saludsa">Saludsa</SelectItem>
-                      <SelectItem value="Cuasanitas">Cuasanitas</SelectItem>
-                      <SelectItem value="Humana">Humana</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Lista con sugerencias pero de texto libre: el catalogo aun no
+                      cubre vida ni hogar, y no queremos bloquear el cierre por eso. */}
+                  <Input
+                    list={`aseguradoras-${entry.id}`}
+                    value={entry.aseguradora}
+                    onChange={(e) => updateEntry(idx, 'aseguradora', e.target.value)}
+                    placeholder="Escribe o elige..."
+                    className="h-8 text-sm"
+                  />
+                  <datalist id={`aseguradoras-${entry.id}`}>
+                    {ASEGURADORAS_POR_RAMO[entry.ramo].map((a) => (
+                      <option key={a} value={a} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
+
+              {/* Ramo: define que campos se piden abajo y que aseguradoras se sugieren */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Ramo</Label>
+                <Select
+                  value={entry.ramo}
+                  onValueChange={(v) => updateEntry(idx, 'ramo', v as RamoId)}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RAMOS.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {pideDatosVehiculo(entry.ramo) && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Marca</Label>
+                    <Input
+                      value={entry.marca}
+                      onChange={(e) => updateEntry(idx, 'marca', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Modelo</Label>
+                    <Input
+                      value={entry.modelo}
+                      onChange={(e) => updateEntry(idx, 'modelo', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Año</Label>
+                    <Input
+                      value={entry.anio}
+                      onChange={(e) => updateEntry(idx, 'anio', e.target.value)}
+                      inputMode="numeric"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Placa</Label>
+                    <Input
+                      value={entry.placa}
+                      onChange={(e) => updateEntry(idx, 'placa', e.target.value)}
+                      className="h-8 text-sm uppercase"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {pideSumaAsegurada(entry.ramo) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Suma asegurada</Label>
+                  <Input
+                    value={entry.sumaAsegurada}
+                    onChange={(e) => updateEntry(idx, 'sumaAsegurada', e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-xs">
@@ -207,6 +332,23 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
           >
             <Plus className="h-3.5 w-3.5" /> Agregar cliente
           </button>
+        </div>
+
+        {/* Nota del comercial. Viaja hasta la ficha del cliente en el CRM
+            operativo, para que la ejecutiva reciba el contexto de la venta
+            (persistencia, acuerdos, pendientes) y no tenga que preguntarlo. */}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Nota para operaciones</Label>
+          <textarea
+            value={notaOperaciones}
+            onChange={(e) => setNotaOperaciones(e.target.value)}
+            rows={3}
+            placeholder="Ej: persistencia 12 meses, cliente pidió débito los 5 de cada mes."
+            className="w-full rounded-md border bg-background p-2 text-sm"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            La verá la ejecutiva que reciba este cliente en el CRM operativo.
+          </p>
         </div>
 
         <DialogFooter className="mt-2">

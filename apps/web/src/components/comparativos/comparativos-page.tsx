@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -149,6 +151,27 @@ function isNegativeValue(v: string | null | undefined) {
 export function ComparativosPage() {
   const { data: session } = useSession()
   const advisorName = (session?.user as { name?: string } | undefined)?.name ?? ''
+  const advisorId = (session?.user as { id?: string } | undefined)?.id
+
+  // El pie del comparativo debe mostrar el celular de QUIEN lo emite, para que el
+  // cliente le escriba a esa persona y no a un numero general. El telefono no
+  // viaja en la sesion, asi que se busca en el equipo por id.
+  const { data: equipo } = useQuery({
+    queryKey: ['usuarios-comparativo'],
+    enabled: !!advisorId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => (await api.get('/users')).data as { id: string; phone: string | null }[],
+  })
+
+  // +593979321722 -> 097 932 1722. Si el asesor no tiene celular cargado, se deja
+  // el de la oficina para no publicar un pie vacio.
+  const advisorPhone = useMemo(() => {
+    const crudo = (equipo ?? []).find((u) => u.id === advisorId)?.phone ?? ''
+    const soloDigitos = crudo.replace(/\D/g, '')
+    const local = soloDigitos.startsWith('593') ? `0${soloDigitos.slice(3)}` : soloDigitos
+    if (local.length !== 10) return '099 591 5761'
+    return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`
+  }, [equipo, advisorId])
 
   // Precarga desde el cotizador: lee ?cotizacion=... UNA vez al inicio.
   const searchParams = useSearchParams()
@@ -703,7 +726,7 @@ export function ComparativosPage() {
               </div>
 
               <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
-                <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp 099 591 5761</span>
+                <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp {advisorPhone}</span>
                 <span>Información detallada de coberturas y beneficios, revisar en la ilustración adjunta de cada Plan Médico</span>
               </div>
               {/* TEMPORAL: priority.ec todavia apunta al sitio viejo (otro servidor). Usamos la URL

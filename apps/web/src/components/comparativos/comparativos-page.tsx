@@ -19,9 +19,7 @@ const MAX_PLANS = 3
 
 const TAB_LABELS: { key: CatalogKey; label: string }[] = [
   { key: 'salud', label: 'Salud' },
-  // Oculta temporalmente a pedido de Josue (24-jul-2026). El catálogo y la lógica
-  // siguen intactos en comparativos-data.ts; para reactivarla, descomentar esta línea.
-  // { key: 'internacional', label: 'Internacionales' },
+  { key: 'internacional', label: 'Internacionales' },
   { key: 'vehiculos', label: 'Vehículos' },
 ]
 

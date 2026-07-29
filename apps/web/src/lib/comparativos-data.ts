@@ -822,43 +822,70 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
       },
       {
         "id": "in1",
-        "name": "SALUD EXPERIENCE",
+        "name": "SALUD EXPERIENCE SUPREME",
         "insurer": "Saludsa"
       },
       {
         "id": "in2",
         "name": "BUPA GLOBAL",
         "insurer": "Bupa"
+      },
+      {
+        "id": "in3",
+        "name": "BESTDOCTORS MEDICAL CARE",
+        "insurer": "BestDoctors"
       }
     ],
     "benefits": [
       {
-        "label": "Límite Máximo por Persona al año",
+        "label": "Monto Total de Cobertura",
         "values": [
           "2 Millones",
+          "3 Millones",
           "2 Millones",
-          null
+          "2 Millones"
         ]
       },
       {
-        "label": "Deducible por persona al año.",
+        "label": "Deducible por persona anual (máximo 2 deducibles por persona)",
         "values": [
-          null,
-          null,
-          null
+          "A Elección",
+          "A Elección",
+          "USD 10.000",
+          "A Elección"
         ]
       },
       {
         "label": "Red Medica",
         "values": [
-          "Amplia red medica con mas de 5.000 puntos en USA incluye los mejores hospitales como MD Anderson Cancer Center, Mayo Clinic, Cleveland Clinic entre otros y Libre elección de médicos y hospitales en el resto del mundo.",
-          "Red Medica en USA y en el resto del mundo.",
-          "Red Medica en USA Blue Cross Blue Shield en USA  y libre eleccionn en el resto del mundo."
+          "Amplia red médica con más de 5.000 puntos en USA, incluye los mejores hospitales como MD Anderson Cancer Center, Mayo Clinic, Cleveland Clinic entre otros, y libre elección de médicos y hospitales en el resto del mundo.",
+          "Red médica en USA, no incluye Mayo Clinic ni MD Anderson Center, y libre elección en el resto del mundo.",
+          "Red médica Blue Cross Blue Shield en USA y libre elección en el resto del mundo.",
+          "Red médica en USA y libre elección en el resto del mundo."
+        ]
+      },
+      {
+        "label": "Carencias",
+        "values": [
+          "30 días Ambulatorio y Hospitalario",
+          "30 días Ambulatorio y 90 Hospitalario",
+          null,
+          "30 días Ambulatorio y 90 Hospitalario"
+        ]
+      },
+      {
+        "label": "Condiciones Congénitas y/o Hereditarias",
+        "values": [
+          "Hasta Monto Total Contratado",
+          "Hasta Monto Total Contratado",
+          null,
+          "USD 100.000 si el diagnóstico es antes de los 18 años, si es luego al 100%"
         ]
       },
       {
         "label": "Cobertura Hospitalaria",
         "values": [
+          "100%",
           "100%",
           "100%",
           "100%"
@@ -867,97 +894,100 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
       {
         "label": "Quimioterapia y Radioterapia",
         "values": [
+          "Hasta el Monto Contratado",
+          "Hasta el Monto Contratado",
           "Ilimitadas",
-          "Hasta 180 sesiones por año",
-          "Ilimitadas"
+          "Hasta el Monto Contratado"
         ]
       },
       {
         "label": "Transplante de organos",
         "values": [
-          "1 Millon",
-          "USD 250.000",
-          "2Millones en Ecuador y USD 500.000 fuera"
+          "1 Millón",
+          "Hasta 1.5 Millones",
+          "2 Millones en Ecuador y USD 500.000 fuera",
+          "1 Millón de por vida"
         ]
       },
       {
         "label": "Tratamientos de la funcion renal Dialisis",
         "values": [
           "100%",
-          "Solo hasta 45 dias",
-          "100%"
+          "Solo hasta 45 días",
+          "100%",
+          null
         ]
       },
       {
         "label": "Terapias Fisicas y respiratorias",
         "values": [
-          "Ilimitadas",
-          "Solo hasta 30 dias por año",
-          "Tope del Plan"
+          "Tope del plan al 100%",
+          "Hasta USD 6.000",
+          "Tope del Plan",
+          "Hasta USD 4.000"
         ]
       },
       {
         "label": "Cobertura Ambulatoria",
         "values": [
           "100%",
-          "80%",
+          "100%",
+          "100%",
           "100%"
         ]
       },
       {
         "label": "Cobertura para medicamentos",
         "values": [
+          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 5.000. Durante hospitalización al 100%. Medicamentos especializados al 100%",
+          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 10.000. Durante hospitalización al 100%",
           "100%",
-          "80%",
-          "100%"
+          "En el Ecuador hasta monto total de cobertura, fuera hasta USD 10.000. Durante hospitalización al 100%"
         ]
       },
       {
         "label": "Ambulancia Aerea",
         "values": [
+          "Incluida",
+          "Incluida",
           "USD 35.000",
-          "USD 25.000",
-          "USD 35.000"
+          "Incluida"
         ]
       },
       {
         "label": "Asistencia en Viajes",
         "values": [
-          "Cobertura al 100% sin deducible.",
-          "Cobertura hasta 100.000 sin deducible",
+          "Cobertura al 100% sin deducible los primeros 45 días de viaje.",
+          "USD 100.000 los primeros 60 días de viaje.",
+          "Incluida",
           "Incluida"
         ]
       },
       {
         "label": "Cobertura de Preexistencias",
         "values": [
-          "Hasta 20 Salarios Basicos Unificados a partir del mes 25",
-          "Hasta 20 Salarios Basicos Unificados a partir del mes 25",
-          "Hasta 20 Salarios Basicos Unificados a partir del mes 25"
+          "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
+          "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
+          "Hasta 20 Salarios Básicos Unificados a partir del mes 25",
+          "Hasta 20 Salarios Básicos Unificados a partir del mes 25"
         ]
       },
       {
         "label": "Consulta Homeopaticas",
         "values": [
           "Sin límite",
-          "hasta 12 consultas al año",
-          "Sin limite"
+          "Hasta 12 consultas al año",
+          "Sin límite",
+          null
         ]
       },
       {
-        "label": "Monto Total de Cobertura",
+        "label": "Beneficio Vitality",
         "values": [
-          "2 Millones",
+          "No incluye",
+          "Cashback hasta el 20% del valor del plan anual con metas de ejercicio y buen estilo de vida.",
           null,
-          "2 Millones"
-        ]
-      },
-      {
-        "label": "Deducible por persona annual (maximo 2 deducibles por persona)",
-        "values": [
-          "USD 10.000",
-          null,
-          "USD 10.000"
+          "No incluye"
         ]
       }
     ]

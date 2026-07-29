@@ -379,6 +379,80 @@ export class ClientesService {
     })
   }
 
+  /**
+   * Cambia la ejecutiva asignada a un cliente.
+   *
+   * Solo el jefe de operaciones y los admin. Nace de un caso real: a veces el
+   * cliente se queja del trato recibido y pide que lo atienda otra persona.
+   *
+   * El motivo es OBLIGATORIO y queda escrito en la bitácora del cliente junto
+   * con quién hizo el cambio, para que después se pueda reconstruir por qué se
+   * reasignó. Ambas escrituras van en una transacción: si falla la nota, no se
+   * cambia la ejecutiva (nunca queda un cambio sin justificación).
+   */
+  async cambiarEjecutiva(
+    clienteId: string,
+    nuevoEjecutivoId: string,
+    motivo: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!VE_TODO.includes(role)) {
+      throw new ForbiddenException(
+        'Solo el jefe de operaciones puede cambiar la ejecutiva asignada',
+      )
+    }
+
+    const razon = (motivo ?? '').trim()
+    if (!razon) {
+      throw new ForbiddenException('Hay que indicar el motivo del cambio')
+    }
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, organizationId },
+      select: { id: true, ejecutivoId: true, ejecutivo: { select: { name: true } } },
+    })
+    if (!cliente) throw new NotFoundException('Cliente no encontrado')
+
+    // La ejecutiva nueva tiene que existir y ser de la misma organización.
+    const nueva = await this.prisma.user.findFirst({
+      where: { id: nuevoEjecutivoId, organizationId },
+      select: { id: true, name: true },
+    })
+    if (!nueva) throw new NotFoundException('La ejecutiva indicada no existe')
+
+    if (cliente.ejecutivoId === nuevoEjecutivoId) {
+      throw new ForbiddenException('Ese cliente ya está asignado a esa ejecutiva')
+    }
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const anterior = cliente.ejecutivo?.name ?? 'sin asignar'
+
+    const [actualizado] = await this.prisma.$transaction([
+      this.prisma.cliente.update({
+        where: { id: clienteId },
+        // ejecutivoNombre va denormalizado en la tabla y la ficha lo usa como
+        // respaldo, así que hay que moverlo junto con el id o queda un nombre viejo.
+        data: { ejecutivoId: nuevoEjecutivoId, ejecutivoNombre: nueva.name },
+      }),
+      this.prisma.notaCliente.create({
+        data: {
+          contenido: `Cambio de ejecutiva: ${anterior} → ${nueva.name}. Motivo: ${razon}`,
+          clienteId,
+          autorId: userId,
+          autorNombre: autor?.name ?? null,
+        },
+      }),
+    ])
+
+    return actualizado
+  }
+
   /** Suma un dependiente a un cliente que ya existe (ej. le nació un hijo). */
   async agregarDependiente(
     clienteId: string,

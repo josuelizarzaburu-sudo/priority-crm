@@ -13,6 +13,7 @@ import { EditarCliente } from './editar-cliente'
 import { EditarPoliza } from './editar-poliza'
 import { NotasCliente } from './notas-cliente'
 import { AgregarDependiente } from './agregar-dependiente'
+import { CambiarEjecutiva } from './cambiar-ejecutiva'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -168,6 +169,10 @@ export function ClienteDetalle({ id }: { id: string }) {
   const rol = (session?.user as any)?.role ?? ''
   // Borrar una poliza pierde datos: solo jefe de operaciones y admin.
   const puedeEliminar = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol)
+  // Reasignar un cliente es decision de Yessenia (o admin), no de la ejecutiva.
+  // El permiso de verdad lo aplica el servidor; esto solo esconde el boton.
+  const puedeCambiarEjecutiva = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol)
+  const [cambiandoEjecutiva, setCambiandoEjecutiva] = useState(false)
   const [borrando, setBorrando] = useState<string | null>(null)
 
   const { data: c, isLoading, isError, error } = useQuery({
@@ -253,7 +258,24 @@ export function ClienteDetalle({ id }: { id: string }) {
           <Dato label="Dirección" valor={c.direccion} />
           <Dato label="Contacto sugerido" valor={c.contactoSugerido} />
           <Dato label="Referido de" valor={c.referidoDe} />
-          <Dato label="Ejecutiva" valor={c.ejecutivo?.name ?? c.ejecutivoNombre} />
+          <div>
+            <div className="text-xs text-muted-foreground">Ejecutiva</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {c.ejecutivo?.name ?? c.ejecutivoNombre ?? '—'}
+              </span>
+              {puedeCambiarEjecutiva && (
+                <button
+                  type="button"
+                  onClick={() => setCambiandoEjecutiva(true)}
+                  className="text-[11px] font-medium underline underline-offset-2"
+                  style={{ color: GOLD }}
+                >
+                  Cambiar
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         {c.notas && (
           <div className="mt-4 border-t pt-3">
@@ -429,6 +451,15 @@ export function ClienteDetalle({ id }: { id: string }) {
 
       {/* ── Bitácora ── */}
       <NotasCliente clienteId={c.id} notas={c.notas_ ?? []} />
+
+      {cambiandoEjecutiva && (
+        <CambiarEjecutiva
+          clienteId={c.id}
+          ejecutivaActual={c.ejecutivo?.name ?? c.ejecutivoNombre ?? null}
+          ejecutivaActualId={c.ejecutivo?.id ?? null}
+          onCerrar={() => setCambiandoEjecutiva(false)}
+        />
+      )}
     </div>
   )
 }

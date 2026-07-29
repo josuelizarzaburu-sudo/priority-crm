@@ -1,18 +1,23 @@
 // Tarifas BMI 2026 — planes internacionales (Ideal 1M, Ideal 2M, Support).
 // Extraído del cotizador oficial BMI 2026 (V1. Enero 2026), tablas región Sierra.
-// Fórmula calibrada y validada al centavo contra el cotizador oficial:
+// Fórmula leída directamente de las fórmulas del Excel oficial (hojas CALC ID 1M,
+// CALC ID 2M, CALC SUP) — no es una aproximación, reproduce el cotizador al centavo.
+//
+// Validado exacto contra el cotizador oficial:
 //   Ideal 1M  D1000 (Titular 40a) => Financiado $4.126,08 · Contado $3.759,60 · Diferido $3.916,93
 //   Ideal 2M  D1000 (Titular 40a) => Financiado $4.441,99 · Contado $4.047,08 · Diferido $4.217,05
 //   Support   D5000 (Titular 40a) => Financiado $1.648,80 · Contado $1.509,61 · Diferido $1.571,48
 //
-// NOTA: la tabla de edades tiene huecos entre 4 y 17 años (el Excel oficial no reparte
-// esas edades por fila — el valor de "3 años" aplica a todo el rango 3-17). El lookup
-// hace floor al año definido más cercano hacia abajo.
+// NOTA 1: la tabla de edades tiene huecos entre 4 y 17 años (el Excel oficial no reparte
+// esas edades por fila — el valor de "3 años" aplica a todo ese rango). El lookup hace
+// floor al año definido más cercano hacia abajo.
 //
-// PENDIENTE DE VALIDAR: Contado y Diferido se calibraron con UN solo caso por producto.
-// El "Financiado" (precio mensual mostrado en el comparativo) está confirmado al centavo.
-// Contado/Diferido usan el mismo patrón (descuento 9%/5% sobre la base + cargo fijo propio
-// por forma de pago) pero conviene una segunda cotización real para confirmarlos del todo.
+// NOTA 2 (pendiente, no bloquea Titular/Cónyuge): en el Excel oficial, "hijos<=17",
+// "hijos 24 a 29" y "Otros Dependientes" usan tablas de tarifa DISTINTAS a la de
+// Titular/Cónyuge (columnas M/N/O de las hojas CALC, con sus propias sub-tablas).
+// Esta versión cotiza cualquier persona (titular, cónyuge o dependiente) contra la
+// MISMA tabla de adultos — válido para Titular/Cónyuge, pero para familias con hijos
+// hay que sumarle esa tabla aparte antes de confiar el número al 100%.
 
 export type BmiIntlPlanId = 'ideal1m' | 'ideal2m' | 'support'
 
@@ -38,16 +43,17 @@ export const BMI_INTL_DEDUCIBLE_LABEL: Record<string, string> = {
   '20000': 'USD 20.000',
 }
 
-// ── Constantes de cálculo (calibradas contra el cotizador oficial) ──
-const IMPUESTO = 0.005 // 0,5%, igual que en los planes nacionales BMI
+// ── Constantes de cálculo (leídas de las celdas fijas del Excel oficial) ──
+const TAX_RATE = 0.005 // 0,5%, igual que en los planes nacionales BMI
+const COSTO_TARJETAS = 50 // se suma DENTRO de la base de impuestos y OTRA VEZ afuera (fórmula real del Excel)
 const DESC_CONTADO = 0.09
 const DESC_DIFERIDO = 0.05
 
-// Cargo fijo por póliza (tarjeta + asistencia en viajes + gasto admin), por forma de pago
-const CARGO_FIJO: Record<BmiIntlPlanId, { financiado: number; contado: number; diferido: number }> = {
-  ideal1m: { financiado: 521.96, contado: 479.83, diferido: 493.03 },
-  ideal2m: { financiado: 521.96, contado: 479.83, diferido: 493.03 },
-  support: { financiado: 101.75, contado: 101.75, diferido: 101.75 },
+// Asistencia en viajes (cargo fijo por póliza, se suma UNA vez, no por persona) y GA por plan
+const CARGOS_PLAN: Record<BmiIntlPlanId, { asistViajes: number; gaFinanciado: number; gaContadoDiferido: number }> = {
+  ideal1m: { asistViajes: 330.165, gaFinanciado: 141.795, gaContadoDiferido: 129.375 },
+  ideal2m: { asistViajes: 330.165, gaFinanciado: 141.795, gaContadoDiferido: 129.375 },
+  support: { asistViajes: 0, gaFinanciado: 51.75, gaContadoDiferido: 51.75 },
 }
 
 // ── Tablas de precio anual base: plan -> edad -> deducible -> precio (región Sierra) ──
@@ -78,6 +84,7 @@ function filaPorEdad(tabla: Record<number, Record<string, number>>, edad: number
   return tabla[elegida]
 }
 
+// Precio base de una persona (válido para Titular/Cónyuge — ver NOTA 2 arriba)
 function basePersonaIntl(plan: BmiIntlPlanId, edad: number, deducible: string): number {
   const e = Math.max(0, Math.round(edad))
   const fila = filaPorEdad(tablaDePlan(plan), e)
@@ -97,20 +104,33 @@ export interface BmiIntlResultadoDeducible {
   anualDiferido: number
 }
 
+// Impuestos = (SubtotalConGA + costoTarjetas) * 0.5% + costoTarjetas  (fórmula real del Excel)
+function calcularImpuestos(subtotalConGA: number): number {
+  return (subtotalConGA + COSTO_TARJETAS) * TAX_RATE + COSTO_TARJETAS
+}
+
 // Cotiza un plan internacional + deducible para una familia.
 export function cotizarBmiIntlDeducible(
   plan: BmiIntlPlanId,
   personas: BmiIntlPersona[],
   deducible: string,
 ): BmiIntlResultadoDeducible {
-  const cargos = CARGO_FIJO[plan]
+  const cargos = CARGOS_PLAN[plan]
   const baseFamilia = personas.reduce(
     (sum, p) => sum + basePersonaIntl(plan, p.edad, deducible),
     0,
   )
-  const anualFinanciado = (baseFamilia + cargos.financiado) * (1 + IMPUESTO)
-  const anualContado = (baseFamilia * (1 - DESC_CONTADO) + cargos.contado) * (1 + IMPUESTO)
-  const anualDiferido = (baseFamilia * (1 - DESC_DIFERIDO) + cargos.diferido) * (1 + IMPUESTO)
+  const subtotal = baseFamilia + cargos.asistViajes // Asist en Viajes se suma una sola vez por póliza
+
+  const sbgaFinanciado = subtotal + cargos.gaFinanciado
+  const anualFinanciado = sbgaFinanciado + calcularImpuestos(sbgaFinanciado)
+
+  const sbgaContado = subtotal * (1 - DESC_CONTADO) + cargos.gaContadoDiferido
+  const anualContado = sbgaContado + calcularImpuestos(sbgaContado)
+
+  const sbgaDiferido = subtotal * (1 - DESC_DIFERIDO) + cargos.gaContadoDiferido
+  const anualDiferido = sbgaDiferido + calcularImpuestos(sbgaDiferido)
+
   const r2 = (n: number) => Math.round(n * 100) / 100
   return {
     deducible,

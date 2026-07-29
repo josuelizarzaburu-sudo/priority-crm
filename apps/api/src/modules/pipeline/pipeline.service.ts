@@ -271,6 +271,7 @@ export class PipelineService {
       this.logger.log(
         `[crearClienteDesdeDeal] cliente ${creado.id} creado desde el deal ${dealId} (cedula: ${identificacion})`,
       )
+      await this.crearPolizasYNota(creado.id, cf, organizationId, userId)
       return creado
     } catch (e) {
       // Puede chocar el unique de (organizationId, identificacion) si ya existía
@@ -280,6 +281,110 @@ export class PipelineService {
       )
       return null
     }
+  }
+
+  /** Frecuencia de pago del cierre -> enum FormaPago del operativo. */
+  private readonly FORMA_PAGO: Record<string, string> = {
+    'pago-contado': 'CONTADO',
+    contado: 'CONTADO',
+    'debito-mensual': 'MENSUAL',
+    mensual: 'MENSUAL',
+    'diferido-especial': 'DIFERIDO_ESPECIAL',
+    diferido: 'DIFERIDO',
+  }
+
+  /**
+   * Pasa al operativo lo que el comercial capturo al cerrar: una poliza por cada
+   * entrada del cierre, mas la nota para la ejecutiva.
+   *
+   * La idea es que la ejecutiva reciba la ficha lo mas completa posible y solo
+   * corrija o complete, en vez de teclear todo de cero. Las polizas entran con
+   * `revisar` encendido porque los datos vienen del comercial y no de la poliza
+   * emitida: hay que confirmarlos antes de darlos por buenos.
+   */
+  private async crearPolizasYNota(
+    clienteId: string,
+    customFields: any,
+    organizationId: string,
+    userId: string,
+  ) {
+    const entradas: any[] = Array.isArray(customFields?.insuranceData)
+      ? customFields.insuranceData
+      : customFields?.insuranceData
+        ? [customFields.insuranceData]
+        : []
+
+    if (entradas.length === 0) return
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const RAMOS_VALIDOS = ['SALUD', 'AUTO', 'VIDA', 'HOGAR']
+    const numero = (v: any) => {
+      const n = Number(v)
+      return Number.isFinite(n) && n > 0 ? n : null
+    }
+
+    for (const e of entradas) {
+      try {
+        const tipo = RAMOS_VALIDOS.includes(e?.ramo) ? e.ramo : 'SALUD'
+        const anio = parseInt(e?.anio, 10)
+        await this.prisma.poliza.create({
+          data: {
+            tipo: tipo as any,
+            clienteId,
+            organizationId,
+            aseguradora: e?.aseguradora ?? null,
+            plan: e?.plan ?? null,
+            primaNeta: numero(e?.netPremium),
+            sumaAsegurada: numero(e?.sumaAsegurada),
+            formaPago: (this.FORMA_PAGO[e?.paymentFrequency] ?? null) as any,
+            fechaEmision: e?.issueDate ? new Date(e.issueDate) : null,
+            estado: 'NUEVO' as any,
+            // Solo tienen sentido en AUTO, pero si vienen se guardan igual.
+            marca: e?.marca ?? null,
+            modelo: e?.modelo ?? null,
+            anio: Number.isFinite(anio) ? anio : null,
+            placa: e?.placa ?? null,
+            agenteId: userId,
+            agenteNombre: autor?.name ?? null,
+            revisar: true,
+            revisarMotivo:
+              'Datos capturados por el comercial al cerrar el deal. Confirmar contra la póliza emitida.',
+          },
+        })
+      } catch (err) {
+        // Una poliza que falle no debe tumbar las demas ni el cliente.
+        this.logger.error(
+          `[crearPolizasYNota] no se pudo crear una poliza del cliente ${clienteId}: ${err}`,
+        )
+      }
+    }
+
+    // La nota del comercial va una sola vez, aunque venga repetida en cada entrada.
+    const nota = entradas.map((e) => e?.notaOperaciones).find((n) => typeof n === 'string' && n.trim())
+    if (nota) {
+      try {
+        await this.prisma.notaCliente.create({
+          data: {
+            contenido: `Nota del comercial al cerrar la venta: ${String(nota).trim()}`,
+            clienteId,
+            autorId: userId,
+            autorNombre: autor?.name ?? null,
+          },
+        })
+      } catch (err) {
+        this.logger.error(
+          `[crearPolizasYNota] no se pudo guardar la nota del cliente ${clienteId}: ${err}`,
+        )
+      }
+    }
+
+    this.logger.log(
+      `[crearPolizasYNota] cliente ${clienteId}: ${entradas.length} poliza(s) creadas${nota ? ' + nota' : ''}`,
+    )
   }
 
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {

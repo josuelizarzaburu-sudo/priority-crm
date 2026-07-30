@@ -163,11 +163,13 @@ export function ComparativosPage() {
   // pudiera, se podrian emitir cotizaciones a nombre ajeno para perjudicar a un
   // companiero. El resto ve su propio nombre y no lo puede cambiar.
   const sessionRole = (session?.user as { role?: string } | undefined)?.role ?? ''
+  const sessionEmail = (session?.user as { email?: string } | undefined)?.email ?? ''
   const puedeElegirAsesor =
     ['SUPER_ADMIN', 'OWNER'].includes(sessionRole) ||
-    // Perfiles que cotizan para otros. Se comparan por nombre porque es lo que
-    // trae la sesion; para agregar a alguien basta sumarlo a esta lista.
-    ['gianella', 'juan fernando'].some((n) => sessionName.toLowerCase().includes(n))
+    // Perfiles que cotizan para otros (Gianella y Juan Fernando). Se comparan por
+    // CORREO y no por nombre: el correo es unico y no cambia si alguien edita su
+    // perfil o entra otra persona con nombre parecido.
+    ['jsegovia@priority.ec', 'comercial@priority.ec'].includes(sessionEmail.toLowerCase())
 
   // El pie del comparativo debe mostrar el celular de QUIEN lo emite, para que el
   // cliente le escriba a esa persona y no a un numero general. El telefono no

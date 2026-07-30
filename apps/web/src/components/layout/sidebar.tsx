@@ -69,6 +69,9 @@ export function Sidebar() {
   const role = (session?.user as any)?.role ?? 'SALES_REP'
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
+  // Ajustes queda solo para administracion. Un vendedor o una ejecutiva no debe
+  // poder cambiar su propia clave ni tocar su perfil: eso lo maneja el admin.
+  const puedeVerAjustes = ['SUPER_ADMIN', 'OWNER'].includes(role)
 
   const navItemClass = (href: string) =>
     cn(
@@ -175,22 +178,24 @@ export function Sidebar() {
         </nav>
 
         {/* Divider */}
-        <div className="mx-3 h-px bg-white/8" />
+        {puedeVerAjustes && <div className="mx-3 h-px bg-white/8" />}
 
-        {/* Settings */}
-        <div className="px-3 py-3">
-          <Link
-            href="/settings"
-            onClick={closeMobileMenu}
-            className={navItemClass('/settings')}
-            title={sidebarCollapsed ? 'Ajustes' : undefined}
-          >
-            <Settings className="h-[18px] w-[18px] shrink-0" />
-            <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
-              Ajustes
-            </span>
-          </Link>
-        </div>
+        {/* Settings — solo administracion */}
+        {puedeVerAjustes && (
+          <div className="px-3 py-3">
+            <Link
+              href="/settings"
+              onClick={closeMobileMenu}
+              className={navItemClass('/settings')}
+              title={sidebarCollapsed ? 'Ajustes' : undefined}
+            >
+              <Settings className="h-[18px] w-[18px] shrink-0" />
+              <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
+                Ajustes
+              </span>
+            </Link>
+          </div>
+        )}
 
         {/* Mobile: sign-out */}
         <div className="border-t border-white/8 px-3 py-3 md:hidden">

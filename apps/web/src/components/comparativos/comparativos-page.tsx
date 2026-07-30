@@ -163,7 +163,6 @@ export function ComparativosPage() {
   // pudiera, se podrian emitir cotizaciones a nombre ajeno para perjudicar a un
   // companiero. El resto ve su propio nombre y no lo puede cambiar.
   const sessionRole = (session?.user as { role?: string } | undefined)?.role ?? ''
-  const sessionEmail = (session?.user as { email?: string } | undefined)?.email ?? ''
 
   // El pie del comparativo debe mostrar el celular de QUIEN lo emite, para que el
   // cliente le escriba a esa persona y no a un numero general. El telefono no
@@ -190,11 +189,7 @@ export function ComparativosPage() {
   const permisoEnPerfil =
     (equipo ?? []).find((u) => u.id === sessionId)?.puedeCotizarPorOtros === true
   const puedeElegirAsesor =
-    ['SUPER_ADMIN', 'OWNER'].includes(sessionRole) ||
-    permisoEnPerfil ||
-    // Respaldo por correo mientras se prende el permiso a Gianella y Juan Fernando
-    // desde Ajustes. Se puede quitar cuando ya esten marcados.
-    ['jsegovia@priority.ec', 'comercial@priority.ec'].includes(sessionEmail.toLowerCase())
+    ['SUPER_ADMIN', 'OWNER'].includes(sessionRole) || permisoEnPerfil
 
   // +593979321722 -> 097 932 1722. Si el asesor no tiene celular cargado, se deja
   // el de la oficina para no publicar un pie vacio.

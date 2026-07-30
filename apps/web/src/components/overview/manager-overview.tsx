@@ -394,7 +394,14 @@ export function ManagerOverview() {
           const stats = allAgentStats.find((s) => s.agent.id === agent.id)
           if (!stats) return null
           return (
-            <TabsContent key={agent.id} value={agent.id} className="mt-4">
+            <TabsContent key={agent.id} value={agent.id} className="mt-4 space-y-4">
+              {/* La misma grafica del overview general pero solo con los deals de
+                  este vendedor, para poder compararlo mes a mes y por producto
+                  cuando se converse su desempeno. */}
+              <VentasMensualesChart
+                deals={deals.filter((d) => (d.assignedTo?.id ?? d.assignedToId) === agent.id) as any}
+                titulo={`Ventas de ${agent.name} por mes`}
+              />
               <AgentDetailPanel stats={stats} />
             </TabsContent>
           )

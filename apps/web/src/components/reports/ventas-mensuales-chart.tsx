@@ -77,7 +77,7 @@ export function VentasMensualesChart({
   titulo?: string
   meses?: number
 }) {
-  const [filtro, setFiltro] = useState<RamoId | 'TODOS'>('TODOS')
+  const [filtro, setFiltro] = useState<RamoId | 'TODOS' | 'SIN'>('TODOS')
 
   const { data, esteMes, mesAnterior } = useMemo(() => {
     const ganados = deals.filter((d) => d.status === 'WON' && d.closedAt)
@@ -101,7 +101,7 @@ export function VentasMensualesChart({
       if (pos == null) continue
       const porRamo = repartirPorRamo(deal)
       for (const [ramo, monto] of Object.entries(porRamo)) {
-        if (filtro !== 'TODOS' && ramo !== filtro) continue
+        if (filtro === 'SIN' ? ramo !== SIN_CLASIFICAR : filtro !== 'TODOS' && ramo !== filtro) continue
         cubos[pos][ramo] = (cubos[pos][ramo] ?? 0) + monto
         cubos[pos].total += monto
       }
@@ -158,6 +158,9 @@ export function VentasMensualesChart({
               {r.label}
             </FiltroBtn>
           ))}
+          <FiltroBtn activo={filtro === 'SIN'} onClick={() => setFiltro('SIN')}>
+            Sin clasificar
+          </FiltroBtn>
         </div>
       </div>
 

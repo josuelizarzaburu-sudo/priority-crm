@@ -34,7 +34,7 @@ const PODIO = ['🥇', '🥈', '🥉']
 type Periodo = 'mes' | 'anio' | 'todo'
 
 export function RankingPage() {
-  const [filtro, setFiltro] = useState<RamoId | 'TODOS'>('TODOS')
+  const [filtro, setFiltro] = useState<RamoId | 'TODOS' | 'SIN'>('TODOS')
   const [periodo, setPeriodo] = useState<Periodo>('mes')
 
   const results = useQueries({
@@ -89,7 +89,7 @@ export function RankingPage() {
         })()
 
       for (const [ramo, monto] of Object.entries(repartirPorRamo(d))) {
-        if (filtro !== 'TODOS' && ramo !== filtro) continue
+        if (filtro === 'SIN' ? ramo !== SIN_CLASIFICAR : filtro !== 'TODOS' && ramo !== filtro) continue
         acc.ramos[ramo] = (acc.ramos[ramo] ?? 0) + monto
         acc.total += monto
       }
@@ -124,6 +124,11 @@ export function RankingPage() {
               {r.label}
             </Chip>
           ))}
+          {/* Ventas cerradas antes de que se pidiera el ramo. Sin este filtro no
+              habia forma de ver que existian, y parecia que el ranking fallaba. */}
+          <Chip activo={filtro === 'SIN'} onClick={() => setFiltro('SIN')}>
+            Sin clasificar
+          </Chip>
         </div>
       </div>
 

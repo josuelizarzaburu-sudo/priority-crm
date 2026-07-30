@@ -150,18 +150,29 @@ function isNegativeValue(v: string | null | undefined) {
 
 export function ComparativosPage() {
   const { data: session } = useSession()
-  const advisorName = (session?.user as { name?: string } | undefined)?.name ?? ''
-  const advisorId = (session?.user as { id?: string } | undefined)?.id
+  const sessionName = (session?.user as { name?: string } | undefined)?.name ?? ''
+  const sessionId = (session?.user as { id?: string } | undefined)?.id
+
+  // Quien FIRMA la cotizacion, que no siempre es quien la arma: Gianella y Juan
+  // Fernando cotizan para Pablo, Roxana u otros, y el cliente debe ver el nombre
+  // y el WhatsApp del asesor que lo va a atender. Arranca en uno mismo.
+  const [firmanteId, setFirmanteId] = useState<string>('')
+  const advisorId = firmanteId || sessionId
 
   // El pie del comparativo debe mostrar el celular de QUIEN lo emite, para que el
   // cliente le escriba a esa persona y no a un numero general. El telefono no
   // viaja en la sesion, asi que se busca en el equipo por id.
   const { data: equipo } = useQuery({
     queryKey: ['usuarios-comparativo'],
-    enabled: !!advisorId,
+    enabled: !!sessionId,
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => (await api.get('/users')).data as { id: string; phone: string | null }[],
+    queryFn: async () =>
+      (await api.get('/users')).data as { id: string; name: string; phone: string | null }[],
   })
+
+  // El nombre sigue al firmante elegido, no a la sesion.
+  const advisorName =
+    (equipo ?? []).find((u) => u.id === advisorId)?.name ?? sessionName
 
   // +593979321722 -> 097 932 1722. Si el asesor no tiene celular cargado, se deja
   // el de la oficina para no publicar un pie vacio.
@@ -375,7 +386,27 @@ export function ComparativosPage() {
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Asesor
             </label>
-            <Input value={advisorName} readOnly className="h-12 bg-muted/40 text-base font-medium" />
+            {/* Se puede cotizar a nombre de otro asesor: Gianella y Juan Fernando
+                arman cotizaciones para Pablo, Roxana u otros, y el cliente debe
+                ver el nombre y el WhatsApp de quien lo va a atender. */}
+            <select
+              value={advisorId ?? ''}
+              onChange={(e) => setFirmanteId(e.target.value)}
+              className="h-12 w-full rounded-md border bg-background px-3 text-base font-medium"
+            >
+              {(equipo ?? []).length === 0 && <option value="">{advisorName}</option>}
+              {(equipo ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                  {u.id === sessionId ? ' (yo)' : ''}
+                </option>
+              ))}
+            </select>
+            {advisorId !== sessionId && (
+              <p className="mt-1 text-[11px]" style={{ color: GOLD }}>
+                La cotización saldrá a nombre y con el WhatsApp de {advisorName}.
+              </p>
+            )}
           </div>
         </div>
 

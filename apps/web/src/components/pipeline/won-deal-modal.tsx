@@ -26,6 +26,7 @@ import {
   pideSumaAsegurada,
   type RamoId,
 } from '@/lib/ramos-seguros'
+import { revisarIdentificacion } from '@/components/clientes/nuevo-cliente'
 
 export interface WonInsuranceData {
   netPremium: number
@@ -33,6 +34,10 @@ export interface WonInsuranceData {
   paymentFrequency: string
   issueDate?: string
   holderName?: string
+  // Cedula o RUC del titular. Es la llave para no duplicar clientes en el CRM
+  // operativo: si ya existe una ficha con esta identificacion, las polizas se
+  // suman a esa en vez de crear un cliente nuevo.
+  identificacion?: string
   aseguradora?: string
   // Ramo: mismo valor que el enum TipoPoliza del CRM operativo, para que la
   // poliza se cree alla sin traducir nada.
@@ -52,6 +57,7 @@ interface EntryDraft {
   id: string
   ramo: RamoId
   holderName: string
+  identificacion: string
   plan: string
   paymentFrequency: string
   aseguradora: string
@@ -69,6 +75,7 @@ function emptyEntry(): EntryDraft {
     id: `${Date.now()}-${Math.random()}`,
     ramo: 'SALUD',
     holderName: '',
+    identificacion: '',
     plan: '',
     paymentFrequency: 'debito-mensual',
     aseguradora: '',
@@ -101,8 +108,15 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
     }
   }, [open])
 
+  // La cedula es obligatoria a proposito: es lo unico que evita que se dupliquen
+  // clientes en el operativo. El comercial ya la tiene, porque sin ella no emite.
   const canConfirm = entries.length > 0 && entries.every(
-    (e) => e.plan.trim() !== '' && e.netPremium.trim() !== '' && parseFloat(e.netPremium) > 0,
+    (e) =>
+      e.plan.trim() !== '' &&
+      e.netPremium.trim() !== '' &&
+      parseFloat(e.netPremium) > 0 &&
+      e.identificacion.trim() !== '' &&
+      revisarIdentificacion(e.identificacion) === null,
   )
 
   function updateEntry(idx: number, field: keyof EntryDraft, value: string) {
@@ -126,6 +140,7 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
         paymentFrequency: e.paymentFrequency,
         ...(e.issueDate ? { issueDate: e.issueDate } : {}),
         ...(e.holderName.trim() ? { holderName: e.holderName.trim() } : {}),
+        identificacion: e.identificacion.trim(),
         ...(e.aseguradora ? { aseguradora: e.aseguradora } : {}),
         ramo: e.ramo,
         ...(pideDatosVehiculo(e.ramo)
@@ -181,6 +196,22 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
                     className="h-8 text-sm"
                     autoFocus={idx === 0}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cédula o RUC del titular *</Label>
+                  <Input
+                    placeholder="1712345678"
+                    value={entry.identificacion}
+                    onChange={(e) => updateEntry(idx, 'identificacion', e.target.value)}
+                    inputMode="numeric"
+                    className="h-8 text-sm"
+                  />
+                  {entry.identificacion.trim() !== '' &&
+                    revisarIdentificacion(entry.identificacion) && (
+                      <p className="text-[11px] text-red-600">
+                        {revisarIdentificacion(entry.identificacion)}
+                      </p>
+                    )}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Aseguradora</Label>

@@ -231,21 +231,61 @@ export class PipelineService {
       return null
     }
 
-    // Si ese contacto ya tiene ficha, no se toca (el candado real es el @unique).
+    // Si ese contacto ya tiene ficha, no se crea otra: se le suman las polizas
+    // nuevas. Antes se salia sin hacer nada y la segunda venta se perdia.
     const yaExiste = await this.prisma.cliente.findUnique({
       where: { contactId: deal.contact.id },
       select: { id: true },
     })
-    if (yaExiste) return yaExiste
+    if (yaExiste) {
+      this.logger.log(
+        `[crearClienteDesdeDeal] el contacto del deal ${dealId} ya tiene ficha (${yaExiste.id}); se le suman las polizas`,
+      )
+      await this.crearPolizasYNota(
+        yaExiste.id,
+        (deal.customFields ?? {}) as any,
+        organizationId,
+        userId,
+      )
+      return yaExiste
+    }
 
-    // La cédula puede venir del formulario de auto o de campos sueltos del lead.
+    // La cedula la captura el comercial al cerrar y es OBLIGATORIA. Es la llave
+    // real para no duplicar: Cliente ya es unico por (organizationId, identificacion).
     const cf = (deal.customFields ?? {}) as any
-    const posible = cf?.autoData?.cedulaRuc ?? cf?.cedula ?? cf?.cedulaRuc ?? null
+    const entradas: any[] = Array.isArray(cf?.insuranceData)
+      ? cf.insuranceData
+      : cf?.insuranceData
+        ? [cf.insuranceData]
+        : []
+    const posible =
+      entradas.map((e) => e?.identificacion).find((v) => typeof v === 'string' && v.trim()) ??
+      cf?.autoData?.cedulaRuc ??
+      cf?.cedula ??
+      cf?.cedulaRuc ??
+      null
     const cedula = typeof posible === 'string' ? posible.trim() : ''
     const tieneCedula = /^\d{10,13}$/.test(cedula)
 
-    // Sin cédula real se usa un marcador: cumple el unique y se ve claramente
-    // que está pendiente. La ejecutiva lo corrige al completar la ficha.
+    // Si el cliente YA existe con esa cedula, no se crea otro: se le suman las
+    // polizas nuevas y la nota. Es el caso de venderle un segundo seguro a alguien
+    // que ya es cliente.
+    if (tieneCedula) {
+      const porCedula = await this.prisma.cliente.findFirst({
+        where: { organizationId, identificacion: cedula },
+        select: { id: true },
+      })
+      if (porCedula) {
+        this.logger.log(
+          `[crearClienteDesdeDeal] el cliente ${porCedula.id} ya existe (cedula ${cedula}); se le suman las polizas del deal ${dealId}`,
+        )
+        await this.crearPolizasYNota(porCedula.id, cf, organizationId, userId)
+        return porCedula
+      }
+    }
+
+    // Sin cedula valida entra con marcador y el semaforo encendido. No deberia
+    // pasar (el cierre la exige), pero quedan los deals cerrados antes del cambio.
     const identificacion = tieneCedula ? cedula : `PENDIENTE-${deal.contact.id.slice(-8)}`
 
     try {

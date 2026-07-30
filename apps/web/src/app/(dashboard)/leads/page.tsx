@@ -1,9 +1,12 @@
+import { exigirRol, ELEVATED } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import { UnassignedLeads } from '@/components/leads/unassigned-leads'
 
 export const metadata: Metadata = { title: 'Leads sin asignar' }
 
-export default function LeadsPage() {
+export default async function LeadsPage() {
+  await exigirRol(ELEVATED)
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-center justify-between">

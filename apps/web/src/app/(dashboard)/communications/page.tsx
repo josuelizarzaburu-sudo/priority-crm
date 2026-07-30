@@ -1,8 +1,11 @@
+import { exigirRol, COMUNES } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import { CommunicationsInbox } from '@/components/communications/communications-inbox'
 
 export const metadata: Metadata = { title: 'Communications' }
 
-export default function CommunicationsPage() {
+export default async function CommunicationsPage() {
+  await exigirRol(COMUNES)
+
   return <CommunicationsInbox />
 }

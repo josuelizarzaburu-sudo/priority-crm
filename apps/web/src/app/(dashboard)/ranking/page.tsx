@@ -1,9 +1,12 @@
+import { exigirRol, ALL_ROLES } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import { RankingPage } from '@/components/ranking/ranking-page'
 
 export const metadata: Metadata = { title: 'Ranking' }
 
-export default function Page() {
+export default async function Page() {
+  await exigirRol(ALL_ROLES)
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div>

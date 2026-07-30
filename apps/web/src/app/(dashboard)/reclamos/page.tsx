@@ -1,10 +1,13 @@
+import { exigirRol, OPS_Y_ADMIN } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import { ReclamosTable } from '@/components/reclamos/reclamos-table'
 import { NuevoReclamo } from '@/components/reclamos/nuevo-reclamo'
 
 export const metadata: Metadata = { title: 'Reclamos' }
 
-export default function ReclamosPage() {
+export default async function ReclamosPage() {
+  await exigirRol(OPS_Y_ADMIN)
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

@@ -1,10 +1,13 @@
+import { exigirRol, OPS_Y_ADMIN } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import { ClientesTable } from '@/components/clientes/clientes-table'
 import { NuevoCliente } from '@/components/clientes/nuevo-cliente'
 
 export const metadata: Metadata = { title: 'Clientes' }
 
-export default function ClientesPage() {
+export default async function ClientesPage() {
+  await exigirRol(OPS_Y_ADMIN)
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

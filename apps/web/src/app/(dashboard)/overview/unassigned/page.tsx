@@ -1,3 +1,4 @@
+import { exigirRol, ELEVATED } from '@/lib/exigir-rol'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -5,7 +6,9 @@ import { UnassignedLeads } from '@/components/leads/unassigned-leads'
 
 export const metadata: Metadata = { title: 'Leads sin asignar' }
 
-export default function UnassignedPage() {
+export default async function UnassignedPage() {
+  await exigirRol(ELEVATED)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">

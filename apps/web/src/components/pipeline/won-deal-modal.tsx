@@ -94,18 +94,57 @@ interface WonDealModalProps {
   onConfirm: (entries: WonInsuranceData[]) => void
   onCancel: () => void
   loading?: boolean
+  /**
+   * 'cerrar' es el cierre del deal; 'editar' es capturar o corregir los datos del
+   * seguro en cualquier momento, sin mover el deal de etapa. Se usa el mismo
+   * formulario a proposito: si se duplicara, los dos se irian separando.
+   */
+  modo?: 'cerrar' | 'editar'
+  /** Datos ya capturados, para poder corregirlos en vez de empezar de cero. */
+  datosIniciales?: WonInsuranceData[]
 }
 
-export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModalProps) {
+export function WonDealModal({
+  open,
+  onConfirm,
+  onCancel,
+  loading,
+  modo = 'cerrar',
+  datosIniciales,
+}: WonDealModalProps) {
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
   // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
   const [notaOperaciones, setNotaOperaciones] = useState('')
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    const previos = datosIniciales ?? []
+    if (previos.length > 0) {
+      setEntries(
+        previos.map((d) => ({
+          ...emptyEntry(),
+          ramo: (d.ramo ?? 'SALUD') as RamoId,
+          holderName: d.holderName ?? '',
+          identificacion: d.identificacion ?? '',
+          plan: d.plan ?? '',
+          paymentFrequency: d.paymentFrequency ?? 'debito-mensual',
+          aseguradora: d.aseguradora ?? '',
+          issueDate: d.issueDate ?? '',
+          netPremium: d.netPremium != null ? String(d.netPremium) : '',
+          marca: d.marca ?? '',
+          modelo: d.modelo ?? '',
+          anio: d.anio ?? '',
+          placa: d.placa ?? '',
+          sumaAsegurada: d.sumaAsegurada != null ? String(d.sumaAsegurada) : '',
+        })),
+      )
+      setNotaOperaciones(previos.map((d) => d.notaOperaciones).find(Boolean) ?? '')
+    } else {
       setEntries([emptyEntry()])
       setNotaOperaciones('')
     }
+    // Se recarga solo al abrir, para no pisar lo que el usuario esta escribiendo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   // La cedula es obligatoria a proposito: es lo unico que evita que se dupliquen
@@ -165,7 +204,7 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
     <Dialog open={open} onOpenChange={(v) => { if (!v && !loading) onCancel() }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>🏆 Datos para cerrar deal</DialogTitle>
+          <DialogTitle>{modo === 'editar' ? 'Datos del seguro' : '🏆 Datos para cerrar deal'}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground -mt-1 pb-1">
           Completa los datos antes de mover a <strong>Ganado</strong>.
@@ -389,9 +428,15 @@ export function WonDealModal({ open, onConfirm, onCancel, loading }: WonDealModa
           <Button
             onClick={handleConfirm}
             disabled={!canConfirm || loading}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className={
+              modo === 'editar' ? '' : 'bg-green-600 hover:bg-green-700 text-white'
+            }
           >
-            {loading ? 'Guardando...' : '🏆 Confirmar Ganado'}
+            {loading
+              ? 'Guardando...'
+              : modo === 'editar'
+                ? 'Guardar datos'
+                : '🏆 Confirmar Ganado'}
           </Button>
         </DialogFooter>
       </DialogContent>

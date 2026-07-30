@@ -223,6 +223,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showWonModal, setShowWonModal] = useState(false)
+  // Editar los datos del seguro SIN cerrar el deal, para capturarlos apenas el
+  // cliente los da en vez de esperar al cierre.
+  const [showEditInsurance, setShowEditInsurance] = useState(false)
 
   // ── Fecha de nacimiento state ─────────────────────────────────────────────
   const [birthDateText, setBirthDateText] = useState('')
@@ -582,6 +585,24 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           onConfirm={(entries) => moveStage.mutate({ stageId: WON_STAGE_ID, insuranceData: entries })}
           onCancel={() => setShowWonModal(false)}
           loading={moveStage.isPending}
+          datosIniciales={insuranceEntries as any}
+        />
+
+        {/* Mismo formulario, pero sin mover el deal de etapa: sirve para capturar
+            la placa o la aseguradora apenas el cliente las da, sin esperar al
+            cierre. Lo que se guarde aca aparece ya lleno al cerrar. */}
+        <WonDealModal
+          open={showEditInsurance}
+          modo="editar"
+          datosIniciales={insuranceEntries as any}
+          onConfirm={(entries) => {
+            patchCustomFields.mutate(
+              { insuranceData: entries },
+              { onSuccess: () => setShowEditInsurance(false) },
+            )
+          }}
+          onCancel={() => setShowEditInsurance(false)}
+          loading={patchCustomFields.isPending}
         />
 
         {/* ── Tab bar — solo visible para SUPER_ADMIN y MANAGER ───────── */}
@@ -1302,14 +1323,24 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
               <Separator />
 
-              {/* ── 5. DATOS DEL SEGURO (solo lectura) ──────────────────── */}
+              {/* ── 5. DATOS DEL SEGURO ─────────────────────────────────── */}
               <div className="space-y-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Datos del seguro
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Datos del seguro
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditInsurance(true)}
+                    className="text-[11px] font-medium text-primary underline underline-offset-2"
+                  >
+                    {insuranceEntries.length === 0 ? 'Capturar' : 'Editar'}
+                  </button>
+                </div>
                 {insuranceEntries.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    {isGanadoLocked ? 'Sin datos registrados.' : 'Se completarán al mover el deal a Ganado.'}
+                    Sin datos registrados. Puedes capturarlos ahora, no hace falta
+                    esperar al cierre.
                   </p>
                 ) : (
                   <div className="space-y-2">

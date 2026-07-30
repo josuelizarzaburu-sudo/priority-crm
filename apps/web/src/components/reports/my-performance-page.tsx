@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
+import { VentasMensualesChart } from './ventas-mensuales-chart'
 import { cn, formatCurrency } from '@/lib/utils'
 import { DealStatus } from '@priority-crm/shared'
 import type { PipelineStage } from '@priority-crm/shared'
@@ -210,6 +211,10 @@ export function MyPerformancePage() {
           sub={`${metrics.open} deals abiertos, por cerrar`}
         />
       </div>
+
+      {/* Evolución mensual: sirve para conversar el desempeño ("este mes vendiste
+          menos que el anterior, ¿qué pasó?"), no solo para ver el acumulado. */}
+      <VentasMensualesChart deals={deals as any} titulo="Mis ventas por mes" />
 
       {/* Activity this week + deals by stage */}
       <div className="grid gap-4 md:grid-cols-2">

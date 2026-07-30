@@ -29,6 +29,7 @@ import {
   FileText,
   X,
   LogOut,
+  Trophy,
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
@@ -45,6 +46,7 @@ const NAV_ITEMS = [
   { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: [...OPS, 'SUPER_ADMIN'] },
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
+  { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
   { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ELEVATED },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'SALES_REP'] },

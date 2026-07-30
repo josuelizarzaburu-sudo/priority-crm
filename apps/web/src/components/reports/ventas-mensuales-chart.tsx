@@ -18,14 +18,14 @@ const GOLD = '#DBAA59'
 
 // Un color por ramo. Salud lleva el navy de marca y auto el dorado, que son los
 // dos ramos de mayor volumen.
-const COLOR_RAMO: Record<RamoId, string> = {
+export const COLOR_RAMO: Record<RamoId, string> = {
   SALUD: NAVY,
   AUTO: GOLD,
   VIDA: '#5FA8D3',
   HOGAR: '#7BC96F',
 }
 
-const SIN_CLASIFICAR = 'Sin clasificar'
+export const SIN_CLASIFICAR = 'Sin clasificar'
 const COLOR_SIN_CLASIFICAR = '#B8BFCC'
 
 export interface DealVenta {
@@ -48,7 +48,7 @@ const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'O
  * deals cerrados antes de que existiera el campo ramo caen en "Sin clasificar",
  * que es honesto: no se inventa a que producto pertenecian.
  */
-function repartirPorRamo(deal: DealVenta): Record<string, number> {
+export function repartirPorRamo(deal: DealVenta): Record<string, number> {
   const total = deal.value ?? 0
   const raw = deal.customFields?.insuranceData
   const entradas: any[] = Array.isArray(raw) ? raw : raw ? [raw] : []

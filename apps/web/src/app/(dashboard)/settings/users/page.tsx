@@ -1,9 +1,18 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
 import { UsersManagement } from '@/components/settings/users-management'
 
 export const metadata: Metadata = { title: 'Gestión de usuarios' }
 
-export default function UsersPage() {
+// Gestion de usuarios y claves: solo administracion.
+export default async function UsersPage() {
+  const session = await getServerSession(authOptions)
+  const rol = (session?.user as { role?: string } | undefined)?.role ?? ''
+  if (!['SUPER_ADMIN', 'OWNER'].includes(rol)) redirect('/')
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>

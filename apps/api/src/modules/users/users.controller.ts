@@ -31,7 +31,7 @@ export class UsersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update name and/or phone of a team member — SUPER_ADMIN only' })
-  updateMember(@Param('id') id: string, @Body() body: { name?: string; phone?: string | null }, @Req() req: any) {
+  updateMember(@Param('id') id: string, @Body() body: { name?: string; phone?: string | null; puedeCotizarPorOtros?: boolean }, @Req() req: any) {
     return this.usersService.updateMember(id, body, req.user.organizationId, req.user.role)
   }
 

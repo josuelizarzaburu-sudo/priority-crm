@@ -45,6 +45,7 @@ interface TeamMember {
   name: string
   email: string
   phone: string | null
+  puedeCotizarPorOtros?: boolean
   role: SystemRole
   avatar: string | null
   createdAt: string
@@ -284,9 +285,19 @@ function EditMemberDialog({
     defaultValues: { name: member.name, phone: member.phone ?? '' },
   })
 
+  // Permiso para emitir cotizaciones a nombre de otro asesor. Va aparte del
+  // formulario porque es una casilla, no un campo de texto.
+  const [puedeCotizarPorOtros, setPuedeCotizarPorOtros] = useState(
+    member.puedeCotizarPorOtros === true,
+  )
+
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
-      api.patch(`/users/${member.id}`, { name: data.name, phone: data.phone || null }),
+      api.patch(`/users/${member.id}`, {
+        name: data.name,
+        phone: data.phone || null,
+        puedeCotizarPorOtros,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: 'Usuario actualizado' })
@@ -323,6 +334,29 @@ function EditMemberDialog({
               ? <p className="text-xs text-destructive">{errors.phone.message}</p>
               : <p className="text-[11px] text-muted-foreground">Opcional · formato +593XXXXXXXXX</p>
             }
+          </div>
+
+          {/* Permiso sensible: con esto se puede emitir una cotizacion a nombre
+              de otro asesor, asi que se explica que hace y queda apagado por
+              defecto para todos. */}
+          <div className="rounded-md border p-3">
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={puedeCotizarPorOtros}
+                onChange={(e) => setPuedeCotizarPorOtros(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-sm font-medium">
+                  Puede cotizar a nombre de otros
+                </span>
+                <span className="block text-[11px] text-muted-foreground">
+                  Permite elegir el asesor que firma el comparativo. Actívalo solo
+                  para quienes cotizan para el equipo.
+                </span>
+              </span>
+            </label>
           </div>
 
           <DialogFooter className="pt-2">

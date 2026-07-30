@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { horasLaborables, sumarHorasLaborables, HORAS_PLAZO_GESTION } from './horas-laborables'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
@@ -425,6 +426,107 @@ export class PipelineService {
     this.logger.log(
       `[crearPolizasYNota] cliente ${clienteId}: ${entradas.length} poliza(s) creadas${nota ? ' + nota' : ''}`,
     )
+  }
+
+  /**
+   * Eficiencia de gestion por vendedor.
+   *
+   * "Sin gestion" = lead asignado al que no se le hizo NADA dentro del plazo.
+   * El plazo se cuenta en horas laborables, no corridas: un lead asignado el
+   * viernes a las 6 de la tarde vence el miercoles, no el sabado.
+   *
+   * Tres estados a proposito, no dos: un lead asignado hace diez minutos todavia
+   * no es "sin gestion", le queda tiempo. Mezclarlos castigaria injustamente a
+   * quien acaba de recibir leads esta manana.
+   */
+  async getEficienciaGestion(organizationId: string) {
+    const deals = await this.prisma.deal.findMany({
+      where: { organizationId, assignedToId: { not: null } },
+      select: {
+        id: true,
+        createdAt: true,
+        assignedToId: true,
+        assignedTo: { select: { id: true, name: true } },
+        activities: {
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true, description: true, type: true },
+        },
+      },
+    })
+
+    const ahora = new Date()
+    const porVendedor = new Map<
+      string,
+      { id: string; nombre: string; gestionados: number; sinGestion: number; enPlazo: number; sumaHoras: number; conGestion: number }
+    >()
+
+    for (const d of deals) {
+      const vendedorId = d.assignedToId as string
+      const acc =
+        porVendedor.get(vendedorId) ??
+        {
+          id: vendedorId,
+          nombre: d.assignedTo?.name ?? 'Sin nombre',
+          gestionados: 0,
+          sinGestion: 0,
+          enPlazo: 0,
+          sumaHoras: 0,
+          conGestion: 0,
+        }
+      porVendedor.set(vendedorId, acc)
+
+      // El reloj arranca cuando se asigno. La asignacion queda registrada como
+      // una actividad "Asignado a ...". Si el deal nacio ya asignado, no hay tal
+      // actividad y se usa la fecha de creacion.
+      const asignacion = [...d.activities]
+        .reverse()
+        .find((a) => (a.description ?? '').startsWith('Asignado a'))
+      const inicio = asignacion?.createdAt ?? d.createdAt
+
+      // Cuenta como gestion cualquier actividad POSTERIOR a la asignacion que no
+      // sea la asignacion misma (esa la hace el jefe, no el vendedor).
+      const primeraGestion = d.activities.find(
+        (a) =>
+          a.createdAt > inicio && !(a.description ?? '').startsWith('Asignado a'),
+      )
+
+      if (primeraGestion) {
+        const horas = horasLaborables(inicio, primeraGestion.createdAt)
+        if (horas <= HORAS_PLAZO_GESTION) {
+          acc.gestionados++
+          acc.sumaHoras += horas
+          acc.conGestion++
+          continue
+        }
+        // Gestionado, pero tarde: cuenta como sin gestion en el plazo.
+        acc.sinGestion++
+        continue
+      }
+
+      // Sin ninguna gestion todavia: depende de si ya se le vencio el plazo.
+      const vence = sumarHorasLaborables(inicio, HORAS_PLAZO_GESTION)
+      if (ahora > vence) acc.sinGestion++
+      else acc.enPlazo++
+    }
+
+    return [...porVendedor.values()]
+      .map((v) => {
+        const total = v.gestionados + v.sinGestion + v.enPlazo
+        // El porcentaje se mide solo sobre los que YA vencieron: incluir los que
+        // aun estan en plazo ensuciaria el numero segun la hora del dia.
+        const evaluables = v.gestionados + v.sinGestion
+        return {
+          id: v.id,
+          nombre: v.nombre,
+          total,
+          gestionados: v.gestionados,
+          sinGestion: v.sinGestion,
+          enPlazo: v.enPlazo,
+          porcentajeGestion: evaluables > 0 ? Math.round((v.gestionados / evaluables) * 100) : null,
+          horasPromedio: v.conGestion > 0 ? Math.round((v.sumaHoras / v.conGestion) * 10) / 10 : null,
+        }
+      })
+      .sort((a, b) => (b.porcentajeGestion ?? -1) - (a.porcentajeGestion ?? -1))
   }
 
   async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {

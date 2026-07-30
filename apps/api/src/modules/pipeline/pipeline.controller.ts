@@ -56,6 +56,14 @@ export class PipelineController {
     return this.pipelineService.createDeal(dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
+  @Get('eficiencia')
+  @ApiOperation({
+    summary: 'Eficiencia de gestion por vendedor (leads atendidos dentro del plazo)',
+  })
+  getEficiencia(@Req() req: any) {
+    return this.pipelineService.getEficienciaGestion(req.user.organizationId)
+  }
+
   @Put('deals/:id')
   updateDeal(@Param('id') id: string, @Body() dto: UpdateDealDto, @Req() req: any) {
     return this.pipelineService.updateDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)

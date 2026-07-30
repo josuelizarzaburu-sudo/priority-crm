@@ -26,6 +26,7 @@ import { api } from '@/lib/api'
 import { cn, formatCurrency, getInitials } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { VentasMensualesChart } from '@/components/reports/ventas-mensuales-chart'
+import { EficienciaVendedores } from './eficiencia-vendedores'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -353,6 +354,9 @@ export function ManagerOverview() {
           {/* Evolucion de la venta de toda la empresa, con el mismo desglose por
               producto que ve cada vendedor en su overview. */}
           <VentasMensualesChart deals={deals as any} titulo="Ventas de la empresa por mes" />
+
+          {/* Comparativa horizontal de gestion: quien atiende sus leads a tiempo */}
+          <EficienciaVendedores />
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {unassigned.length > 0 && (

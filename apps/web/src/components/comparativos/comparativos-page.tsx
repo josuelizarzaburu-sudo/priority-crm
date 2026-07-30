@@ -159,6 +159,16 @@ export function ComparativosPage() {
   const [firmanteId, setFirmanteId] = useState<string>('')
   const advisorId = firmanteId || sessionId
 
+  // Quien puede cotizar a nombre de OTRO. Restringido a proposito: si cualquiera
+  // pudiera, se podrian emitir cotizaciones a nombre ajeno para perjudicar a un
+  // companiero. El resto ve su propio nombre y no lo puede cambiar.
+  const sessionRole = (session?.user as { role?: string } | undefined)?.role ?? ''
+  const puedeElegirAsesor =
+    ['SUPER_ADMIN', 'OWNER'].includes(sessionRole) ||
+    // Perfiles que cotizan para otros. Se comparan por nombre porque es lo que
+    // trae la sesion; para agregar a alguien basta sumarlo a esta lista.
+    ['gianella', 'juan fernando'].some((n) => sessionName.toLowerCase().includes(n))
+
   // El pie del comparativo debe mostrar el celular de QUIEN lo emite, para que el
   // cliente le escriba a esa persona y no a un numero general. El telefono no
   // viaja en la sesion, asi que se busca en el equipo por id.
@@ -389,23 +399,33 @@ export function ComparativosPage() {
             {/* Se puede cotizar a nombre de otro asesor: Gianella y Juan Fernando
                 arman cotizaciones para Pablo, Roxana u otros, y el cliente debe
                 ver el nombre y el WhatsApp de quien lo va a atender. */}
-            <select
-              value={advisorId ?? ''}
-              onChange={(e) => setFirmanteId(e.target.value)}
-              className="h-12 w-full rounded-md border bg-background px-3 text-base font-medium"
-            >
-              {(equipo ?? []).length === 0 && <option value="">{advisorName}</option>}
-              {(equipo ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                  {u.id === sessionId ? ' (yo)' : ''}
-                </option>
-              ))}
-            </select>
-            {advisorId !== sessionId && (
-              <p className="mt-1 text-[11px]" style={{ color: GOLD }}>
-                La cotización saldrá a nombre y con el WhatsApp de {advisorName}.
-              </p>
+            {puedeElegirAsesor ? (
+              <>
+                <select
+                  value={advisorId ?? ''}
+                  onChange={(e) => setFirmanteId(e.target.value)}
+                  className="h-12 w-full rounded-md border bg-background px-3 text-base font-medium"
+                >
+                  {(equipo ?? []).length === 0 && <option value="">{advisorName}</option>}
+                  {(equipo ?? []).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                      {u.id === sessionId ? ' (yo)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {advisorId !== sessionId && (
+                  <p className="mt-1 text-[11px]" style={{ color: GOLD }}>
+                    La cotización saldrá a nombre y con el WhatsApp de {advisorName}.
+                  </p>
+                )}
+              </>
+            ) : (
+              <Input
+                value={advisorName}
+                readOnly
+                className="h-12 bg-muted/40 text-base font-medium"
+              />
             )}
           </div>
         </div>

@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { cn, formatCurrency, getInitials } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { VentasMensualesChart } from '@/components/reports/ventas-mensuales-chart'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,7 +349,11 @@ export function ManagerOverview() {
         </TabsList>
 
         {/* "Todos" — agent grid */}
-        <TabsContent value="all" className="mt-4">
+        <TabsContent value="all" className="mt-4 space-y-4">
+          {/* Evolucion de la venta de toda la empresa, con el mismo desglose por
+              producto que ve cada vendedor en su overview. */}
+          <VentasMensualesChart deals={deals as any} titulo="Ventas de la empresa por mes" />
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {unassigned.length > 0 && (
               <Link href="/overview/unassigned" className="group block">

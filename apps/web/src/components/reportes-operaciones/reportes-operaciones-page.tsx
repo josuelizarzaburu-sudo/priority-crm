@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import * as XLSX from 'xlsx'
 import { Download, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,8 @@ const fecha = (v: string | null) => (v ? String(v).slice(0, 10) : '')
 const num = (v: string | number | null) => (v == null || v === '' ? '' : Number(v))
 
 export function ReportesOperacionesPage() {
+  const { data: session } = useSession()
+  const usuario = session?.user as { name?: string; email?: string } | undefined
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [generando, setGenerando] = useState<ReporteId | null>(null)
@@ -57,6 +60,17 @@ export function ReportesOperacionesPage() {
   const descargar = (filas: any[], hoja: string, archivo: string) => {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), hoja)
+    // Marca de agua: una hoja con quien exporto, cuando y cuantas filas. Si un
+    // reporte con datos sensibles aparece donde no debe, se sabe de que descarga
+    // salio y quien la hizo. No frena el mal uso pero deja rastro y desincentiva.
+    const meta = [
+      { Campo: 'Exportado por', Valor: usuario?.name ?? '—' },
+      { Campo: 'Correo', Valor: usuario?.email ?? '—' },
+      { Campo: 'Fecha y hora', Valor: new Date().toLocaleString('es-EC') },
+      { Campo: 'Registros', Valor: filas.filter((f) => Object.keys(f).length > 0).length },
+      { Campo: 'Documento confidencial', Valor: 'Uso interno de Priority. No difundir.' },
+    ]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meta), 'Origen')
     XLSX.writeFile(wb, `${archivo}-${hoy()}.xlsx`)
   }
 

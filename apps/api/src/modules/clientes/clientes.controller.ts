@@ -13,6 +13,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { ClientesService } from './clientes.service'
+import { RegistroAccesoService, ACCESO } from '../registro-acceso/registro-acceso.service'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
 import { UpdateClienteDto } from './dto/update-cliente.dto'
@@ -27,7 +28,10 @@ import { CreatePolizaDto } from './dto/create-poliza.dto'
 @UseGuards(JwtAuthGuard)
 @Controller('clientes')
 export class ClientesController {
-  constructor(private readonly clientesService: ClientesService) {}
+  constructor(
+    private readonly clientesService: ClientesService,
+    private readonly registro: RegistroAccesoService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lista de clientes (paginada, con búsqueda y filtros)' })
@@ -42,8 +46,29 @@ export class ClientesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Ficha completa: datos, pólizas y dependientes' })
-  findOne(@Param('id') id: string, @Req() req: any) {
-    return this.clientesService.findOne(id, req.user.organizationId, req.user.id, req.user.role)
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    const ficha = await this.clientesService.findOne(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+    // Queda rastro de quien abrio la ficha. Va despues de findOne para no
+    // registrar accesos a fichas que el usuario no tenia permitido ver (findOne
+    // lanza si no le corresponde).
+    await this.registro.registrar({
+      organizationId: req.user.organizationId,
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.name ?? null,
+      usuarioRol: req.user.role,
+      accion: ACCESO.VER_FICHA_CLIENTE,
+      objetoTipo: 'Cliente',
+      objetoId: id,
+      detalle: (ficha as any)?.nombres
+        ? `${(ficha as any).nombres} ${(ficha as any).apellidos ?? ''}`.trim()
+        : undefined,
+    })
+    return ficha
   }
 
   @Post()

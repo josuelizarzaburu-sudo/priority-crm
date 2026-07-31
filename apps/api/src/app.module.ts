@@ -22,6 +22,7 @@ import { ChatModule } from './modules/chat/chat.module'
 import { ClientesModule } from './modules/clientes/clientes.module'
 import { ReclamosModule } from './modules/reclamos/reclamos.module'
 import { CargaReclamosModule } from './modules/carga-reclamos/carga-reclamos.module'
+import { RegistroAccesoModule } from './modules/registro-acceso/registro-acceso.module'
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { CargaReclamosModule } from './modules/carga-reclamos/carga-reclamos.mod
     ClientesModule,
     ReclamosModule,
     CargaReclamosModule,
+    RegistroAccesoModule,
   ],
   providers: [
     // El ThrottlerModule estaba configurado pero NUNCA se aplicaba: sin este

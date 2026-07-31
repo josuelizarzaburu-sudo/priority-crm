@@ -23,6 +23,7 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   users       User[]
+  registrosAcceso RegistroAcceso[]
   contacts    Contact[]
   deals       Deal[]
   stages      PipelineStage[]
@@ -74,9 +75,42 @@ model User {
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
   polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   notasClientes           NotaCliente[]
+  registrosAcceso         RegistroAcceso[]
   reclamosGestionados     Reclamo[]
 
   @@map("users")
+}
+
+
+// Registro de acceso a datos sensibles. No es para vigilar sino para dejar
+// rastro: con datos de salud hay que poder reconstruir quien vio o exporto que.
+// El solo hecho de que exista desincentiva el mal uso.
+model RegistroAcceso {
+  id             String   @id @default(cuid())
+  organizationId String
+
+  // Quien lo hizo. Se guarda el nombre aparte por si el usuario se elimina despues.
+  usuarioId      String?
+  usuarioNombre  String?
+  usuarioRol     String?
+
+  // Que hizo: VER_FICHA, EXPORTAR_REPORTE, etc.
+  accion         String
+  // Sobre que: id del cliente, tipo de reporte, etc. (referencia suelta, no FK,
+  // para que el registro sobreviva aunque el objeto se borre).
+  objetoTipo     String?
+  objetoId       String?
+  // Detalle libre legible (ej. "Reporte de reclamos, 1833 filas").
+  detalle        String?
+
+  createdAt      DateTime @default(now())
+
+  organizacion   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  usuario        User?        @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, usuarioId, createdAt])
+  @@map("registros_acceso")
 }
 
 enum UserRole {

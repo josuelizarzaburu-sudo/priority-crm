@@ -72,6 +72,12 @@ export function ReportesOperacionesPage() {
     ]
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meta), 'Origen')
     XLSX.writeFile(wb, `${archivo}-${hoy()}.xlsx`)
+
+    // Deja constancia en el servidor de que se exporto. La marca de agua vive en
+    // el archivo que se lleva el empleado; esto queda en la base, que es lo que
+    // Josue controla. No se espera ni se bloquea la descarga si falla.
+    const registros = filas.filter((f) => Object.keys(f).length > 0).length
+    api.post('/registro-acceso/exportacion', { reporte: hoja, registros }).catch(() => {})
   }
 
   const generar = async (id: ReporteId) => {

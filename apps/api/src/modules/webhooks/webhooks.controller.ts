@@ -26,9 +26,9 @@ export class WebhooksController {
     const token = req.query['hub.verify_token']
     const challenge = req.query['hub.challenge']
 
-    console.log('Webhook verification:', { mode, token, challenge })
-    console.log('Expected token:', process.env.META_WHATSAPP_WEBHOOK_SECRET)
-
+    // Antes se hacia console.log del token entrante y del secreto esperado. Eso
+    // dejaba el secreto de WhatsApp escrito en texto plano en los logs de Railway,
+    // donde cualquiera con acceso lo podia leer. Nunca se registran secretos.
     if (mode === 'subscribe' && token === process.env.META_WHATSAPP_WEBHOOK_SECRET) {
       return res.status(200).send(challenge)
     }

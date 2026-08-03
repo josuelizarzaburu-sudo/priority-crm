@@ -18,6 +18,7 @@ import {
   type ConfiamedRed,
 } from '@/lib/confiamed-tarifas'
 import { cotizarProteger, cotizarConfiamedGmm } from '@/lib/gmm-tarifas'
+import { cotizarSaludsa } from '@/lib/saludsa-tarifas'
 import {
   cotizarBmiIntlPlan,
   BMI_INTL_PLAN_LABEL,
@@ -83,6 +84,15 @@ function CardStat({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-[#333]">{value}</span>
     </div>
   )
+}
+
+// Plan de Saludsa en el cotizador -> id del plan en el catálogo del comparativo
+const SALUDSA_CATALOG_ID: Record<string, string> = {
+  star15: 'ce3', // SALUD STAR 15
+  star30: 'ce4', // SALUD STAR 30
+  sky50: 'ab8', // SALUD SKY 50
+  sky70: 'ab9', // SALUD SKY 70
+  pro150: 'ab10', // SALUD PRO 150
 }
 
 const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
@@ -302,6 +312,18 @@ export function CotizadorPage() {
   const humana = useMemo(() => {
     if (personas.length === 0) return null
     return cotizarHumana(personas.map((p) => ({ edad: p.edad, sexo: p.sexo })))
+  }, [personas])
+
+  const saludsa = useMemo(() => {
+    if (personas.length === 0) return null
+    return cotizarSaludsa(
+      personas.map((p) => ({
+        edad: p.edad,
+        sexo: p.sexo,
+        // En Saludsa la mujer sin maternidad paga el mismo factor que un hombre.
+        sinMaternidad: p.sexo === 'F' && p.maternidad === false,
+      })),
+    )
   }, [personas])
 
   const confiamed = useMemo(() => {
@@ -983,6 +1005,146 @@ export function CotizadorPage() {
                 Cobertura USD 500.000 en las tres variantes. Incluye seguro campesino (0,5%). Sin
                 descuento familiar.
               </p>
+            </div>
+          </div>
+
+          {/* ── Saludsa ── */}
+          <div>
+            <h2 className="mb-2 text-base font-bold" style={{ color: NAVY }}>
+              Saludsa
+            </h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Incluye gasto administrativo y seguro campesino. El cashback Vitality es
+              estimado (20% anual) y solo lo generan los mayores de 18 años.
+            </p>
+            <div className="rounded-xl border bg-card p-4">
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: NAVY, color: '#fff' }}>
+                      <th className="px-3 py-2 text-left font-semibold">Plan</th>
+                      <th className="px-3 py-2 text-right font-semibold">Mensual</th>
+                      <th className="px-3 py-2 text-right font-semibold">Anual</th>
+                      <th className="px-3 py-2 text-right font-semibold">Transferencia −10%</th>
+                      <th className="px-3 py-2 text-right font-semibold">Tarjeta −6%</th>
+                      <th className="px-3 py-2 text-right font-semibold">Cashback</th>
+                      <th className="px-3 py-2 text-center font-semibold"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {saludsa &&
+                      saludsa.map((r, i) => {
+                        const selId = `saludsa-${r.plan}`
+                        const sel = estaSeleccionado(selId)
+                        return (
+                          <tr
+                            key={r.plan}
+                            style={i % 2 === 1 ? { backgroundColor: '#f8f9fc' } : undefined}
+                          >
+                            <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
+                              {r.label}
+                            </td>
+                            <td
+                              className="px-3 py-2 text-right font-bold"
+                              style={{ color: NAVY }}
+                            >
+                              ${money(r.mensual)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-[#333]">
+                              ${money(r.anual)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-[#333]">
+                              ${money(r.anualTransferencia)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-[#333]">
+                              ${money(r.anualTarjeta)}
+                            </td>
+                            <td
+                              className="px-3 py-2 text-right font-medium"
+                              style={{ color: GOLD }}
+                            >
+                              ${money(r.cashbackAnual)}
+                            </td>
+                            <td className="px-2 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleSeleccion({
+                                    id: selId,
+                                    catalogId: SALUDSA_CATALOG_ID[r.plan],
+                                    aseguradora: 'Saludsa',
+                                    plan: r.label,
+                                    detalle: `Cashback anual $${money(r.cashbackAnual)}`,
+                                    mensual: r.mensual,
+                                  })
+                                }
+                                className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
+                                style={{
+                                  borderColor: GOLD,
+                                  backgroundColor: sel ? GOLD : '#fff',
+                                  color: sel ? '#fff' : NAVY,
+                                }}
+                              >
+                                {sel ? '✓ Añadido' : '+ Comparar'}
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile */}
+              <div className="space-y-3 md:hidden">
+                {saludsa &&
+                  saludsa.map((r) => {
+                    const selId = `saludsa-${r.plan}`
+                    const sel = estaSeleccionado(selId)
+                    return (
+                      <div key={r.plan} className="rounded-lg border p-3">
+                        <div className="mb-2 flex items-baseline justify-between gap-2">
+                          <span className="text-sm font-bold" style={{ color: NAVY }}>
+                            {r.label}
+                          </span>
+                          <span className="text-base font-bold" style={{ color: NAVY }}>
+                            ${money(r.mensual)}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {' '}
+                              /mes
+                            </span>
+                          </span>
+                        </div>
+                        <div className="mb-3 space-y-1 border-t pt-2">
+                          <CardStat label="Anual" value={`$${money(r.anual)}`} />
+                          <CardStat
+                            label="Transferencia −10%"
+                            value={`$${money(r.anualTransferencia)}`}
+                          />
+                          <CardStat label="Tarjeta −6%" value={`$${money(r.anualTarjeta)}`} />
+                          <CardStat
+                            label="Cashback Vitality"
+                            value={`$${money(r.cashbackAnual)}`}
+                          />
+                        </div>
+                        <CompararBtn
+                          sel={sel}
+                          onClick={() =>
+                            toggleSeleccion({
+                              id: selId,
+                              catalogId: SALUDSA_CATALOG_ID[r.plan],
+                              aseguradora: 'Saludsa',
+                              plan: r.label,
+                              detalle: `Cashback anual $${money(r.cashbackAnual)}`,
+                              mensual: r.mensual,
+                            })
+                          }
+                          className="w-full py-2 text-xs"
+                        />
+                      </div>
+                    )
+                  })}
+              </div>
             </div>
           </div>
 

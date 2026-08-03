@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -53,18 +53,6 @@ export function ReclamoForm({
 
   const [error, setError] = useState<string | null>(null)
 
-  // Titular + dependientes del cliente enlazado, para el campo Paciente.
-  const pacientesSugeridos: string[] = (() => {
-    const c: any = (reclamo as any)?.cliente
-    if (!c) return []
-    const nombres = [`${c.nombres ?? ''} ${c.apellidos ?? ''}`.trim()]
-    for (const d of c.dependientes ?? []) {
-      const n = `${d.nombres ?? ''} ${d.apellidos ?? ''}`.trim()
-      if (n) nombres.push(n)
-    }
-    return nombres.filter(Boolean)
-  })()
-
   // Un reclamo liquidado o negado queda cerrado. Solo jefe de operaciones y admin
   // pueden corregirlo; el servidor aplica la misma regla.
   const rolActual = (session?.user as { role?: string } | undefined)?.role ?? ''
@@ -75,6 +63,27 @@ export function ReclamoForm({
   // Id del cliente de la base cuando el reclamo quedó enganchado a una ficha.
   // Va aparte de `form` porque `form` es todo strings y este puede ser null.
   const [clienteId, setClienteId] = useState<string | null>(reclamo?.clienteId ?? null)
+
+  // Titular + dependientes del cliente enlazado, para poder ELEGIR el paciente
+  // en vez de escribirlo. Se consulta la ficha apenas se selecciona un titular,
+  // porque el buscador solo devuelve nombre y cedula, no los dependientes.
+  const { data: fichaCliente } = useQuery({
+    queryKey: ['cliente-dependientes', clienteId],
+    enabled: !!clienteId,
+    queryFn: async () => (await api.get(`/clientes/${clienteId}`)).data,
+  })
+
+  const pacientesSugeridos: string[] = (() => {
+    const c: any = fichaCliente ?? (reclamo as any)?.cliente
+    if (!c) return []
+    const nombres = [`${c.nombres ?? ''} ${c.apellidos ?? ''}`.trim()]
+    for (const d of c.dependientes ?? []) {
+      const n = `${d.nombres ?? ''} ${d.apellidos ?? ''}`.trim()
+      if (n) nombres.push(n)
+    }
+    return nombres.filter(Boolean)
+  })()
+
   const [form, setForm] = useState<Record<string, string>>({
     clienteNombre: txt(reclamo?.clienteNombre),
     pacienteNombre: txt(reclamo?.pacienteNombre),
@@ -190,19 +199,39 @@ export function ReclamoForm({
             {/* Ofrece el titular y sus dependientes cuando el reclamo esta enlazado
                 a una ficha. Sigue siendo texto libre: los reclamos historicos vienen
                 sin cliente y hay que poder escribir el nombre a mano. */}
-            <Input
-              list="pacientes-reclamo"
-              placeholder={
-                pacientesSugeridos.length > 0 ? 'Titular o dependiente' : 'Si es distinto del titular'
-              }
-              value={form.pacienteNombre}
-              onChange={(e) => set('pacienteNombre', e.target.value)}
-            />
-            <datalist id="pacientes-reclamo">
-              {pacientesSugeridos.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
+            {pacientesSugeridos.length > 0 ? (
+              <>
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={pacientesSugeridos.includes(form.pacienteNombre) ? form.pacienteNombre : '__otro__'}
+                  onChange={(e) =>
+                    set('pacienteNombre', e.target.value === '__otro__' ? '' : e.target.value)
+                  }
+                >
+                  {pacientesSugeridos.map((n, i) => (
+                    <option key={n} value={n}>
+                      {n}
+                      {i === 0 ? ' (titular)' : ''}
+                    </option>
+                  ))}
+                  <option value="__otro__">Otro (escribir)</option>
+                </select>
+                {!pacientesSugeridos.includes(form.pacienteNombre) && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Nombre del paciente"
+                    value={form.pacienteNombre}
+                    onChange={(e) => set('pacienteNombre', e.target.value)}
+                  />
+                )}
+              </>
+            ) : (
+              <Input
+                placeholder="Si es distinto del titular"
+                value={form.pacienteNombre}
+                onChange={(e) => set('pacienteNombre', e.target.value)}
+              />
+            )}
           </Campo>
 
           <Campo label="Aseguradora">

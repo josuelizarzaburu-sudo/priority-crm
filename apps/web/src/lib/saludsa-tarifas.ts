@@ -9,9 +9,9 @@
 //  1. Cotizador oficial (captura), hombre de 31 años, los 7 planes Star:
 //     Star15 $45,17 · Star15-1500 $38,02 · Star15-2500 $35,92 · Star30 $64,51
 //     Star30-1500 $54,49 · Star30-2500 $51,48 · Star30-5000 $48,49
-//  2. Hoja de cálculo oficial (Precios_SS_v1), pareja de 31H + 30M:
-//     Star15 mensual $110,06 · anual $1.320,76 · transferencia $1.188,68
-//     · tarjeta $1.241,51 · cashback $265,13. Los 5 planes exactos.
+//  2. Hoja de cálculo oficial (Precios_SS_v2), pareja de 31H + 30M:
+//     Star15 mensual $110,06 · anual $1.320,76 · transferencia $1.187,53
+//     · tarjeta $1.240,82 · cashback $265,13. Los 5 planes exactos (25 valores).
 //
 // OJO con el descuento de 2 personas: la primera versión del archivo decía 2% y
 // la corregida dice 3%. Vale la pena reconfirmarlo si Saludsa manda otra versión.
@@ -116,11 +116,28 @@ export function cotizarSaludsaPlan(
   const hayAdulto = personas.some((p) => Math.round(p.edad) >= 18)
 
   const subtotal = personas.reduce((s, p) => s + base * factorPersona(p, hayAdulto), 0)
-  const descuento = subtotal * descuentoVolumen(personas.length)
+  const descVolumen = descuentoVolumen(personas.length)
+  const descuento = subtotal * descVolumen
+
+  // Mensual: solo descuento por volumen.
   const conDescuento = subtotal - descuento
   const conGasto = conDescuento + GASTO_ADMIN
   const mensual = conGasto + conGasto * SEGURO_CAMPESINO
   const anual = mensual * 12
+
+  /**
+   * Formas de pago anual. OJO: el descuento por pagar anual NO se aplica sobre el
+   * total ya calculado, se SUMA al descuento por volumen y ambos caen sobre el
+   * subtotal, antes del gasto administrativo y del seguro campesino. O sea que
+   * esos dos cargos no reciben descuento. (Fórmula real del Excel:
+   * subtotal * (100% - descVolumen - descPago) + 2.36, luego +0,5%, luego x12.)
+   */
+  const anualCon = (descPago: number) => {
+    const conAmbos = subtotal * (1 - (descVolumen + descPago)) + GASTO_ADMIN
+    return (conAmbos + conAmbos * SEGURO_CAMPESINO) * 12
+  }
+  const anualTransferencia = anualCon(DESC_ANUAL_TRANSFERENCIA)
+  const anualTarjeta = anualCon(DESC_ANUAL_TARJETA)
 
   // El cashback solo lo generan los mayores de 18, sobre su propia prima.
   const cashbackAnual =
@@ -138,8 +155,8 @@ export function cotizarSaludsaPlan(
     descuento: r2(descuento),
     mensual: r2(mensual),
     anual: r2(anual),
-    anualTransferencia: r2(anual * (1 - DESC_ANUAL_TRANSFERENCIA)),
-    anualTarjeta: r2(anual * (1 - DESC_ANUAL_TARJETA)),
+    anualTransferencia: r2(anualTransferencia),
+    anualTarjeta: r2(anualTarjeta),
     cashbackAnual: r2(cashbackAnual),
   }
 }

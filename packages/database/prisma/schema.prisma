@@ -35,6 +35,7 @@ model Organization {
   clientes    Cliente[]
   polizas     Poliza[]
   reclamos    Reclamo[]
+  requerimientos Requerimiento[]
 
   @@map("organizations")
 }
@@ -77,6 +78,8 @@ model User {
   notasClientes           NotaCliente[]
   registrosAcceso         RegistroAcceso[]
   notasReclamos           NotaReclamo[]
+  requerimientos          Requerimiento[]
+  notasRequerimientos     NotaRequerimiento[]
   reclamosGestionados     Reclamo[]
 
   @@map("users")
@@ -133,6 +136,73 @@ model NotaReclamo {
 
   @@index([reclamoId, createdAt])
   @@map("notas_reclamo")
+}
+
+
+// Requerimientos: gestiones administrativas del cliente (cambio de forma de pago,
+// inclusión de dependientes, cancelaciones...). Es hermano de Reclamo pero NO lo
+// mismo: aquí no hay liquidación ni valor, porque no se reclama plata.
+model Requerimiento {
+  id             String        @id @default(cuid())
+  organizationId String
+
+  // Igual que en Reclamo: el vínculo es opcional y el nombre siempre va en texto.
+  clienteId      String?
+  clienteNombre  String
+  pacienteNombre String?
+
+  aseguradora    String?
+  // "INDIVIDUAL" o el nombre de la empresa en contratos corporativos.
+  contrato       String?
+
+  tipo           TipoRequerimiento @default(OTROS)
+  // Solo cuando tipo = OTROS: qué era.
+  tipoOtro       String?
+  // Detalle de lo que pide el cliente (equivale al diagnóstico del reclamo).
+  requerimiento  String?
+
+  fechaRecepcion        DateTime?
+  fechaEnvioAseguradora DateTime?
+  fechaEnvioCliente     DateTime?
+
+  estado         EstadoRequerimiento @default(EN_TRAMITE)
+
+  observaciones  String?
+  notas          NotaRequerimiento[]
+
+  ejecutivoId    String?
+  ejecutivoNombre String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cliente        Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, ejecutivoId])
+  @@index([organizationId, estado])
+  @@index([clienteId])
+  @@index([organizationId, fechaRecepcion])
+  @@map("requerimientos")
+}
+
+// Bitácora del requerimiento, igual que la del reclamo: se agrega, no se edita.
+model NotaRequerimiento {
+  id        String   @id @default(cuid())
+  contenido String
+
+  requerimientoId String
+  autorId         String?
+  autorNombre     String?
+
+  createdAt DateTime @default(now())
+
+  requerimiento Requerimiento @relation(fields: [requerimientoId], references: [id], onDelete: Cascade)
+  autor         User?         @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([requerimientoId, createdAt])
+  @@map("notas_requerimiento")
 }
 
 enum UserRole {
@@ -627,6 +697,7 @@ model Cliente {
   dependientes    Dependiente[]
   notas_          NotaCliente[]
   reclamos        Reclamo[]
+  requerimientos  Requerimiento[]
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])
@@ -797,4 +868,23 @@ model Reclamo {
   @@index([clienteId])
   @@index([organizationId, fechaEnvioAseguradora])
   @@map("reclamos")
+}
+
+enum TipoRequerimiento {
+  DATOS_FACTURACION
+  CAMBIO_FORMA_PAGO
+  CAMBIO_DEDUCIBLE
+  ACTUALIZACION_DATOS
+  INCLUSION_DEPENDIENTES
+  EXCLUSION_DEPENDIENTES
+  CANCELACION
+  COTIZACION
+  PRE_NOTIFICACION
+  OTROS
+}
+
+enum EstadoRequerimiento {
+  EN_TRAMITE   // recibido, en gestión
+  MAS_INFORMACION // se pidió información adicional al cliente
+  SOLUCIONADO  // cerrado
 }

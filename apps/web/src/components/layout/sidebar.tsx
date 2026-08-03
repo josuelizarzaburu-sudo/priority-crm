@@ -31,6 +31,7 @@ import {
   LogOut,
   Trophy,
   ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
@@ -44,6 +45,7 @@ const COMUNES = [...ALL_ROLES, ...OPS]
 const NAV_ITEMS = [
   { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: [...OPS, 'SUPER_ADMIN'] },
   { href: '/reclamos',         label: 'Reclamos',           icon: FileText,        roles: [...OPS, 'SUPER_ADMIN'] },
+  { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: [...OPS, 'SUPER_ADMIN'] },
   { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: [...OPS, 'SUPER_ADMIN'] },
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },

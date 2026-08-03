@@ -9,9 +9,12 @@
 //  1. Cotizador oficial (captura), hombre de 31 años, los 7 planes Star:
 //     Star15 $45,17 · Star15-1500 $38,02 · Star15-2500 $35,92 · Star30 $64,51
 //     Star30-1500 $54,49 · Star30-2500 $51,48 · Star30-5000 $48,49
-//  2. Hoja de cálculo oficial, familia de 25H + 25M + niño de 2:
-//     Star15 mensual $135,38 · anual $1.624,55 · transferencia $1.462,10
-//     · tarjeta $1.527,08. Los 5 planes y las 3 formas de pago dieron exactos.
+//  2. Hoja de cálculo oficial (Precios_SS_v1), pareja de 31H + 30M:
+//     Star15 mensual $110,06 · anual $1.320,76 · transferencia $1.188,68
+//     · tarjeta $1.241,51 · cashback $265,13. Los 5 planes exactos.
+//
+// OJO con el descuento de 2 personas: la primera versión del archivo decía 2% y
+// la corregida dice 3%. Vale la pena reconfirmarlo si Saludsa manda otra versión.
 //
 // Los precios base van SIN redondear a propósito: el cotizador oficial redondea
 // solo al final, y usar el valor de dos dígitos desviaba los centavos.
@@ -48,7 +51,7 @@ const EDAD_MINIMA_CASHBACK = 18 // los menores no generan cashback
 /** Descuento por número de personas en la póliza. */
 function descuentoVolumen(n: number): number {
   if (n <= 1) return 0
-  if (n === 2) return 0.02
+  if (n === 2) return 0.03
   if (n === 3) return 0.05
   return 0.07 // 4 o más, tope
 }

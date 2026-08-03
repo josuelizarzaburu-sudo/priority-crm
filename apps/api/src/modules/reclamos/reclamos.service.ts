@@ -117,8 +117,15 @@ export class ReclamosService {
     const reclamo = await this.prisma.reclamo.findFirst({
       where: { id, organizationId },
       include: {
-        cliente: { select: { id: true, nombres: true, apellidos: true, identificacion: true } },
+        cliente: {
+          select: {
+            id: true, nombres: true, apellidos: true, identificacion: true,
+            // Para que el campo Paciente pueda ofrecer al titular y a sus dependientes.
+            dependientes: { select: { id: true, nombres: true, apellidos: true } },
+          },
+        },
         ejecutivo: { select: { id: true, name: true, email: true } },
+        notas: { orderBy: { createdAt: 'desc' } },
       },
     })
     if (!reclamo) throw new NotFoundException('Reclamo no encontrado')
@@ -153,6 +160,27 @@ export class ReclamosService {
     return this.prisma.reclamo.create({ data })
   }
 
+  /**
+   * Agrega una nota a la bitacora del reclamo. Las notas NO se editan ni se
+   * borran, solo se acumulan: es un registro de lo que fue pasando.
+   * A diferencia de editar el reclamo, esto SI se permite aunque este cerrado:
+   * despues de liquidar puede haber que dejar constancia de algo.
+   */
+  async agregarNota(id: string, contenido: string, organizationId: string, userId: string, role: string) {
+    await this.findOne(id, organizationId, userId, role)
+    const texto = (contenido ?? '').trim()
+    if (!texto) throw new ForbiddenException('La nota no puede estar vacía')
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    return this.prisma.notaReclamo.create({
+      data: { contenido: texto, reclamoId: id, autorId: userId, autorNombre: autor?.name ?? null },
+    })
+  }
+
   async update(
     id: string,
     dto: UpdateReclamoDto,
@@ -160,7 +188,18 @@ export class ReclamosService {
     userId: string,
     role: string,
   ) {
-    await this.findOne(id, organizationId, userId, role)
+    const actual = await this.findOne(id, organizationId, userId, role)
+
+    // Un reclamo liquidado o negado queda cerrado: ya se le respondió al cliente
+    // y cambiarlo despues desalinearia lo informado con lo registrado. El jefe de
+    // operaciones y los admin SI pueden corregir, porque si alguien marca
+    // "Liquidado" por error el reclamo quedaria inservible para siempre.
+    const CERRADOS = ['LIQUIDADO', 'NEGADO']
+    if (CERRADOS.includes((actual as any)?.estado) && !VE_TODO.includes(role)) {
+      throw new ForbiddenException(
+        'Este reclamo ya está cerrado y no se puede editar. Pide al jefe de operaciones que lo corrija.',
+      )
+    }
 
     const data: any = { ...dto }
     // Una ejecutiva no puede pasarle el reclamo a otra persona.

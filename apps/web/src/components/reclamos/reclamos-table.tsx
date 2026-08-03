@@ -23,7 +23,7 @@ const ESTADOS = [
   { valor: 'EN_TRAMITE', label: 'En trámite', color: 'border-amber-500 text-amber-600' },
   { valor: 'LIQUIDADO', label: 'Liquidado', color: 'border-emerald-600 text-emerald-700' },
   { valor: 'NEGADO', label: 'Negado', color: 'border-red-500 text-red-600' },
-  { valor: 'DEVUELTO', label: 'Devuelto', color: 'border-sky-500 text-sky-600' },
+  { valor: 'DEVUELTO', label: 'Información adicional', color: 'border-sky-500 text-sky-600' },
 ]
 
 const estadoInfo = (e: string) => ESTADOS.find((x) => x.valor === e)
@@ -129,18 +129,21 @@ export function ReclamosTable() {
               </button>
             )
           })}
-          <div className="rounded-lg border bg-card p-3">
-            <div className="text-xs text-muted-foreground">Valor total</div>
-            <div className="text-xl font-bold" style={{ color: NAVY }}>
-              {money(resumen.valorTotal)}
-            </div>
-            {resumen.sinEnlazarACliente > 0 && (
+          {/* El valor total sumado se quitó a pedido de Josue: solo interesa el
+              valor presentado de cada reclamo, no el acumulado. Se conserva el
+              aviso de los que no están enlazados a una ficha. */}
+          {resumen.sinEnlazarACliente > 0 && (
+            <div className="rounded-lg border bg-card p-3">
+              <div className="text-xs text-muted-foreground">Sin cliente</div>
+              <div className="text-xl font-bold" style={{ color: NAVY }}>
+                {resumen.sinEnlazarACliente}
+              </div>
               <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Link2Off className="h-3 w-3" />
-                {resumen.sinEnlazarACliente} sin cliente
+                sin enlazar a una ficha
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

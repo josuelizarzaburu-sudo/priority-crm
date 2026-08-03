@@ -50,6 +50,18 @@ export class ReclamosController {
     return this.service.create(dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
+  @Post(':id/notas')
+  @ApiOperation({ summary: 'Agregar una nota a la bitácora del reclamo' })
+  agregarNota(@Param('id') id: string, @Body() dto: { contenido: string }, @Req() req: any) {
+    return this.service.agregarNota(
+      id,
+      dto?.contenido,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar un reclamo' })
   update(@Param('id') id: string, @Body() dto: UpdateReclamoDto, @Req() req: any) {

@@ -17,7 +17,7 @@ const ESTADOS = [
   { valor: 'EN_TRAMITE', label: 'En trámite' },
   { valor: 'LIQUIDADO', label: 'Liquidado' },
   { valor: 'NEGADO', label: 'Negado' },
-  { valor: 'DEVUELTO', label: 'Devuelto' },
+  { valor: 'DEVUELTO', label: 'Información adicional' },
 ]
 
 const ASEGURADORAS = ['BMI', 'HUMANA', 'CONFIAMED', 'SALUDSA', 'BUPA', 'PALIG', 'VUMI', 'SEGUROS ATLANTIDA']
@@ -52,6 +52,25 @@ export function ReclamoForm({
   const editando = Boolean(reclamo?.id)
 
   const [error, setError] = useState<string | null>(null)
+
+  // Titular + dependientes del cliente enlazado, para el campo Paciente.
+  const pacientesSugeridos: string[] = (() => {
+    const c: any = (reclamo as any)?.cliente
+    if (!c) return []
+    const nombres = [`${c.nombres ?? ''} ${c.apellidos ?? ''}`.trim()]
+    for (const d of c.dependientes ?? []) {
+      const n = `${d.nombres ?? ''} ${d.apellidos ?? ''}`.trim()
+      if (n) nombres.push(n)
+    }
+    return nombres.filter(Boolean)
+  })()
+
+  // Un reclamo liquidado o negado queda cerrado. Solo jefe de operaciones y admin
+  // pueden corregirlo; el servidor aplica la misma regla.
+  const rolActual = (session?.user as { role?: string } | undefined)?.role ?? ''
+  const puedeEditarCerrado = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rolActual)
+  const estaCerrado =
+    editando && ['LIQUIDADO', 'NEGADO'].includes(txt(reclamo?.estado)) && !puedeEditarCerrado
   const [confirmarBorrar, setConfirmarBorrar] = useState(false)
   // Id del cliente de la base cuando el reclamo quedó enganchado a una ficha.
   // Va aparte de `form` porque `form` es todo strings y este puede ser null.
@@ -71,7 +90,6 @@ export function ReclamoForm({
     estado: txt(reclamo?.estado) || 'EN_TRAMITE',
     medioComunicacion: txt(reclamo?.medioComunicacion),
     observaciones: txt(reclamo?.observaciones),
-    detalle: txt(reclamo?.detalle),
   })
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -95,9 +113,20 @@ export function ReclamoForm({
       payload.clienteNombre = (form.clienteNombre ?? '').trim()
       // Solo va enganchado si el asesor eligió un cliente de la base.
       payload.clienteId = clienteId
-      return editando
-        ? (await api.patch(`/reclamos/${reclamo.id}`, payload)).data
-        : (await api.post('/reclamos', payload)).data
+
+      if (!editando) {
+        return (await api.post('/reclamos', payload)).data
+      }
+
+      // Al editar, la observación NO se guarda en el campo: va como nota nueva a
+      // la bitácora, para que quede el histórico con autor y fecha.
+      const nuevaNota = (form.observaciones ?? '').trim()
+      delete payload.observaciones
+      const res = (await api.patch(`/reclamos/${reclamo.id}`, payload)).data
+      if (nuevaNota) {
+        await api.post(`/reclamos/${reclamo.id}/notas`, { contenido: nuevaNota })
+      }
+      return res
     },
     onSuccess: () => {
       refrescar()
@@ -158,11 +187,22 @@ export function ReclamoForm({
             />
           </Campo>
           <Campo label="Paciente">
+            {/* Ofrece el titular y sus dependientes cuando el reclamo esta enlazado
+                a una ficha. Sigue siendo texto libre: los reclamos historicos vienen
+                sin cliente y hay que poder escribir el nombre a mano. */}
             <Input
-              placeholder="Si es distinto del titular"
+              list="pacientes-reclamo"
+              placeholder={
+                pacientesSugeridos.length > 0 ? 'Titular o dependiente' : 'Si es distinto del titular'
+              }
               value={form.pacienteNombre}
               onChange={(e) => set('pacienteNombre', e.target.value)}
             />
+            <datalist id="pacientes-reclamo">
+              {pacientesSugeridos.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
           </Campo>
 
           <Campo label="Aseguradora">
@@ -178,11 +218,22 @@ export function ReclamoForm({
             </datalist>
           </Campo>
           <Campo label="Contrato">
-            <Input
-              placeholder="INDIVIDUAL o nombre de la empresa"
-              value={form.contrato}
-              onChange={(e) => set('contrato', e.target.value)}
-            />
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={form.contrato === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'CORPORATIVO'}
+              onChange={(e) => set('contrato', e.target.value === 'INDIVIDUAL' ? 'INDIVIDUAL' : '')}
+            >
+              <option value="INDIVIDUAL">Individual</option>
+              <option value="CORPORATIVO">Corporativo</option>
+            </select>
+            {form.contrato !== 'INDIVIDUAL' && (
+              <Input
+                className="mt-2"
+                placeholder="Nombre de la empresa"
+                value={form.contrato}
+                onChange={(e) => set('contrato', e.target.value)}
+              />
+            )}
           </Campo>
 
           <div className="md:col-span-2">
@@ -237,7 +288,7 @@ export function ReclamoForm({
               </p>
             )}
           </Campo>
-          <Campo label="Valor (USD)">
+          <Campo label="Valor presentado (USD)">
             <Input
               inputMode="decimal"
               value={form.valor}
@@ -258,7 +309,7 @@ export function ReclamoForm({
               ))}
             </select>
           </Campo>
-          <Campo label="Medio de comunicación">
+          <Campo label="Requerimiento recibido por">
             <Input
               list="medios-reclamo"
               value={form.medioComunicacion}
@@ -272,19 +323,44 @@ export function ReclamoForm({
           </Campo>
 
           <div className="md:col-span-2">
-            <Campo label="Observaciones">
-              <Input
+            <Campo label={editando ? 'Agregar observación' : 'Observaciones'}>
+              <textarea
+                rows={2}
+                className="w-full rounded-md border border-input bg-background p-2 text-sm"
+                placeholder={editando ? 'Se agrega a la bitácora al guardar' : ''}
                 value={form.observaciones}
                 onChange={(e) => set('observaciones', e.target.value)}
               />
-            </Campo>
-          </div>
-          <div className="md:col-span-2">
-            <Campo label="Detalle">
-              <Input value={form.detalle} onChange={(e) => set('detalle', e.target.value)} />
+              {editando && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Las observaciones no se editan ni se borran: cada una queda registrada
+                  con su autor y fecha.
+                </p>
+              )}
             </Campo>
           </div>
         </div>
+
+        {/* Bitácora: notas anteriores, de la más nueva a la más vieja */}
+        {editando && ((reclamo as any)?.notas ?? []).length > 0 && (
+          <div className="mt-4 space-y-2 border-t pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Bitácora
+            </p>
+            {((reclamo as any).notas as any[]).map((n) => (
+              <div key={n.id} className="rounded-md border bg-muted/30 p-2">
+                <p className="whitespace-pre-wrap text-sm">{n.contenido}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {n.autorNombre ?? 'Usuario eliminado'} ·{' '}
+                  {new Date(n.createdAt).toLocaleString('es-EC', {
+                    day: '2-digit', month: '2-digit', year: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {editando && reclamo?.ejecutivoNombre && (
           <p className="mt-3 text-xs text-muted-foreground">
@@ -339,7 +415,7 @@ export function ReclamoForm({
             <Button
               type="button"
               style={{ backgroundColor: NAVY, color: '#fff' }}
-              disabled={guardar.isPending || !form.clienteNombre.trim()}
+              disabled={guardar.isPending || !form.clienteNombre.trim() || estaCerrado}
               onClick={() => {
                 setError(null)
                 guardar.mutate()

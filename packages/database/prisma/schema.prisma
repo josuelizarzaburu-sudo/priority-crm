@@ -76,6 +76,7 @@ model User {
   polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   notasClientes           NotaCliente[]
   registrosAcceso         RegistroAcceso[]
+  notasReclamos           NotaReclamo[]
   reclamosGestionados     Reclamo[]
 
   @@map("users")
@@ -111,6 +112,27 @@ model RegistroAcceso {
   @@index([organizationId, createdAt])
   @@index([organizationId, usuarioId, createdAt])
   @@map("registros_acceso")
+}
+
+
+// Bitácora del reclamo. Igual que NotaCliente: una vez escrita no se edita ni se
+// borra, solo se agregan nuevas. Guarda el nombre del autor tal cual al momento
+// de escribir, para que siga siendo legible aunque esa persona ya no trabaje aquí.
+model NotaReclamo {
+  id        String   @id @default(cuid())
+  contenido String
+
+  reclamoId String
+  autorId   String?
+  autorNombre String?
+
+  createdAt DateTime @default(now())
+
+  reclamo   Reclamo  @relation(fields: [reclamoId], references: [id], onDelete: Cascade)
+  autor     User?    @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([reclamoId, createdAt])
+  @@map("notas_reclamo")
 }
 
 enum UserRole {
@@ -755,7 +777,8 @@ model Reclamo {
 
   medioComunicacion String?
   observaciones     String?
-  detalle           String?
+  // detalle: eliminado a pedido de Josue; la informacion va a la bitacora.
+  notas             NotaReclamo[]
 
   // Igual que en clientes: id si la persona existe como usuario, y el nombre
   // siempre en texto (hay reclamos gestionados por gente que ya no trabaja aquí).

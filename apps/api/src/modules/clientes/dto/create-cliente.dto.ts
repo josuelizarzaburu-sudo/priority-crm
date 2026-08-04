@@ -79,6 +79,24 @@ export class CreateClienteDto {
   @IsOptional()
   direccion?: string
 
+  // Estos tres ya existían en el modelo Cliente y el formulario los enviaba, pero
+  // faltaba declararlos acá: como la API valida con forbidNonWhitelisted, cualquier
+  // campo no declarado hace fallar la creación entera.
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  nombrePreferido?: string
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  contactoSugerido?: string
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  referidoDe?: string
+
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()

@@ -256,7 +256,7 @@ export function ClienteDetalle({ id }: { id: string }) {
           <Dato label="Género" valor={bonito(c.genero)} />
           <Dato label="Ciudad" valor={c.ciudad} />
           <Dato label="Dirección" valor={c.direccion} />
-          <Dato label="Contacto sugerido" valor={c.contactoSugerido} />
+          <Dato label="Persona de contacto" valor={c.contactoSugerido} />
           <Dato label="Referido de" valor={c.referidoDe} />
           <div>
             <div className="text-xs text-muted-foreground">Ejecutiva</div>

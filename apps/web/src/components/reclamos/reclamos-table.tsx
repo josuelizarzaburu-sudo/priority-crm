@@ -41,6 +41,7 @@ export interface Reclamo {
   fechaLiquidacion: string | null
   fechaEnvioCliente: string | null
   valor: string | number | null
+  valorLiquidado: string | number | null
   estado: string
   diasLiquidacion: number | null
   diasEnvioCliente: number | null
@@ -175,13 +176,14 @@ export function ReclamosTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cliente / Paciente</TableHead>
+              <TableHead>Titular - Cliente / Paciente</TableHead>
               <TableHead>Aseguradora</TableHead>
               <TableHead>Liquidación</TableHead>
               <TableHead>Diagnóstico</TableHead>
               <TableHead>Envío</TableHead>
               <TableHead className="text-center">Días</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right">Presentado</TableHead>
+              <TableHead className="text-right">Liquidado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead />
             </TableRow>
@@ -189,13 +191,13 @@ export function ReclamosTable() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-sm text-muted-foreground">
                   No se pudo cargar.
                   <br />
                   <span className="text-xs">
@@ -207,7 +209,7 @@ export function ReclamosTable() {
               </TableRow>
             ) : lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                   {debounced || estado
                     ? 'Ningún reclamo coincide con la búsqueda.'
                     : 'Todavía no hay reclamos.'}
@@ -243,6 +245,9 @@ export function ReclamosTable() {
                       {r.diasLiquidacion ?? '—'}
                     </TableCell>
                     <TableCell className="text-right text-sm">{money(r.valor)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      {money(r.valorLiquidado)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={info?.color}>
                         {info?.label ?? r.estado}
@@ -295,8 +300,12 @@ export function ReclamosTable() {
                   <span className="font-medium tabular-nums">{r.liquidacion ?? '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor</span>
+                  <span className="text-muted-foreground">Presentado</span>
                   <span>{money(r.valor)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Liquidado</span>
+                  <span className="font-medium">{money(r.valorLiquidado)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Envío</span>

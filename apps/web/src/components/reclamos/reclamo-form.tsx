@@ -96,6 +96,7 @@ export function ReclamoForm({
     fechaLiquidacion: dia(reclamo?.fechaLiquidacion),
     fechaEnvioCliente: dia(reclamo?.fechaEnvioCliente),
     valor: txt(reclamo?.valor),
+    valorLiquidado: txt(reclamo?.valorLiquidado),
     estado: txt(reclamo?.estado) || 'EN_TRAMITE',
     medioComunicacion: txt(reclamo?.medioComunicacion),
     observaciones: txt(reclamo?.observaciones),
@@ -113,7 +114,7 @@ export function ReclamoForm({
       const payload: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(form)) {
         const s = (v ?? '').trim()
-        if (k === 'valor') {
+        if (k === 'valor' || k === 'valorLiquidado') {
           payload[k] = s === '' ? null : Number(s)
         } else {
           payload[k] = s === '' ? null : s
@@ -172,7 +173,7 @@ export function ReclamoForm({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold" style={{ color: NAVY }}>
-            {editando ? 'Reclamo' : 'Nuevo reclamo'}
+            {editando ? 'Reembolso' : 'Nuevo reembolso'}
           </h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="p-1">
             <X className="h-5 w-5" />
@@ -180,7 +181,7 @@ export function ReclamoForm({
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Campo label="Cliente (titular) *">
+          <Campo label="Titular - Cliente *">
             <BuscadorCliente
               valor={form.clienteNombre}
               clienteId={clienteId}
@@ -322,6 +323,14 @@ export function ReclamoForm({
               inputMode="decimal"
               value={form.valor}
               onChange={(e) => set('valor', e.target.value)}
+            />
+          </Campo>
+
+          <Campo label="Valor liquidado (USD)">
+            <Input
+              inputMode="decimal"
+              value={form.valorLiquidado}
+              onChange={(e) => set('valorLiquidado', e.target.value)}
             />
           </Campo>
 

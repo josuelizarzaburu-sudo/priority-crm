@@ -66,6 +66,13 @@ export class CreateReclamoDto {
   @IsOptional()
   valor?: number
 
+  // Lo que la aseguradora termino liquidando, distinto del presentado.
+  @ApiProperty({ required: false })
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  valorLiquidado?: number
+
   @ApiProperty({ required: false, enum: ESTADOS })
   @IsIn(ESTADOS)
   @IsOptional()

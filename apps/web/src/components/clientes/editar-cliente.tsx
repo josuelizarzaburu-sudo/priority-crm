@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
+import { enMayusculas } from '@/lib/mayusculas'
 
 const NAVY = '#0C2057'
 const JEFES = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES']
@@ -144,10 +145,10 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         {esJefe ? (
           <>
             <Campo label="Nombres">
-              <Input value={form.nombres ?? ''} onChange={(e) => set('nombres', e.target.value)} />
+              <Input value={form.nombres ?? ''} onChange={enMayusculas((v) => set('nombres', v))} />
             </Campo>
             <Campo label="Apellidos">
-              <Input value={form.apellidos ?? ''} onChange={(e) => set('apellidos', e.target.value)} />
+              <Input value={form.apellidos ?? ''} onChange={enMayusculas((v) => set('apellidos', v))} />
             </Campo>
             <Campo label="Fecha de nacimiento">
               <Input
@@ -202,18 +203,18 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
           <Input
             placeholder="Cómo le gusta que le llamen"
             value={form.nombrePreferido ?? ''}
-            onChange={(e) => set('nombrePreferido', e.target.value)}
+            onChange={enMayusculas((v) => set('nombrePreferido', v))}
           />
         </Campo>
-        <Campo label="Contacto sugerido">
+        <Campo label="Persona de contacto">
           <Input
             placeholder="A quién se contacta"
             value={form.contactoSugerido ?? ''}
-            onChange={(e) => set('contactoSugerido', e.target.value)}
+            onChange={enMayusculas((v) => set('contactoSugerido', v))}
           />
         </Campo>
         <Campo label="Referido de">
-          <Input value={form.referidoDe ?? ''} onChange={(e) => set('referidoDe', e.target.value)} />
+          <Input value={form.referidoDe ?? ''} onChange={enMayusculas((v) => set('referidoDe', v))} />
         </Campo>
 
         <Campo label="Celular">
@@ -227,17 +228,17 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         </Campo>
 
         <Campo label="Ciudad">
-          <Input value={form.ciudad ?? ''} onChange={(e) => set('ciudad', e.target.value)} />
+          <Input value={form.ciudad ?? ''} onChange={enMayusculas((v) => set('ciudad', v))} />
         </Campo>
         <div className="md:col-span-2">
           <Campo label="Dirección">
-            <Input value={form.direccion ?? ''} onChange={(e) => set('direccion', e.target.value)} />
+            <Input value={form.direccion ?? ''} onChange={enMayusculas((v) => set('direccion', v))} />
           </Campo>
         </div>
 
         <div className="md:col-span-3">
           <Campo label="Notas">
-            <Input value={form.notas ?? ''} onChange={(e) => set('notas', e.target.value)} />
+            <Input value={form.notas ?? ''} onChange={enMayusculas((v) => set('notas', v))} />
           </Campo>
         </div>
       </div>

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
+import { enMayusculas } from '@/lib/mayusculas'
+import { ASEGURADORAS_POR_RAMO, type RamoId } from '@/lib/ramos-seguros'
 
 const NAVY = '#0C2057'
 
@@ -62,6 +64,13 @@ export function AgregarPoliza({
   const qc = useQueryClient()
   const [abierto, setAbierto] = useState(false)
   const [tipo, setTipo] = useState<string>('SALUD')
+
+  // Equipo del CRM, para elegir el agente que vendió la póliza.
+  const { data: equipo } = useQuery({
+    queryKey: ['usuarios-poliza'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => (await api.get('/users')).data as { id: string; name: string }[],
+  })
   const [form, setForm] = useState<Record<string, string>>({})
   const [cubre, setCubre] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -142,13 +151,27 @@ export function AgregarPoliza({
       {/* Campos comunes a todos los ramos */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Campo label="Compañía de seguros">
-          <Input value={form.aseguradora ?? ''} onChange={(e) => set('aseguradora', e.target.value)} />
+          {/* Las opciones cambian segun el ramo elegido arriba. Es lista con
+              sugerencias, no cerrada, por si aparece una aseguradora nueva. */}
+          <Input
+            list="aseguradoras-poliza"
+            value={form.aseguradora ?? ''}
+            onChange={enMayusculas((v) => set('aseguradora', v))}
+          />
+          <datalist id="aseguradoras-poliza">
+            {(ASEGURADORAS_POR_RAMO[tipo as RamoId] ?? []).map((a) => (
+              <option key={a} value={a.toLocaleUpperCase('es-EC')} />
+            ))}
+          </datalist>
         </Campo>
         <Campo label="Plan">
-          <Input value={form.plan ?? ''} onChange={(e) => set('plan', e.target.value)} />
+          <Input value={form.plan ?? ''} onChange={enMayusculas((v) => set('plan', v))} />
         </Campo>
         <Campo label="N° de contrato">
-          <Input value={form.numeroContrato ?? ''} onChange={(e) => set('numeroContrato', e.target.value)} />
+          <Input
+            value={form.numeroContrato ?? ''}
+            onChange={enMayusculas((v) => set('numeroContrato', v))}
+          />
         </Campo>
 
         <Campo label="Estado">
@@ -225,7 +248,24 @@ export function AgregarPoliza({
         )}
 
         <Campo label="Agente">
-          <Input value={form.agenteNombre ?? ''} onChange={(e) => set('agenteNombre', e.target.value)} />
+          {/* Se elige del equipo del CRM en vez de escribirlo: asi el nombre queda
+              siempre bien escrito y la poliza queda enlazada al usuario real. */}
+          <select
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.agenteId ?? ''}
+            onChange={(e) => {
+              const u = (equipo ?? []).find((x) => x.id === e.target.value)
+              set('agenteId', e.target.value)
+              set('agenteNombre', u?.name ?? '')
+            }}
+          >
+            <option value="">Selecciona</option>
+            {(equipo ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
         </Campo>
       </div>
 

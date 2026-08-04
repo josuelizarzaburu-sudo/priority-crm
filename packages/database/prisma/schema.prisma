@@ -843,7 +843,10 @@ model Reclamo {
   fechaLiquidacion     DateTime?
   fechaEnvioCliente    DateTime?
 
+  // Lo que el cliente presentó a la aseguradora.
   valor          Decimal?      @db.Decimal(12, 2)
+  // Lo que la aseguradora terminó liquidando. Suele ser menor que el presentado.
+  valorLiquidado Decimal?      @db.Decimal(12, 2)
   estado         EstadoReclamo @default(EN_TRAMITE)
 
   medioComunicacion String?

@@ -15,7 +15,7 @@ export function NuevoReclamo() {
         onClick={() => setAbierto(true)}
       >
         <Plus className="mr-2 h-4 w-4" />
-        Nuevo reclamo
+        Nuevo reembolso
       </Button>
       {abierto && <ReclamoForm onCerrar={() => setAbierto(false)} />}
     </>

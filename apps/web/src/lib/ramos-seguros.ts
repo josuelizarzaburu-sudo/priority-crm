@@ -29,13 +29,16 @@ export const RAMO_LABEL: Record<RamoId, string> = {
 export const ASEGURADORAS_POR_RAMO: Record<RamoId, string[]> = {
   // Salud nacional + internacional (BMI Ideal/Support, BestDoctors)
   SALUD: ['BMI', 'Humana', 'Confiamed', 'Saludsa', 'Bupa', 'BestDoctors', 'Ecuasanitas'],
-  AUTO: ['Atlántida', 'Zurich', 'Sweaden', 'AIG'],
-  VIDA: [],
-  HOGAR: [],
+  AUTO: ['Zurich', 'AIG', 'Sweaden', 'Atlántida', 'Latina Seguros'],
+  VIDA: ['BMI', 'Pan-American Life'],
+  HOGAR: ['Zurich', 'AIG', 'Sweaden', 'Atlántida', 'Latina Seguros'],
 }
 
-/** Ramos donde todavía no hay catálogo y se escribe la aseguradora a mano. */
-export const ASEGURADORA_LIBRE: RamoId[] = ['VIDA', 'HOGAR']
+/**
+ * Ramos donde todavía no hay catálogo cerrado. Hoy ninguno: los cuatro tienen su
+ * lista, pero el campo sigue permitiendo escribir otra por si aparece una nueva.
+ */
+export const ASEGURADORA_LIBRE: RamoId[] = []
 
 // ── Campos propios de cada ramo ────────────────────────────────────────────
 // Coinciden con los campos por ramo que ya tiene el modelo Poliza del operativo.

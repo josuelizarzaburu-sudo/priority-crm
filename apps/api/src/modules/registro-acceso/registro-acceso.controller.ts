@@ -38,6 +38,85 @@ export class RegistroAccesoController {
     })
   }
 
+  @Post('comparativo')
+  @ApiOperation({ summary: 'Registrar que un usuario generó un comparativo' })
+  registrarComparativo(
+    @Body() dto: { categoria?: string; planes?: number; cliente?: string },
+    @Req() req: any,
+  ) {
+    const partes = [
+      dto?.categoria,
+      dto?.planes != null ? `${dto.planes} planes` : null,
+      dto?.cliente,
+    ].filter(Boolean)
+    return this.registro.registrar({
+      organizationId: req.user.organizationId,
+      usuarioId: req.user.id,
+      usuarioNombre: req.user.name ?? null,
+      usuarioRol: req.user.role,
+      accion: ACCESO.GENERAR_COMPARATIVO,
+      objetoTipo: 'Comparativo',
+      objetoId: dto?.categoria,
+      detalle: partes.length ? partes.join(' · ') : undefined,
+    })
+  }
+
+  /**
+   * Conteo de comparativos por vendedor, para detectar mal uso: si alguien genera
+   * 100 comparativos y tiene 5 leads, está cotizando por fuera del sistema.
+   */
+  @Get('comparativos-por-usuario')
+  @ApiOperation({ summary: 'Cuántos comparativos generó cada usuario (solo admin)' })
+  async comparativosPorUsuario(@Req() req: any, @Query('desde') desde?: string) {
+    if (!PUEDE_AUDITAR.includes(req.user.role)) {
+      throw new ForbiddenException('No tienes permiso para ver esta información')
+    }
+
+    const where: any = {
+      organizationId: req.user.organizationId,
+      accion: ACCESO.GENERAR_COMPARATIVO,
+    }
+    if (desde) where.createdAt = { gte: new Date(desde) }
+
+    const [porUsuario, deals] = await Promise.all([
+      this.prisma.registroAcceso.groupBy({
+        by: ['usuarioId', 'usuarioNombre'],
+        where,
+        _count: { _all: true },
+      }),
+      // Deals asignados en el mismo periodo, para poder comparar comparativos
+      // contra leads reales.
+      this.prisma.deal.groupBy({
+        by: ['assignedToId'],
+        where: {
+          organizationId: req.user.organizationId,
+          ...(desde ? { createdAt: { gte: new Date(desde) } } : {}),
+        },
+        _count: { _all: true },
+      }),
+    ])
+
+    const dealsPorUsuario = new Map<string | null, number>(
+      deals.map((d: any) => [d.assignedToId, d._count._all as number]),
+    )
+
+    return porUsuario
+      .map((u: any) => {
+        const comparativos = u._count._all
+        const leads: number = dealsPorUsuario.get(u.usuarioId) ?? 0
+        return {
+          usuarioId: u.usuarioId,
+          nombre: u.usuarioNombre ?? 'Usuario eliminado',
+          comparativos,
+          leads,
+          // Cuántos comparativos por cada lead. Un número alto es la señal de
+          // alarma; null cuando no tiene leads y sí comparativos.
+          porLead: leads > 0 ? Math.round((comparativos / leads) * 10) / 10 : null,
+        }
+      })
+      .sort((a, b) => b.comparativos - a.comparativos)
+  }
+
   @Get()
   @ApiOperation({ summary: 'Historial de acceso a datos sensibles (solo admin)' })
   async listar(

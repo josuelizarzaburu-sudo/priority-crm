@@ -351,6 +351,18 @@ export function ComparativosPage() {
   const today = new Date().toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const handlePrint = () => {
+    // Queda registrado que se generó un comparativo. Interesa el CONTEO por
+    // vendedor, no el contenido: si alguien genera 100 y tiene 5 leads, está
+    // cotizando por fuera del sistema. No se espera la respuesta ni se bloquea
+    // la impresión si falla.
+    api
+      .post('/registro-acceso/comparativo', {
+        categoria: TAB_LABELS.find((t) => t.key === tab)?.label ?? tab,
+        planes: documentPlans.length,
+        cliente: clientName.trim() || undefined,
+      })
+      .catch(() => {})
+
     setPreview(true)
     setTimeout(() => window.print(), 150)
   }

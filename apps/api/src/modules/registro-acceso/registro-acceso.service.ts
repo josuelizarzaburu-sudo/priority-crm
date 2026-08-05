@@ -51,4 +51,8 @@ export class RegistroAccesoService {
 export const ACCESO = {
   VER_FICHA_CLIENTE: 'VER_FICHA_CLIENTE',
   EXPORTAR_REPORTE: 'EXPORTAR_REPORTE',
+  // Comparativo generado (el que se manda al cliente). Interesa el CONTEO por
+  // vendedor: si alguien descarga 100 comparativos y solo tiene 5 leads, está
+  // cotizando por fuera del sistema o usando mal la herramienta.
+  GENERAR_COMPARATIVO: 'GENERAR_COMPARATIVO',
 } as const

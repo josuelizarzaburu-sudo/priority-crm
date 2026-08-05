@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Eye, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Eye, Download, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 
 const NAVY = '#0C2057'
@@ -21,7 +21,16 @@ const ACCIONES: { id: string; label: string }[] = [
   { id: '', label: 'Todo' },
   { id: 'VER_FICHA_CLIENTE', label: 'Fichas abiertas' },
   { id: 'EXPORTAR_REPORTE', label: 'Exportaciones' },
+  { id: 'GENERAR_COMPARATIVO', label: 'Comparativos' },
 ]
+
+interface UsoComparativos {
+  usuarioId: string
+  nombre: string
+  comparativos: number
+  leads: number
+  porLead: number | null
+}
 
 const fechaHora = (v: string) =>
   new Date(v).toLocaleString('es-EC', {
@@ -34,12 +43,15 @@ const fechaHora = (v: string) =>
 
 export function RegistroAccesoPage() {
   const [accion, setAccion] = useState('')
+  const [usuarioId, setUsuarioId] = useState('')
   const [page, setPage] = useState(1)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['registro-acceso', accion, page],
+    queryKey: ['registro-acceso', accion, usuarioId, page],
     queryFn: async () =>
-      (await api.get('/registro-acceso', { params: { accion: accion || undefined, page } }))
+      (await api.get('/registro-acceso', {
+        params: { accion: accion || undefined, usuarioId: usuarioId || undefined, page },
+      }))
         .data as {
         data: Registro[]
         total: number
@@ -49,6 +61,13 @@ export function RegistroAccesoPage() {
   })
 
   const filas = data?.data ?? []
+
+  // Resumen de uso: comparativos generados vs leads que tiene cada vendedor.
+  const { data: uso } = useQuery({
+    queryKey: ['uso-comparativos'],
+    queryFn: async () =>
+      (await api.get('/registro-acceso/comparativos-por-usuario')).data as UsoComparativos[],
+  })
 
   return (
     <div className="space-y-4">
@@ -73,10 +92,79 @@ export function RegistroAccesoPage() {
             </button>
           ))}
         </div>
-        {data && (
-          <span className="text-xs text-muted-foreground">{data.total} registros</span>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Filtrar el historial por vendedor. Las opciones salen del mismo
+              resumen de arriba, así solo aparece quien tiene actividad. */}
+          {uso && uso.length > 0 && (
+            <select
+              value={usuarioId}
+              onChange={(e) => {
+                setUsuarioId(e.target.value)
+                setPage(1)
+              }}
+              className="h-8 rounded-md border bg-background px-2 text-xs"
+            >
+              <option value="">Todos los vendedores</option>
+              {uso.map((u) => (
+                <option key={u.usuarioId} value={u.usuarioId}>
+                  {u.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+          {data && (
+            <span className="text-xs text-muted-foreground">{data.total} registros</span>
+          )}
+        </div>
       </div>
+
+      {/* Resumen de uso por vendedor. La señal de alarma es un número alto de
+          comparativos con pocos leads: cotizando por fuera del sistema. */}
+      {uso && uso.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="mb-1 text-sm font-bold" style={{ color: NAVY }}>
+            Comparativos por vendedor
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Muchos comparativos con pocos leads puede indicar que se está cotizando
+            fuera del sistema.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2 text-left font-semibold">Vendedor</th>
+                  <th className="py-2 text-right font-semibold">Comparativos</th>
+                  <th className="py-2 text-right font-semibold">Leads</th>
+                  <th className="py-2 text-right font-semibold">Por lead</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uso.map((u) => {
+                  // Más de 10 comparativos por lead, o comparativos sin ningún
+                  // lead, es lo que vale la pena mirar de cerca.
+                  const alerta = u.porLead === null ? u.comparativos > 0 : u.porLead > 10
+                  return (
+                    <tr key={u.usuarioId} className="border-b last:border-0">
+                      <td className="py-2 font-medium" style={{ color: NAVY }}>
+                        {u.nombre}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">{u.comparativos}</td>
+                      <td className="py-2 text-right tabular-nums">{u.leads}</td>
+                      <td
+                        className="py-2 text-right font-semibold tabular-nums"
+                        style={{ color: alerta ? '#C24444' : '#2E9E63' }}
+                      >
+                        {u.porLead === null ? 'sin leads' : u.porLead}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="py-10 text-center text-sm text-muted-foreground">Cargando…</p>
@@ -92,6 +180,7 @@ export function RegistroAccesoPage() {
         <div className="space-y-2">
           {filas.map((r) => {
             const esExport = r.accion === 'EXPORTAR_REPORTE'
+            const esComparativo = r.accion === 'GENERAR_COMPARATIVO'
             return (
               <div
                 key={r.id}
@@ -99,10 +188,18 @@ export function RegistroAccesoPage() {
               >
                 <div
                   className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: esExport ? '#FEF3E2' : '#EAF0FB' }}
+                  style={{
+                    backgroundColor: esExport
+                      ? '#FEF3E2'
+                      : esComparativo
+                        ? '#EDE9FB'
+                        : '#EAF0FB',
+                  }}
                 >
                   {esExport ? (
                     <Download className="h-3.5 w-3.5" style={{ color: '#B87A15' }} />
+                  ) : esComparativo ? (
+                    <FileText className="h-3.5 w-3.5" style={{ color: '#6D4AC4' }} />
                   ) : (
                     <Eye className="h-3.5 w-3.5" style={{ color: NAVY }} />
                   )}
@@ -113,7 +210,11 @@ export function RegistroAccesoPage() {
                       {r.usuarioNombre ?? 'Usuario eliminado'}
                     </span>{' '}
                     <span className="text-muted-foreground">
-                      {esExport ? 'exportó' : 'abrió la ficha de'}
+                      {esExport
+                        ? 'exportó'
+                        : esComparativo
+                          ? 'generó un comparativo:'
+                          : 'abrió la ficha de'}
                     </span>{' '}
                     {r.detalle ?? r.objetoTipo}
                   </p>

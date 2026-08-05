@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
 
-const MAX_PLANS = 3
+const MAX_PLANS = 4
 
 const TAB_LABELS: { key: CatalogKey; label: string }[] = [
   { key: 'salud', label: 'Salud' },
@@ -263,7 +263,7 @@ export function ComparativosPage() {
       const cur = prev[tab]
       const isSelected = cur.includes(id)
       if (!isSelected && cur.length >= MAX_PLANS) {
-        // Ya hay 3 planes seleccionados en esta categoría: no se permite un cuarto
+        // Ya se alcanzó el máximo de planes de esta categoría
         return prev
       }
       const next = isSelected ? cur.filter((x) => x !== id) : [...cur, id]
@@ -793,7 +793,7 @@ export function ComparativosPage() {
                 )}
 
               <p className="mb-5 rounded-lg border-l-4 bg-[#f7f8fc] px-4 py-3 text-[12px] leading-relaxed text-[#2a3350]" style={{ borderColor: GOLD }}>
-                Estimado{clientName ? ` ${clientName.split(' ')[0]}` : ''}, hemos hecho un análisis exhaustivo de los planes del mercado, los cuales te presentamos a continuación. Recuerda que todos los planes incluyen la experiencia de Servicio Priority.
+                {clientName ? `${clientName.split(' ')[0]}, h` : 'H'}emos hecho un análisis exhaustivo de los planes del mercado, los cuales te presentamos a continuación. Recuerda que todos los planes incluyen la experiencia de Servicio Priority.
               </p>
 
               <div className="-mx-5 overflow-x-auto px-5 md:mx-0 md:overflow-visible md:px-0 print:mx-0 print:overflow-visible print:px-0">

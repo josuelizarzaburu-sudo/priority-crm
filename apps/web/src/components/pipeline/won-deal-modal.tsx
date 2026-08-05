@@ -369,7 +369,7 @@ export function WonDealModal({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Fecha de emisión</Label>
+                  <Label className="text-xs">Fecha de vigencia</Label>
                   <Input
                     type="date"
                     value={entry.issueDate}

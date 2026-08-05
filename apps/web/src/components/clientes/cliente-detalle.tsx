@@ -393,7 +393,7 @@ export function ClienteDetalle({ id }: { id: string }) {
                   <Dato label="Contrato" valor={p.numeroContrato} />
                   <Dato label="Prima neta" valor={fmtMonto(p.primaNeta)} />
                   <Dato label="Forma de pago" valor={bonito(p.formaPago)} />
-                  <Dato label="Emisión" valor={fmtFecha(p.fechaEmision)} />
+                  <Dato label="Vigencia" valor={fmtFecha(p.fechaEmision)} />
                   {p.tipo !== 'SALUD' && (
                     <Dato label="Suma asegurada" valor={fmtMonto(p.sumaAsegurada)} />
                   )}

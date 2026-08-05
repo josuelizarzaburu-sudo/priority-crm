@@ -150,11 +150,12 @@ const HUMANA_CATALOG_ID: Record<string, string> = {
   PH15J: 'ce6', // HUMANA PH 15 JÓVENES
 }
 // Confiamed: deducible -> id catálogo
-const CONFIAMED_CATALOG_ID: Record<string, string> = {
-  '30000': 'ab5',
-  '60000': 'ab6',
-  '110000': 'ab7',
-  '10000': 'ce2',
+// Confiamed: el catalogId depende del deducible Y DE LA RED. Antes solo miraba el
+// deducible, asi que Red 1 y Red 2 del mismo deducible apuntaban a la MISMA columna
+// del comparativo y se pisaban: solo llegaba una opcion y un precio.
+const CONFIAMED_CATALOG_ID: Record<string, Record<string, string>> = {
+  red1: { '30000': 'ab5', '60000': 'ab6', '110000': 'ab7', '10000': 'ce2' },
+  red2: { '30000': 'cf2a', '60000': 'cf2b', '110000': 'cf2c', '10000': 'cf2d' },
 }
 
 // ── Gastos Médicos Mayores. Viven en CATALOGS.salud igual que el resto de planes.
@@ -1395,7 +1396,7 @@ export function CotizadorPage() {
                                   onClick={() =>
                                     toggleSeleccion({
                                       id: selId,
-                                      catalogId: CONFIAMED_CATALOG_ID[r.deducible],
+                                      catalogId: CONFIAMED_CATALOG_ID[confiamedRed][r.deducible],
                                       aseguradora: 'Confiamed',
                                       plan: `CONFIPLUS ${redLabel}`,
                                       detalle: CONFIAMED_DEDUCIBLE_LABEL[r.deducible],
@@ -1446,7 +1447,7 @@ export function CotizadorPage() {
                         onClick={() =>
                           toggleSeleccion({
                             id: selId,
-                            catalogId: CONFIAMED_CATALOG_ID[r.deducible],
+                            catalogId: CONFIAMED_CATALOG_ID[confiamedRed][r.deducible],
                             aseguradora: 'Confiamed',
                             plan: `CONFIPLUS ${redLabel}`,
                             detalle: CONFIAMED_DEDUCIBLE_LABEL[r.deducible],

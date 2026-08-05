@@ -202,7 +202,7 @@ export function AgregarPoliza({
             ))}
           </select>
         </Campo>
-        <Campo label="Fecha de emisión">
+        <Campo label="Fecha de vigencia">
           <Input
             type="date"
             value={form.fechaEmision ?? ''}

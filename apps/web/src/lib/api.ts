@@ -20,8 +20,27 @@ if (typeof window !== 'undefined') {
 
   api.interceptors.response.use(
     (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
+    async (error) => {
+      // Un 401 ya no manda directo al login: primero se intenta una vez con el
+      // token renovado. NextAuth lo renueva solo, asi que basta pedir la sesion
+      // de nuevo. Antes, cualquier 401 expulsaba a la persona aunque estuviera
+      // trabajando, que era la causa de que "a los 5 minutos pida login".
+      const original: any = error.config ?? {}
+      if (error.response?.status === 401 && !original._reintento) {
+        original._reintento = true
+        try {
+          const { getSession } = await import('next-auth/react')
+          const session: any = await getSession()
+          if (session?.accessToken && !session?.error) {
+            original.headers = {
+              ...(original.headers ?? {}),
+              Authorization: `Bearer ${session.accessToken}`,
+            }
+            return api.request(original)
+          }
+        } catch {
+          // cae al redirect de abajo
+        }
         window.location.href = '/login'
       }
       return Promise.reject(error)

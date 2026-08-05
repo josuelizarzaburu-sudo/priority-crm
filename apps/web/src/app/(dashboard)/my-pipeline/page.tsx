@@ -5,7 +5,7 @@ import { MyPipelineBoard } from '@/components/pipeline/my-pipeline-board'
 export const metadata: Metadata = { title: 'Mi Pipeline' }
 
 export default async function MyPipelinePage() {
-  await exigirRol(['SUPER_ADMIN', 'SALES_REP'])
+  await exigirRol(['SUPER_ADMIN', 'OWNER', 'SALES_REP'])
 
   return <MyPipelineBoard />
 }

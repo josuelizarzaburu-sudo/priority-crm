@@ -39,22 +39,25 @@ const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
 // Perfiles del area de Operaciones. No ven Pipeline ni Leads (eso es comercial),
 // pero si la base de Clientes, el cotizador y las herramientas comunes.
 const OPS = ['OPERACIONES', 'JEFE_OPERACIONES']
+// Quien administra el area operativa. Incluye a OWNER porque Pablo es el dueño
+// pero tambien trabaja en operaciones; sin esto no veia Clientes ni Reembolsos.
+const OPS_ADMIN = [...OPS, 'SUPER_ADMIN', 'OWNER']
 const COMUNES = [...ALL_ROLES, ...OPS]
 
 
 const NAV_ITEMS = [
-  { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: [...OPS, 'SUPER_ADMIN'] },
-  { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: [...OPS, 'SUPER_ADMIN'] },
-  { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: [...OPS, 'SUPER_ADMIN'] },
-  { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: [...OPS, 'SUPER_ADMIN'] },
+  { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: OPS_ADMIN },
+  { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN },
+  { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN },
+  { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: OPS_ADMIN },
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
   { href: '/registro-acceso',  label: 'Registro de acceso', icon: ShieldCheck,     roles: ['SUPER_ADMIN', 'OWNER'] },
   { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
   { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ELEVATED },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
-  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'SALES_REP'] },
-  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP'] },
+  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP'] },
+  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN'] },
   { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ELEVATED },
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES },
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES },

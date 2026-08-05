@@ -18,8 +18,11 @@ export const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
 export const OPS = ['OPERACIONES', 'JEFE_OPERACIONES']
 export const COMUNES = [...ALL_ROLES, ...OPS]
 
-/** Perfiles de operaciones + admin: clientes, reclamos y sus reportes. */
-export const OPS_Y_ADMIN = [...OPS, 'SUPER_ADMIN']
+/**
+ * Perfiles de operaciones + admin: clientes, reembolsos, requerimientos y sus
+ * reportes. Incluye OWNER porque el dueño también trabaja en operaciones.
+ */
+export const OPS_Y_ADMIN = [...OPS, 'SUPER_ADMIN', 'OWNER']
 
 /**
  * Pantalla de inicio de cada rol.

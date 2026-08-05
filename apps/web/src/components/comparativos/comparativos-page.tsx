@@ -207,6 +207,20 @@ export function ComparativosPage() {
 
   const [tab, setTab] = useState<CatalogKey>('salud')
   const [clientName, setClientName] = useState('')
+
+  // Datos del vehículo: solo aplican a la pestaña de Vehículos y se imprimen
+  // arriba del comparativo, como en la presentación de ofertas de la aseguradora.
+  const [vehiculo, setVehiculo] = useState({
+    marcaModelo: '',
+    placa: '',
+    anio: '',
+    sumaAsegurada: '',
+  })
+  const setVeh = (k: keyof typeof vehiculo, v: string) =>
+    setVehiculo((prev) => ({ ...prev, [k]: v.toLocaleUpperCase('es-EC') }))
+
+  // Tasa por plan (solo vehículos): va como fila propia, justo encima de la prima.
+  const [tasas, setTasas] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
     salud: preload?.saludIds ?? [], internacional: [], vehiculos: [],
   })
@@ -437,6 +451,54 @@ export function ComparativosPage() {
           </div>
         </div>
 
+
+        {tab === 'vehiculos' && (
+          <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Datos del vehículo
+            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-[11px] text-muted-foreground">
+                  Marca y modelo
+                </span>
+                <Input
+                  placeholder="TOYOTA NEW FORTUNER AC 4.0 5P 4X4 TA"
+                  value={vehiculo.marcaModelo}
+                  onChange={(e) => setVeh('marcaModelo', e.target.value)}
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] text-muted-foreground">Placa / RAMV</span>
+                <Input
+                  placeholder="PDT8841"
+                  value={vehiculo.placa}
+                  onChange={(e) => setVeh('placa', e.target.value)}
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] text-muted-foreground">Año del vehículo</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="2022"
+                  value={vehiculo.anio}
+                  onChange={(e) => setVeh('anio', e.target.value)}
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] text-muted-foreground">
+                  Suma asegurada sugerida (USD)
+                </span>
+                <Input
+                  inputMode="decimal"
+                  placeholder="45.000,00"
+                  value={vehiculo.sumaAsegurada}
+                  onChange={(e) => setVeh('sumaAsegurada', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {tab === 'salud' && (
           <div className="mt-4">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -612,6 +674,20 @@ export function ComparativosPage() {
                     </div>
                   )}
 
+                  {/* Tasa: solo vehiculos. Va como fila propia encima de la prima. */}
+                  {tab === 'vehiculos' && (
+                    <div className="mt-2 flex items-center gap-1">
+                      <span className="text-[11px] font-medium text-muted-foreground">Tasa:</span>
+                      <Input
+                        placeholder="0,00"
+                        value={tasas[p.id] ?? ''}
+                        onChange={(e) => setTasas((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="h-8"
+                      />
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                  )}
+
                   {/* Confiamed: elegir Red 1 o Red 2 (cambia la fila Red Medica en el PDF) */}
                   {CONFIAMED_RED_PLANS[p.name] && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -681,6 +757,41 @@ export function ComparativosPage() {
                 {SUBTITLES[tab]} · Los {documentPlans.length} planes que mejor se ajustan a tu perfil
               </p>
 
+              {/* Ficha del vehiculo: solo si es comparativo de autos y hay algun dato */}
+              {tab === 'vehiculos' &&
+                (vehiculo.marcaModelo || vehiculo.placa || vehiculo.anio || vehiculo.sumaAsegurada) && (
+                  <table className="mb-5 w-full border-collapse text-[12px]">
+                    <tbody>
+                      {[
+                        ['MARCA Y MODELO VEHÍCULO', vehiculo.marcaModelo],
+                        ['PLACA / RAMV', vehiculo.placa],
+                        ['AÑO VEHÍCULO', vehiculo.anio],
+                        [
+                          'SUMA ASEGURADA SUGERIDA',
+                          vehiculo.sumaAsegurada ? `$ ${vehiculo.sumaAsegurada}` : '',
+                        ],
+                      ]
+                        .filter(([, v]) => String(v).trim() !== '')
+                        .map(([etiqueta, valor]) => (
+                          <tr key={etiqueta}>
+                            <td
+                              className="w-[42%] border px-3 py-1.5 text-center font-bold"
+                              style={{ color: NAVY, borderColor: '#c9cfdd' }}
+                            >
+                              {etiqueta}
+                            </td>
+                            <td
+                              className="border px-3 py-1.5 text-center"
+                              style={{ borderColor: '#c9cfdd' }}
+                            >
+                              {valor}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
+
               <p className="mb-5 rounded-lg border-l-4 bg-[#f7f8fc] px-4 py-3 text-[12px] leading-relaxed text-[#2a3350]" style={{ borderColor: GOLD }}>
                 Estimado{clientName ? ` ${clientName.split(' ')[0]}` : ''}, hemos hecho un análisis exhaustivo de los planes del mercado, los cuales te presentamos a continuación. Recuerda que todos los planes incluyen la experiencia de Servicio Priority.
               </p>
@@ -738,6 +849,29 @@ export function ComparativosPage() {
                       ))}
                     </tr>
                   ))}
+                  {/* Tasa: solo vehiculos, y solo si se capturo alguna. Va justo
+                      encima de la prima, como en la presentacion de ofertas. */}
+                  {tab === 'vehiculos' &&
+                    documentPlans.some((p) => (tasas[p.id] ?? '').trim() !== '') && (
+                      <tr>
+                        <td className="px-3 py-2 font-bold" style={{ color: NAVY }}>
+                          TASA
+                        </td>
+                        {documentPlans.map((p) => (
+                          <td
+                            key={p.id}
+                            className="px-3 py-2 text-[13px] font-semibold"
+                            style={{
+                              color: NAVY,
+                              backgroundColor:
+                                recommended[tab] === p.id ? 'rgba(219,170,89,.22)' : undefined,
+                            }}
+                          >
+                            {(tasas[p.id] ?? '').trim() ? `${tasas[p.id]}%` : '—'}
+                          </td>
+                        ))}
+                      </tr>
+                    )}
                   <tr style={{ backgroundColor: 'rgba(253,248,239,0.7)' }}>
                     <td className="px-3 py-3 font-bold" style={{ color: NAVY, borderTop: `2px solid ${GOLD}` }}>
                       {PRIMA_LABEL[tab].toUpperCase()}

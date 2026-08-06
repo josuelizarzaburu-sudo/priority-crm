@@ -41,8 +41,18 @@ const money = (v: any) => {
   return Number.isFinite(n) && n !== 0 ? `$${n.toFixed(2)}` : '—'
 }
 
+// OJO: fechaRenovacion se guarda sin hora (medianoche UTC). Si se formatea sin
+// timeZone: 'UTC', el navegador la convierte a hora local (Ecuador, UTC-5) y
+// puede mostrar el día anterior o, en casos límite, hacer que un 31 se vea
+// como si perteneciera al mes siguiente en el filtro (que sí calcula en UTC).
 const fecha = (v: string | null) =>
-  v ? new Date(v).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' }) : '—'
+  v
+    ? new Date(v).toLocaleDateString('es-EC', {
+        day: '2-digit',
+        month: 'short',
+        timeZone: 'UTC',
+      })
+    : '—'
 
 export function RenovacionesPage() {
   const qc = useQueryClient()

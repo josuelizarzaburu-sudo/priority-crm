@@ -62,6 +62,11 @@ const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
   // GMM de las otras dos aseguradoras: también se cotizan por deducible
   'CONFIAMED GMM': [5000, 10000],
   'HUMANA GMM': [5000, 10000, 20000],
+  // BMI Internacional: los planes Ideal tambien se cotizan por deducible, asi que
+  // el vendedor puede mandar varios del MISMO plan al comparativo. Sin estas dos
+  // entradas cada seleccion sobrescribia a la anterior y solo sobrevivia la ultima.
+  'BMI IDEAL 1M': [500, 1000, 2500, 5000, 10000, 20000],
+  'BMI IDEAL 2M': [500, 1000, 2500, 5000, 10000, 20000],
 }
 
 // Planes de Confiamed que permiten elegir Red 1 o Red 2. El texto que sale en la
@@ -878,7 +883,7 @@ export function ComparativosPage() {
                             backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.10)' : undefined,
                           }}
                         >
-                          {r.label === 'Deducible' && BMI_DEDUCIBLE_PLANS[p.name]
+                          {r.label.startsWith('Deducible') && BMI_DEDUCIBLE_PLANS[p.name]
                             ? 'A Elección'
                             : r.label === 'Red Medica' && CONFIAMED_RED_PLANS[p.name]
                             ? CONFIAMED_RED_PLANS[p.name][confiamedRed[p.id] ?? 'red1']

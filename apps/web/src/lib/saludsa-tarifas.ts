@@ -61,7 +61,14 @@ export type Sexo = 'M' | 'F'
 export interface SaludsaPersona {
   edad: number
   sexo: Sexo
-  /** Mujer sin cobertura de maternidad: paga el mismo factor que un hombre. */
+  /**
+   * Mujer sin cobertura de maternidad: paga el mismo factor que un hombre.
+   *
+   * OJO: en la practica Saludsa incluye maternidad en TODOS sus planes
+   * (Star/Sky/Pro) y no se puede excluir, asi que el cotizador siempre manda
+   * `false`. La bandera se conserva por si a futuro sacan un plan sin
+   * maternidad, pero hoy no debe activarse.
+   */
   sinMaternidad?: boolean
 }
 

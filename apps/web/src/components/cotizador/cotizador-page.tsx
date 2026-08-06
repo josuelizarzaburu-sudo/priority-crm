@@ -344,8 +344,13 @@ export function CotizadorPage() {
       personas.map((p) => ({
         edad: p.edad,
         sexo: p.sexo,
-        // En Saludsa la mujer sin maternidad paga el mismo factor que un hombre.
-        sinMaternidad: p.sexo === 'F' && p.maternidad === false,
+        // En Saludsa la maternidad viene SIEMPRE incluida en todos los planes
+        // (Star/Sky/Pro): no existe la opcion de excluirla. Por eso NO se lee el
+        // boton "Maternidad" del formulario, que es exclusivo de Confiamed.
+        // Antes se leia, y como ese boton arranca apagado, toda mujer se cotizaba
+        // con el factor de hombre y salia mas barata de lo real (hasta ~30% menos
+        // en mujeres de 18-31).
+        sinMaternidad: false,
       })),
     )
   }, [personas])
@@ -458,7 +463,9 @@ export function CotizadorPage() {
                     )
                   })}
                 </div>
-                {/* Maternidad (para Confiamed) */}
+                {/* Maternidad: SOLO afecta a Confiamed. En Saludsa viene siempre
+                    incluida y no se puede excluir, asi que ese cotizador ignora
+                    este boton a proposito. */}
                 <button
                   type="button"
                   onClick={() => updateMiembro(m.id, { maternidad: !m.maternidad })}
@@ -468,7 +475,7 @@ export function CotizadorPage() {
                     backgroundColor: m.maternidad ? GOLD : '#fff',
                     color: m.maternidad ? '#fff' : NAVY,
                   }}
-                  title="Incluir maternidad (Confiamed)"
+                  title="Incluir maternidad — solo aplica a Confiamed. En Saludsa la maternidad siempre está incluida."
                 >
                   Maternidad
                 </button>

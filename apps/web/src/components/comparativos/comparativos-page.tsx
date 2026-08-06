@@ -83,8 +83,15 @@ interface PrimaExtra {
 
 // Parsea el parámetro ?cotizacion=... que manda el cotizador y arma el estado inicial
 // del comparativo (planes seleccionados, primas, deducibles BMI y red Confiamed).
+//
+// OJO: el cotizador manda planes de DOS catalogos distintos —los nacionales
+// ('salud') y los de BMI Internacional ('internacional')— asi que hay que buscar
+// el catalogId en ambos y devolver los ids separados por catalogo, junto con la
+// pestana en la que debe abrir el comparativo.
 function parseCotizacion(raw: string | null): {
   saludIds: string[]
+  internacionalIds: string[]
+  tabInicial: CatalogKey
   primas: Record<string, string>
   primasExtra: Record<string, PrimaExtra[]>
   redes: Record<string, 'red1' | 'red2'>
@@ -108,6 +115,7 @@ function parseCotizacion(raw: string | null): {
   if (!Array.isArray(items) || items.length === 0) return null
 
   const saludIds: string[] = []
+  const internacionalIds: string[] = []
   const primas: Record<string, string> = {}
   const primasExtra: Record<string, PrimaExtra[]> = {}
   const redes: Record<string, 'red1' | 'red2'> = {}
@@ -119,9 +127,20 @@ function parseCotizacion(raw: string | null): {
   }
 
   for (const it of items) {
-    const plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
+    // Buscar primero en salud y, si no esta, en internacional. Antes solo se
+    // miraba 'salud', asi que los planes de BMI Internacional (in0 / in4) no se
+    // encontraban nunca y se descartaban en silencio.
+    let plan = CATALOGS.salud.plans.find((p) => p.id === it.catalogId)
+    let esInternacional = false
+    if (!plan) {
+      plan = CATALOGS.internacional.plans.find((p) => p.id === it.catalogId)
+      esInternacional = !!plan
+    }
     if (!plan) continue
-    if (!saludIds.includes(plan.id)) saludIds.push(plan.id)
+
+    const destino = esInternacional ? internacionalIds : saludIds
+    if (!destino.includes(plan.id)) destino.push(plan.id)
+
     const mensualStr = Number(it.mensual).toFixed(2).replace('.', ',')
 
     if (BMI_DEDUCIBLE_PLANS[plan.name]) {
@@ -139,8 +158,13 @@ function parseCotizacion(raw: string | null): {
       redes[plan.id] = it.red
     }
   }
-  if (saludIds.length === 0) return null
-  return { saludIds, primas, primasExtra, redes }
+  if (saludIds.length === 0 && internacionalIds.length === 0) return null
+
+  // Abrir en la pestana que realmente tiene planes. Si vienen de ambos catalogos
+  // gana salud, que es el caso mas comun.
+  const tabInicial: CatalogKey = saludIds.length > 0 ? 'salud' : 'internacional'
+
+  return { saludIds, internacionalIds, tabInicial, primas, primasExtra, redes }
 }
 
 function isNegativeValue(v: string | null | undefined) {
@@ -205,7 +229,7 @@ export function ComparativosPage() {
   const searchParams = useSearchParams()
   const preload = useMemo(() => parseCotizacion(searchParams.get('cotizacion')), [searchParams])
 
-  const [tab, setTab] = useState<CatalogKey>('salud')
+  const [tab, setTab] = useState<CatalogKey>(preload?.tabInicial ?? 'salud')
   const [clientName, setClientName] = useState('')
 
   // Datos del vehículo: solo aplican a la pestaña de Vehículos y se imprimen
@@ -222,7 +246,9 @@ export function ComparativosPage() {
   // Tasa por plan (solo vehículos): va como fila propia, justo encima de la prima.
   const [tasas, setTasas] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Record<CatalogKey, string[]>>({
-    salud: preload?.saludIds ?? [], internacional: [], vehiculos: [],
+    salud: preload?.saludIds ?? [],
+    internacional: preload?.internacionalIds ?? [],
+    vehiculos: [],
   })
   const [primas, setPrimas] = useState<Record<string, string>>(preload?.primas ?? {})
   // Primas adicionales por deducible, solo para BMI Sigma / GMM. Clave = id del plan.

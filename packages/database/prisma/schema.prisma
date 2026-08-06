@@ -36,6 +36,7 @@ model Organization {
   polizas     Poliza[]
   reclamos    Reclamo[]
   requerimientos Requerimiento[]
+  renovaciones   Renovacion[]
 
   @@map("organizations")
 }
@@ -80,6 +81,8 @@ model User {
   notasReclamos           NotaReclamo[]
   requerimientos          Requerimiento[]
   notasRequerimientos     NotaRequerimiento[]
+  renovaciones            Renovacion[]        @relation("RenovacionEjecutivo")
+  notasRenovaciones       NotaRenovacion[]
   reclamosGestionados     Reclamo[]
 
   @@map("users")
@@ -203,6 +206,71 @@ model NotaRequerimiento {
 
   @@index([requerimientoId, createdAt])
   @@map("notas_requerimiento")
+}
+
+
+// Renovaciones. UNA POR PÓLIZA, no por cliente: un mismo cliente puede tener
+// varias pólizas que renuevan en meses distintos.
+//
+// Los datos del cliente y de la póliza NO se copian aquí: se leen de la relación,
+// así una corrección en la ficha se refleja sola. Aquí solo viven los datos
+// propios de la gestión de renovación, que la ejecutiva llena a mano.
+model Renovacion {
+  id             String   @id @default(cuid())
+  organizationId String
+
+  polizaId       String
+  // Fecha en que toca renovar. Se calcula un año después de la vigencia, pero
+  // queda editable porque las aseguradoras a veces mueven la fecha.
+  fechaRenovacion DateTime
+
+  // Valor que paga hoy. Se precarga de la prima de la póliza y queda editable.
+  valorActual     Decimal? @db.Decimal(12, 2)
+  // Valor que propone la aseguradora para el año nuevo. Siempre a mano.
+  valorRenovacion Decimal? @db.Decimal(12, 2)
+  // Alternativa de pago diferido, cuando la aseguradora la ofrece.
+  diferidoEspecial Decimal? @db.Decimal(12, 2)
+  // El % de incremento NO se guarda: se calcula al mostrar, como en el Excel.
+
+  estado         EstadoRenovacion @default(POR_RENOVAR)
+  // Control de envíos, para cuando se automatice el correo.
+  envio          EstadoEnvio      @default(NO_ENVIADO)
+  fechaPrimerEnvio DateTime?
+
+  comentarios    String?
+  notas          NotaRenovacion[]
+
+  ejecutivoId    String?
+  ejecutivoNombre String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  poliza         Poliza       @relation(fields: [polizaId], references: [id], onDelete: Cascade)
+  ejecutivo      User?        @relation("RenovacionEjecutivo", fields: [ejecutivoId], references: [id], onDelete: SetNull)
+
+  // Una sola renovación por póliza y fecha: evita duplicados al regenerar.
+  @@unique([polizaId, fechaRenovacion])
+  @@index([organizationId, fechaRenovacion])
+  @@index([organizationId, estado])
+  @@map("renovaciones")
+}
+
+// Bitácora de la renovación: se agrega, no se edita ni se borra.
+model NotaRenovacion {
+  id           String   @id @default(cuid())
+  contenido    String
+  renovacionId String
+  autorId      String?
+  autorNombre  String?
+  createdAt    DateTime @default(now())
+
+  renovacion   Renovacion @relation(fields: [renovacionId], references: [id], onDelete: Cascade)
+  autor        User?      @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([renovacionId, createdAt])
+  @@map("notas_renovacion")
 }
 
 enum UserRole {
@@ -749,6 +817,8 @@ model Poliza {
   agente          User?               @relation("PolizaAgente", fields: [agenteId], references: [id])
   dependientes    PolizaDependiente[]
 
+  renovaciones    Renovacion[]
+
   @@index([clienteId])
   @@index([organizationId, aseguradora])
   @@index([organizationId, fechaRenovacion])
@@ -890,4 +960,19 @@ enum EstadoRequerimiento {
   EN_TRAMITE   // recibido, en gestión
   MAS_INFORMACION // se pidió información adicional al cliente
   SOLUCIONADO  // cerrado
+}
+
+enum EstadoRenovacion {
+  POR_RENOVAR              // entra aquí por defecto
+  ENVIAR
+  ENVIADO
+  EN_PROCESO
+  RENOVADO_PAGO_PENDIENTE
+  RENOVADO
+}
+
+enum EstadoEnvio {
+  NO_ENVIADO
+  PRIMER_ENVIO
+  SEGUNDO_ENVIO
 }

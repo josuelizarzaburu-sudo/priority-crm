@@ -32,6 +32,7 @@ import {
   Trophy,
   ShieldCheck,
   ClipboardCheck,
+  CalendarClock,
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
@@ -49,6 +50,7 @@ const NAV_ITEMS = [
   { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: OPS_ADMIN },
   { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN },
   { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN },
+  { href: '/renovaciones',     label: 'Renovaciones',        icon: CalendarClock,   roles: OPS_ADMIN },
   { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: OPS_ADMIN },
   { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },

@@ -24,6 +24,7 @@ import { ReclamosModule } from './modules/reclamos/reclamos.module'
 import { CargaReclamosModule } from './modules/carga-reclamos/carga-reclamos.module'
 import { RegistroAccesoModule } from './modules/registro-acceso/registro-acceso.module'
 import { RequerimientosModule } from './modules/requerimientos/requerimientos.module'
+import { RenovacionesModule } from './modules/renovaciones/renovaciones.module'
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { RequerimientosModule } from './modules/requerimientos/requerimientos.mo
     CargaReclamosModule,
     RegistroAccesoModule,
     RequerimientosModule,
+    RenovacionesModule,
   ],
   providers: [
     // El ThrottlerModule estaba configurado pero NUNCA se aplicaba: sin este

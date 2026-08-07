@@ -92,6 +92,14 @@ export function MyPipelineBoard() {
   const { data: session } = useSession()
   const userName = session?.user?.name ?? 'tú'
   const userRole = session?.user?.role?.toUpperCase() ?? ''
+  // Quien llega a esta pantalla puede crear negocios propios: o es vendedor por
+  // cargo, o es un perfil de Operaciones con el permiso individual. La ruta ya
+  // filtra quien entra, asi que aqui solo se decide si mostrar el boton.
+  const puedeCrearNegocios =
+    userRole === 'SALES_REP' ||
+    userRole === 'SUPER_ADMIN' ||
+    ((session?.user as any)?.puedeVender === true &&
+      ['OPERACIONES', 'JEFE_OPERACIONES'].includes(userRole))
   const queryClient = useQueryClient()
 
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
@@ -286,7 +294,7 @@ export function MyPipelineBoard() {
               Auto
             </button>
           </div>
-          {(userRole === 'SALES_REP' || userRole === 'SUPER_ADMIN') && (
+          {puedeCrearNegocios && (
             <Button onClick={() => setCreateOpen(true)} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo deal

@@ -32,13 +32,27 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { api } from '@/lib/api'
 import { getInitials, formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SystemRole = 'SUPER_ADMIN' | 'OWNER' | 'MANAGER' | 'JEFE_EQUIPO' | 'SALES_REP'
+type SystemRole =
+  | 'SUPER_ADMIN'
+  | 'OWNER'
+  | 'MANAGER'
+  | 'JEFE_EQUIPO'
+  | 'SALES_REP'
+  | 'OPERACIONES'
+  | 'JEFE_OPERACIONES'
 
 interface TeamMember {
   id: string
@@ -85,7 +99,37 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; description: string; icon
     icon: Users,
     variant: 'outline',
   },
+  // Perfiles del area de Operaciones. No se ofrecen al CREAR un usuario (el
+  // formulario de alta usa su propia lista), pero si al editar, para poder mover
+  // a alguien entre areas sin borrarlo y volverlo a crear.
+  JEFE_OPERACIONES: {
+    label: 'Jefe de operaciones',
+    description: 'Ve todos los clientes y asigna ejecutivas',
+    icon: UserCog,
+    variant: 'secondary',
+  },
+  OPERACIONES: {
+    label: 'Ejecutiva de cuenta',
+    description: 'Ve solo los clientes que tiene asignados',
+    icon: Users,
+    variant: 'outline',
+  },
 }
+
+/**
+ * Roles que se ofrecen al CREAR un usuario.
+ *
+ * Los perfiles de Operaciones no estan aqui a proposito: se dan de alta desde su
+ * propio flujo. Al EDITAR si aparecen todos, para poder mover a alguien de area
+ * sin borrarlo y volverlo a crear.
+ */
+const ROLES_AL_CREAR = [
+  'SUPER_ADMIN',
+  'OWNER',
+  'MANAGER',
+  'JEFE_EQUIPO',
+  'SALES_REP',
+] as const satisfies readonly SystemRole[]
 
 // ─── Form schemas ─────────────────────────────────────────────────────────────
 
@@ -201,7 +245,7 @@ function CreateMemberForm() {
           <div className="space-y-2">
             <Label>Rol *</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO', 'SALES_REP'] as SystemRole[]).map((role) => {
+              {ROLES_AL_CREAR.map((role) => {
                 const { label, description, icon: Icon } = ROLE_CONFIG[role]
                 const active = selectedRole === role
                 return (
@@ -301,7 +345,12 @@ function EditMemberDialog({
   // Permiso para gestionar negocios propios en Mi Pipeline. Solo tiene efecto en
   // los perfiles de Operaciones: los vendedores ya lo traen con el cargo.
   const [puedeVender, setPuedeVender] = useState(member.puedeVender === true)
-  const esPerfilOperativo = ['OPERACIONES', 'JEFE_OPERACIONES'].includes(member.role)
+
+  // El rol tambien se edita aqui. Antes solo se podia elegir al crear el usuario,
+  // asi que para convertir a alguien en Jefe de equipo habia que borrarlo y
+  // volverlo a crear.
+  const [rol, setRol] = useState<string>(member.role)
+  const esPerfilOperativo = ['OPERACIONES', 'JEFE_OPERACIONES'].includes(rol)
 
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
@@ -310,6 +359,7 @@ function EditMemberDialog({
         phone: data.phone || null,
         puedeCotizarPorOtros,
         puedeVender,
+        role: rol,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -370,6 +420,27 @@ function EditMemberDialog({
                 </span>
               </span>
             </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Rol</label>
+            <Select value={rol} onValueChange={setRol}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROLE_CONFIG).map(([valor, cfg]) => (
+                  <SelectItem key={valor} value={valor}>
+                    {cfg.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {rol !== member.role && (
+              <p className="text-[11px] text-amber-600">
+                Debe cerrar sesión y volver a entrar para que el cambio surta efecto.
+              </p>
+            )}
           </div>
 
           {/* Solo se ofrece a los perfiles de Operaciones. Un vendedor ya gestiona

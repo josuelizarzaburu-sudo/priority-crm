@@ -34,10 +34,22 @@ export class UsersController {
   updateMember(
     @Param('id') id: string,
     @Body()
-    body: { name?: string; phone?: string | null; puedeCotizarPorOtros?: boolean; puedeVender?: boolean },
+    body: {
+      name?: string
+      phone?: string | null
+      puedeCotizarPorOtros?: boolean
+      puedeVender?: boolean
+      role?: string
+    },
     @Req() req: any,
   ) {
-    return this.usersService.updateMember(id, body, req.user.organizationId, req.user.role)
+    return this.usersService.updateMember(
+      id,
+      body,
+      req.user.organizationId,
+      req.user.role,
+      req.user.id,
+    )
   }
 
   @Get()

@@ -55,6 +55,12 @@ model User {
   // que cotizan para el equipo comercial. Va apagado por defecto a proposito: si
   // cualquiera pudiera, se podrian emitir cotizaciones a nombre ajeno.
   puedeCotizarPorOtros Boolean @default(false)
+  // Permite gestionar negocios propios en "Mi Pipeline" sin ser vendedor de
+  // planta. Se usa para los perfiles de Operaciones, que venden de vez en cuando.
+  // Es un permiso POR USUARIO, no por rol: asi se le da solo a quien corresponda
+  // y una ejecutiva nueva entra sin el hasta que se lo activen a mano.
+  // Apagado por defecto, igual que puedeCotizarPorOtros.
+  puedeVender          Boolean @default(false)
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

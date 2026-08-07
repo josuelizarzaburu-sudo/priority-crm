@@ -76,8 +76,16 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useUIStore()
   const { data: session } = useSession()
   const role = (session?.user as any)?.role ?? 'SALES_REP'
+  // Permiso individual: habilita Mi Pipeline a los perfiles de Operaciones que
+  // venden de vez en cuando, sin cambiarles el rol ni tocar el resto del menu.
+  const puedeVender = (session?.user as any)?.puedeVender === true
 
-  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.roles.includes(role)) return true
+    // Unica excepcion por permiso, no por rol.
+    if (item.href === '/my-pipeline' && puedeVender && OPS.includes(role)) return true
+    return false
+  })
   // Ajustes queda solo para administracion. Un vendedor o una ejecutiva no debe
   // poder cambiar su propia clave ni tocar su perfil: eso lo maneja el admin.
   const puedeVerAjustes = ['SUPER_ADMIN', 'OWNER'].includes(role)

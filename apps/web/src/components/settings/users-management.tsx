@@ -46,6 +46,7 @@ interface TeamMember {
   email: string
   phone: string | null
   puedeCotizarPorOtros?: boolean
+  puedeVender?: boolean
   role: SystemRole
   avatar: string | null
   createdAt: string
@@ -291,12 +292,18 @@ function EditMemberDialog({
     member.puedeCotizarPorOtros === true,
   )
 
+  // Permiso para gestionar negocios propios en Mi Pipeline. Solo tiene efecto en
+  // los perfiles de Operaciones: los vendedores ya lo traen con el cargo.
+  const [puedeVender, setPuedeVender] = useState(member.puedeVender === true)
+  const esPerfilOperativo = ['OPERACIONES', 'JEFE_OPERACIONES'].includes(member.role)
+
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
       api.patch(`/users/${member.id}`, {
         name: data.name,
         phone: data.phone || null,
         puedeCotizarPorOtros,
+        puedeVender,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -358,6 +365,32 @@ function EditMemberDialog({
               </span>
             </label>
           </div>
+
+          {/* Solo se ofrece a los perfiles de Operaciones. Un vendedor ya gestiona
+              sus negocios por su cargo, y mostrar la casilla ahi haria pensar que
+              se le puede quitar el pipeline desmarcandola, que no es el caso. */}
+          {esPerfilOperativo && (
+            <div className="rounded-md border p-3">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={puedeVender}
+                  onChange={(e) => setPuedeVender(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    Puede vender (Mi Pipeline)
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Habilita Mi Pipeline para gestionar sus propios negocios. Solo
+                    ve los que tiene asignados; no accede al pipeline general, ni a
+                    comisiones, ni entra al ranking de vendedores.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>

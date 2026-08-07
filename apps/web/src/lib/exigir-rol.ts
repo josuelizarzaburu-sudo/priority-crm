@@ -40,6 +40,29 @@ export function inicioSegunRol(rol: string): string {
 }
 
 /**
+ * Igual que exigirRol, pero admite ademas el permiso individual `puedeVender`.
+ *
+ * Existe porque Mi Pipeline es la unica pantalla que no se decide solo por el
+ * cargo: los perfiles de Operaciones venden de vez en cuando y se les habilita
+ * uno por uno desde la pantalla de Usuarios.
+ *
+ * OJO: el permiso se lee de la sesion, que se arma al iniciar sesion. Si se le
+ * activa o desactiva la casilla a alguien con la sesion abierta, el enlace del
+ * menu no cambia hasta que vuelva a entrar. La API si lo comprueba contra la
+ * base en cada peticion, asi que un permiso retirado deja de funcionar al
+ * instante aunque el enlace siga a la vista.
+ */
+export async function exigirRolOPuedeVender(rolesPermitidos: string[]) {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
+  const usuario = session.user as { role?: string; puedeVender?: boolean } | undefined
+  const rol = usuario?.role ?? ''
+  if (rolesPermitidos.includes(rol)) return
+  if (usuario?.puedeVender === true && OPS.includes(rol)) return
+  redirect(inicioSegunRol(rol))
+}
+
+/**
  * Redirige si el rol de la sesion no esta en la lista.
  * Se llama al principio de un page.tsx de servidor.
  */

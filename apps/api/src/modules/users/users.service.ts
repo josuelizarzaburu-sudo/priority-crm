@@ -35,7 +35,7 @@ export class UsersService {
   findByOrganization(organizationId: string) {
     return this.prisma.user.findMany({
       where: { organizationId },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true },
       orderBy: { createdAt: 'asc' },
     })
   }
@@ -93,7 +93,12 @@ export class UsersService {
 
   async updateMember(
     targetId: string,
-    data: { name?: string; phone?: string | null; puedeCotizarPorOtros?: boolean },
+    data: {
+      name?: string
+      phone?: string | null
+      puedeCotizarPorOtros?: boolean
+      puedeVender?: boolean
+    },
     organizationId: string,
     callerRole: string,
   ): Promise<object> {
@@ -114,8 +119,9 @@ export class UsersService {
         ...(data.puedeCotizarPorOtros !== undefined
           ? { puedeCotizarPorOtros: data.puedeCotizarPorOtros }
           : {}),
+        ...(data.puedeVender !== undefined ? { puedeVender: data.puedeVender } : {}),
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true },
     })
   }
 

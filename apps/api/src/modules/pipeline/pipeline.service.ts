@@ -10,6 +10,7 @@ import { CloseDealDto } from './dto/close-deal.dto'
 import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
+import { soloVeSusNegocios } from './puede-vender'
 
 /**
  * Roles con acceso a informacion comercial sensible.
@@ -63,9 +64,9 @@ export class PipelineService {
     })
   }
 
-  async getDeals(organizationId: string, userId: string, role: string) {
+  async getDeals(organizationId: string, userId: string, role: string, puedeVender?: boolean) {
     const where: any = { organizationId }
-    if (role === 'SALES_REP') where.assignedToId = userId
+    if (soloVeSusNegocios(role, puedeVender)) where.assignedToId = userId
     const deals = await this.prisma.deal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -201,7 +202,7 @@ export class PipelineService {
     return updated
   }
 
-  async getDeal(id: string, organizationId: string, userId?: string, role?: string) {
+  async getDeal(id: string, organizationId: string, userId?: string, role?: string, puedeVender?: boolean) {
     const deal = await this.prisma.deal.findFirst({
       where: { id, organizationId },
       include: {
@@ -216,14 +217,21 @@ export class PipelineService {
       },
     })
     if (!deal) throw new NotFoundException('Deal not found')
-    if (role === 'SALES_REP' && userId && deal.assignedToId !== userId) {
+    if (soloVeSusNegocios(role ?? '', puedeVender) && userId && deal.assignedToId !== userId) {
       throw new ForbiddenException('No tienes acceso a este deal')
     }
     return deal
   }
 
-  async logActivity(dealId: string, dto: LogActivityDto, organizationId: string, userId: string, role?: string) {
-    const deal = await this.getDeal(dealId, organizationId, userId, role)
+  async logActivity(
+    dealId: string,
+    dto: LogActivityDto,
+    organizationId: string,
+    userId: string,
+    role?: string,
+    puedeVender?: boolean,
+  ) {
+    const deal = await this.getDeal(dealId, organizationId, userId, role, puedeVender)
     return this.prisma.activity.create({
       data: {
         type: dto.type as any,
@@ -570,8 +578,15 @@ export class PipelineService {
       .sort((a, b) => (b.porcentajeGestion ?? -1) - (a.porcentajeGestion ?? -1))
   }
 
-  async closeDeal(id: string, dto: CloseDealDto, organizationId: string, userId: string, role?: string) {
-    const deal = await this.getDeal(id, organizationId, userId, role)
+  async closeDeal(
+    id: string,
+    dto: CloseDealDto,
+    organizationId: string,
+    userId: string,
+    role?: string,
+    puedeVender?: boolean,
+  ) {
+    const deal = await this.getDeal(id, organizationId, userId, role, puedeVender)
 
     // Belt-and-suspenders: if value is missing, sync from insuranceData (array or object) or prima
     const cfPrima     = (deal.customFields as any)?.prima
@@ -637,7 +652,13 @@ export class PipelineService {
     return updated
   }
 
-  async createDeal(dto: CreateDealDto, organizationId: string, createdById: string, role: string) {
+  async createDeal(
+    dto: CreateDealDto,
+    organizationId: string,
+    createdById: string,
+    role: string,
+    puedeVender?: boolean,
+  ) {
     const lastDeal = await this.prisma.deal.findFirst({
       where: { stageId: dto.stageId },
       orderBy: { position: 'desc' },
@@ -647,9 +668,12 @@ export class PipelineService {
     const customFields: Record<string, unknown> = { ...(dto.customFields as any) }
     let assignedToId = dto.assignedToId
 
-    if (role === 'SALES_REP') {
-      // Sales reps can only create deals for their own book of business —
-      // origin and assignment are enforced server-side, not trusted from the client.
+    if (soloVeSusNegocios(role, puedeVender)) {
+      // Quien solo gestiona lo suyo —vendedor de planta, o perfil de Operaciones
+      // con el permiso— crea negocios unicamente para si mismo. El origen y la
+      // asignacion se imponen en el servidor: no se confia en lo que mande el
+      // cliente, porque si no bastaria con editar la peticion para colgarle un
+      // negocio a otra persona.
       customFields.leadOrigin = 'PROPIO'
       assignedToId = createdById
     } else {
@@ -662,8 +686,15 @@ export class PipelineService {
     })
   }
 
-  async updateDeal(id: string, dto: UpdateDealDto, organizationId: string, userId?: string, role?: string) {
-    const existing = await this.getDeal(id, organizationId, userId, role)
+  async updateDeal(
+    id: string,
+    dto: UpdateDealDto,
+    organizationId: string,
+    userId?: string,
+    role?: string,
+    puedeVender?: boolean,
+  ) {
+    const existing = await this.getDeal(id, organizationId, userId, role, puedeVender)
 
     const data: any = { ...dto }
 
@@ -723,8 +754,15 @@ export class PipelineService {
 
   private readonly WON_STAGE_ID = 'cmohtra9r000bz5t3q407kx05'
 
-  async moveDeal(id: string, dto: MoveDealDto, organizationId: string, userId: string, role?: string) {
-    const deal = await this.getDeal(id, organizationId, userId, role)
+  async moveDeal(
+    id: string,
+    dto: MoveDealDto,
+    organizationId: string,
+    userId: string,
+    role?: string,
+    puedeVender?: boolean,
+  ) {
+    const deal = await this.getDeal(id, organizationId, userId, role, puedeVender)
 
     if ((deal.customFields as any)?.locked) {
       throw new ForbiddenException('Este deal está cerrado y no puede moverse de etapa')

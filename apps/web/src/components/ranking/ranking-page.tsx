@@ -23,6 +23,18 @@ interface Agent {
   id: string
   name: string
   role: string
+  puedeVender?: boolean
+}
+
+/** Los dos grupos del ranking. Se muestran por separado y se suman al final. */
+type Grupo = 'vendedores' | 'comercial'
+
+const ROLES_OPERACIONES = ['OPERACIONES', 'JEFE_OPERACIONES']
+
+interface Fila {
+  nombre: string
+  total: number
+  ramos: Record<string, number>
 }
 
 const money = (n: number) =>
@@ -51,7 +63,7 @@ export function RankingPage() {
   const agents = results[1].data ?? []
   const isLoading = results.some((r) => r.isLoading)
 
-  const filas = useMemo(() => {
+  const grupos = useMemo(() => {
     const ahora = new Date()
     const desde =
       periodo === 'mes'
@@ -63,13 +75,26 @@ export function RankingPage() {
     // Se parte del listado de usuarios para que un vendedor sin ventas aparezca
     // igual, en cero. Si solo se recorrieran los deals, desapareceria del ranking
     // justo el mes que mas hay que conversar con el.
-    const porVendedor = new Map<string, { nombre: string; total: number; ramos: Record<string, number> }>()
+    //
+    // Dos grupos separados a proposito: comparar a alguien que vende a tiempo
+    // completo con un perfil operativo que vende de vez en cuando distorsiona la
+    // lectura. Se rankean aparte y se suman al final, asi el total sigue cuadrando
+    // con el Overview.
+    const grupoDe = new Map<string, Grupo>()
+    const acumuladores: Record<Grupo, Map<string, Fila>> = {
+      vendedores: new Map(),
+      comercial: new Map(),
+    }
+
     for (const a of agents) {
-      // Solo vendedores de planta. Los perfiles de Operaciones venden de vez en
-      // cuando, pero NO entran al ranking a proposito: compararlos con alguien
-      // que vende a tiempo completo distorsiona la métrica. Decision de Josue.
-      if (a.role !== 'SALES_REP') continue
-      porVendedor.set(a.id, { nombre: a.name, total: 0, ramos: {} })
+      let grupo: Grupo | null = null
+      if (a.role === 'SALES_REP') grupo = 'vendedores'
+      // Solo los operativos con el permiso activo. Sin esta condicion el ranking
+      // se llenaria de nombres en cero de gente que ni siquiera puede vender.
+      else if (a.puedeVender === true && ROLES_OPERACIONES.includes(a.role)) grupo = 'comercial'
+      if (!grupo) continue
+      grupoDe.set(a.id, grupo)
+      acumuladores[grupo].set(a.id, { nombre: a.name, total: 0, ramos: {} })
     }
 
     for (const d of deals) {
@@ -77,17 +102,23 @@ export function RankingPage() {
       if (desde && new Date(d.closedAt) < desde) continue
       const id = d.assignedTo?.id ?? d.assignedToId
       if (!id) continue
+
+      // Alguien que ya no esta en la lista de usuarios (se elimino o cambio de
+      // rol) pero que tiene ventas: igual cuenta, para que el total no se
+      // encoja. Se lo ubica en vendedores, que es de donde vienen casi todas
+      // las ventas historicas.
+      const grupo = grupoDe.get(id) ?? 'vendedores'
+      const mapa = acumuladores[grupo]
       const acc =
-        porVendedor.get(id) ??
+        mapa.get(id) ??
         (() => {
-          // Vendedor que ya no esta en la lista de usuarios (se elimino o cambio
-          // de rol) pero que tiene ventas: igual cuenta, con el nombre del deal.
-          const nuevo = {
+          const nuevo: Fila = {
             nombre: d.assignedTo?.name ?? 'Sin asignar',
             total: 0,
-            ramos: {} as Record<string, number>,
+            ramos: {},
           }
-          porVendedor.set(id, nuevo)
+          mapa.set(id, nuevo)
+          grupoDe.set(id, grupo)
           return nuevo
         })()
 
@@ -98,11 +129,27 @@ export function RankingPage() {
       }
     }
 
-    return [...porVendedor.values()].sort((a, b) => b.total - a.total)
+    const ordenar = (m: Map<string, Fila>) =>
+      [...m.values()].sort((a, b) => b.total - a.total)
+
+    return {
+      vendedores: ordenar(acumuladores.vendedores),
+      comercial: ordenar(acumuladores.comercial),
+    }
   }, [deals, agents, filtro, periodo])
 
-  const maximo = filas[0]?.total ?? 0
-  const totalGeneral = filas.reduce((s, f) => s + f.total, 0)
+  // La barra se escala contra el mejor de TODA la empresa, no del grupo. Si cada
+  // grupo se midiera contra su propio lider, el primero de cada uno saldria con la
+  // barra llena y pareceria que venden lo mismo.
+  const maximo = Math.max(
+    grupos.vendedores[0]?.total ?? 0,
+    grupos.comercial[0]?.total ?? 0,
+  )
+  const suma = (fs: Fila[]) => fs.reduce((s, f) => s + f.total, 0)
+  const totalVendedores = suma(grupos.vendedores)
+  const totalComercial = suma(grupos.comercial)
+  const totalGeneral = totalVendedores + totalComercial
+  const hayComercial = grupos.comercial.length > 0
 
   return (
     <div className="space-y-4">
@@ -137,13 +184,83 @@ export function RankingPage() {
 
       <p className="text-xs text-muted-foreground">
         Total del periodo: <span className="font-semibold">{money(totalGeneral)}</span>
+        {hayComercial && (
+          <>
+            {' '}· Vendedores {money(totalVendedores)} + Comercial{' '}
+            {money(totalComercial)}
+          </>
+        )}
       </p>
 
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Cargando…</p>
-      ) : filas.length === 0 ? (
+      ) : grupos.vendedores.length === 0 && grupos.comercial.length === 0 ? (
         <p className="py-12 text-center text-sm text-muted-foreground">
           Todavía no hay vendedores registrados.
+        </p>
+      ) : (
+        <div className="space-y-6">
+          <Grupo
+            titulo="Vendedores"
+            subtitulo="Equipo comercial de planta"
+            filas={grupos.vendedores}
+            total={totalVendedores}
+            maximo={maximo}
+          />
+
+          {/* Solo se dibuja si hay alguien con el permiso de vender. Si nadie lo
+              tiene, la pantalla se ve igual que antes de separar los grupos. */}
+          {hayComercial && (
+            <Grupo
+              titulo="Comercial / Operaciones"
+              subtitulo="Perfiles operativos habilitados para vender"
+              filas={grupos.comercial}
+              total={totalComercial}
+              maximo={maximo}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Un bloque del ranking. Se usa igual para los dos grupos.
+ *
+ * `maximo` llega de afuera a proposito: las barras de ambos grupos se miden
+ * contra el mismo tope para que se puedan comparar de un vistazo.
+ */
+function Grupo({
+  titulo,
+  subtitulo,
+  filas,
+  total,
+  maximo,
+}: {
+  titulo: string
+  subtitulo: string
+  filas: Fila[]
+  total: number
+  maximo: number
+}) {
+  return (
+    <section className="space-y-2">
+      <div className="flex items-baseline justify-between gap-2 border-b pb-1.5">
+        <div>
+          <h2 className="text-sm font-bold" style={{ color: NAVY }}>
+            {titulo}
+          </h2>
+          <p className="text-[11px] text-muted-foreground">{subtitulo}</p>
+        </div>
+        <span className="shrink-0 text-sm font-bold" style={{ color: NAVY }}>
+          {money(total)}
+        </span>
+      </div>
+
+      {filas.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">
+          Nadie registrado en este grupo.
         </p>
       ) : (
         <div className="space-y-2">
@@ -232,7 +349,7 @@ export function RankingPage() {
           })}
         </div>
       )}
-    </div>
+    </section>
   )
 }
 

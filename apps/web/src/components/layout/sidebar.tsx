@@ -56,7 +56,7 @@ const NAV_ITEMS = [
   { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
   { href: '/registro-acceso',  label: 'Registro de acceso', icon: ShieldCheck,     roles: ['SUPER_ADMIN', 'OWNER'] },
   { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
-  { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ELEVATED },
+  { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ['SUPER_ADMIN'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP'] },
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN'] },

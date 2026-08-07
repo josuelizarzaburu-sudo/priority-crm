@@ -21,7 +21,20 @@ import { NotificationsService } from '../notifications/notifications.service'
  * Operaciones. Con lista blanca, un rol nuevo entra sin permisos hasta que se lo
  * agregue aqui de forma explicita.
  */
-const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+/**
+ * Comisiones: SOLO super admin.
+ *
+ * Josue lo restringio a proposito: el reporte existe para calcular sus propias
+ * comisiones, no es informacion que deba circular. OJO: esto deja fuera a OWNER
+ * (Pablo) y MANAGER (Roxana), que antes si entraban. Si alguno lo necesita, se
+ * agrega aqui y en la ruta del frontend (commissions/page.tsx) — los dos sitios,
+ * o la pantalla y la API quedan desalineadas.
+ */
+const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN']
+
+/**
+ * Reparto de leads: administracion comercial.
+ */
 const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 
 @Injectable()

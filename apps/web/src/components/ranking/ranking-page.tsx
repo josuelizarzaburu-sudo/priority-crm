@@ -65,6 +65,9 @@ export function RankingPage() {
     // justo el mes que mas hay que conversar con el.
     const porVendedor = new Map<string, { nombre: string; total: number; ramos: Record<string, number> }>()
     for (const a of agents) {
+      // Solo vendedores de planta. Los perfiles de Operaciones venden de vez en
+      // cuando, pero NO entran al ranking a proposito: compararlos con alguien
+      // que vende a tiempo completo distorsiona la métrica. Decision de Josue.
       if (a.role !== 'SALES_REP') continue
       porVendedor.set(a.id, { nombre: a.name, total: 0, ramos: {} })
     }

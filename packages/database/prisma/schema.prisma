@@ -320,6 +320,7 @@ model Equipo {
   // reasignar el equipo. Evita dejar un equipo huerfano con leads dentro.
   jefe           User     @relation("EquipoJefe", fields: [jefeId], references: [id], onDelete: Restrict)
   miembros       User[]   @relation("EquipoMiembros")
+  deals          Deal[]   @relation("EquipoDeals")
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
@@ -421,6 +422,16 @@ model Deal {
   organizationId   String
   createdById      String
   assignedToId     String?
+  // Equipo dueño del lead, independiente de assignedToId.
+  //
+  // Son dos cosas distintas: equipoId dice DE QUE JEFE es el lead, y
+  // assignedToId dice QUE VENDEDOR lo trabaja. Un lead puede estar sin asignar
+  // pero ya pertenecer al equipo de un jefe: asi cada jefe ve su propio lote en
+  // la bandeja en vez de una bolsa comun compartida.
+  //
+  // Null = todavia sin equipo (leads viejos o entrados antes de los equipos).
+  // Esos solo los ve gerencia.
+  equipoId         String?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -429,11 +440,15 @@ model Deal {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("DealCreatedBy", fields: [createdById], references: [id])
   assignedTo       User?            @relation("DealAssignedTo", fields: [assignedToId], references: [id])
+  // SetNull: si se borra un equipo, el lead NO se borra: vuelve a la bolsa comun
+  // para que gerencia lo reparta de nuevo.
+  equipo           Equipo?          @relation("EquipoDeals", fields: [equipoId], references: [id], onDelete: SetNull)
   activities       Activity[]
   whatsappMessages WhatsappMessage[]
 
   @@index([organizationId])
   @@index([stageId, position])
+  @@index([equipoId])
   @@map("deals")
 }
 

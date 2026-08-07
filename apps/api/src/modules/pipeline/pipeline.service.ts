@@ -47,6 +47,15 @@ const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN']
  */
 const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO']
 
+/**
+ * Quien decide de que equipo es un lead.
+ *
+ * Sin JEFE_EQUIPO a proposito: un jefe reparte DENTRO de su equipo, pero no mueve
+ * leads entre equipos. Si pudiera, podria vaciarse los suyos o quitarle los del
+ * otro jefe.
+ */
+const PUEDEN_ADMINISTRAR_LOTES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
 @Injectable()
 export class PipelineService {
   private readonly logger = new Logger(PipelineService.name)
@@ -142,23 +151,96 @@ export class PipelineService {
     })
   }
 
-  async getUnassignedDeals(organizationId: string, role: string) {
+  async getUnassignedDeals(organizationId: string, role: string, userId?: string) {
     // Misma correccion que en comisiones: lista blanca en vez de lista negra.
     // Los leads sin asignar son material comercial (datos de contacto de
     // prospectos); solo administracion los reparte.
     if (!PUEDEN_REPARTIR_LEADS.includes(role)) {
       throw new ForbiddenException('No tienes acceso a los leads sin asignar')
     }
+
+    const where: any = { organizationId, assignedToId: null, status: 'OPEN' }
+
+    if (veSoloSuEquipo(role) && userId) {
+      // El jefe ve UNICAMENTE el lote de su equipo: los que le tocaron por
+      // reparto automatico y los que subio el mismo. Nunca los de otro equipo ni
+      // los que estan en la bolsa comun sin repartir.
+      const equipoId = await this.equipos.equipoDelJefe(userId, organizationId)
+      // Sin equipo asignado todavia no le corresponde ningun lote. Se usa un id
+      // imposible en vez de omitir el filtro: omitirlo le mostraria los leads de
+      // toda la empresa por un dato faltante.
+      where.equipoId = equipoId ?? '__sin_equipo__'
+    }
+
     return this.prisma.deal.findMany({
-      where: { organizationId, assignedToId: null, status: 'OPEN' },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         stage: true,
+        equipo: { select: { id: true, nombre: true } },
         contact: {
           select: { id: true, firstName: true, lastName: true, phone: true, email: true, customFields: true },
         },
       },
     })
+  }
+
+  /**
+   * Mueve un lead de un equipo a otro (o lo deja sin equipo con null).
+   *
+   * Solo gerencia. Un jefe no puede pasarle sus leads a otro equipo ni quitarle
+   * los suyos: el reparto entre equipos lo decide administracion.
+   *
+   * Sirve para dos cosas: corregir un reparto automatico que no cuadra, y
+   * repartir los leads viejos que quedaron sin equipo al activar esta funcion.
+   */
+  async cambiarEquipoDeal(
+    id: string,
+    equipoId: string | null,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!PUEDEN_ADMINISTRAR_LOTES.includes(role)) {
+      throw new ForbiddenException('Solo administración puede mover leads entre equipos')
+    }
+
+    const deal = await this.getDeal(id, organizationId)
+
+    // Un lead PROPIO no cambia de equipo, por la misma razon por la que no se
+    // reasigna: es del vendedor que lo consiguio.
+    if (!sePuedeReasignar(deal.customFields)) {
+      throw new ForbiddenException('Los leads propios no se pueden mover de equipo')
+    }
+
+    if (equipoId) {
+      const equipo = await this.prisma.equipo.findFirst({
+        where: { id: equipoId, organizationId, activo: true },
+        select: { id: true, nombre: true },
+      })
+      if (!equipo) throw new NotFoundException('Equipo no encontrado o inactivo')
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data: { equipoId },
+      include: { stage: true, equipo: { select: { id: true, nombre: true } } },
+    })
+
+    await this.prisma.activity.create({
+      data: {
+        type: 'NOTE',
+        description: equipoId
+          ? `Lead movido al equipo ${(updated as any).equipo?.nombre ?? equipoId}`
+          : 'Lead devuelto a la bolsa común',
+        dealId: id,
+        contactId: deal.contactId,
+        organizationId,
+        userId,
+      },
+    })
+
+    return updated
   }
 
   async assignDeal(id: string, dto: AssignDealDto, organizationId: string, assignedById: string, role: string) {

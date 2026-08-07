@@ -39,6 +39,78 @@ export class EquiposService {
     return miembros.map((m) => m.id)
   }
 
+  /**
+   * Elige a qué equipo le toca el siguiente lead que entra solo.
+   *
+   * Reparto por carga: gana el equipo que MENOS leads tenga acumulados. Se
+   * prefiere esto a un contador rotativo porque se corrige solo — si se agrega un
+   * tercer jefe, o uno se desactiva por vacaciones, el reparto se reequilibra sin
+   * que nadie toque nada.
+   *
+   * Devuelve null si no hay equipos activos; en ese caso el lead cae en la bolsa
+   * común de gerencia, que es como funcionaba todo antes de los equipos.
+   */
+  async equipoParaSiguienteLead(organizationId: string): Promise<string | null> {
+    const equipos = await this.prisma.equipo.findMany({
+      where: { organizationId, activo: true },
+      select: { id: true, createdAt: true },
+    })
+    if (equipos.length === 0) return null
+    if (equipos.length === 1) return equipos[0].id
+
+    const conteos = await this.prisma.deal.groupBy({
+      by: ['equipoId'],
+      where: { organizationId, equipoId: { in: equipos.map((e) => e.id) } },
+      _count: { _all: true },
+    })
+
+    const carga = new Map<string, number>(equipos.map((e) => [e.id, 0]))
+    for (const c of conteos) {
+      if (c.equipoId) carga.set(c.equipoId, c._count._all)
+    }
+
+    // Empate resuelto por antigüedad del equipo, para que el reparto sea
+    // determinista y no dependa del orden en que la base devuelva las filas.
+    const ordenados = [...equipos].sort((a, b) => {
+      const diff = (carga.get(a.id) ?? 0) - (carga.get(b.id) ?? 0)
+      return diff !== 0 ? diff : a.createdAt.getTime() - b.createdAt.getTime()
+    })
+    return ordenados[0].id
+  }
+
+  /**
+   * Equipo activo que lidera esta persona, o null.
+   */
+  async equipoDelJefe(jefeId: string, organizationId: string): Promise<string | null> {
+    const equipo = await this.prisma.equipo.findFirst({
+      where: { jefeId, organizationId, activo: true },
+      select: { id: true },
+    })
+    return equipo?.id ?? null
+  }
+
+  /**
+   * El equipo que lidera quien hace la peticion, con sus miembros.
+   *
+   * Existe para que el jefe pueda armar el desplegable de "asignar a" sin darle
+   * acceso al listado completo de equipos, que es de administracion. Devuelve
+   * null si todavia no lidera ninguno.
+   */
+  async miEquipo(userId: string, organizationId: string) {
+    return this.prisma.equipo.findFirst({
+      where: { jefeId: userId, organizationId, activo: true },
+      select: {
+        id: true,
+        nombre: true,
+        jefe: { select: { id: true, name: true, email: true, role: true } },
+        miembros: {
+          select: { id: true, name: true, email: true, role: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    })
+  }
+
   async findAll(organizationId: string, role: string) {
     this.exigirAdmin(role)
     return this.prisma.equipo.findMany({

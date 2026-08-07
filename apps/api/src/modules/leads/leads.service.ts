@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
 import { IngestLeadDto, LeadSource, InsuranceType } from './dto/ingest-lead.dto'
 import { NotificationsService } from '../notifications/notifications.service'
+import { EquiposService } from '../equipos/equipos.service'
 
 @Injectable()
 export class LeadsService {
@@ -12,6 +13,7 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly equipos: EquiposService,
   ) {}
 
   async ingestLead(dto: IngestLeadDto) {
@@ -109,6 +111,12 @@ export class LeadsService {
         organizationId: org.id,
         createdById: systemUser.id,
         assignedToId: autoAssignee?.id ?? undefined,
+        // Reparto automatico entre los equipos comerciales: el lead queda en el
+        // lote de un jefe, todavia SIN asignar a un vendedor. El jefe decide si
+        // se lo queda o se lo pasa a alguien de su equipo.
+        // Si no hay equipos activos devuelve null y el lead cae en la bolsa
+        // comun de gerencia, igual que antes de que existieran los equipos.
+        equipoId: await this.equipos.equipoParaSiguienteLead(org.id),
         position,
         notes: dto.notes
           ? `${dto.notes} | Fuente: ${dto.source ?? LeadSource.WEB}`

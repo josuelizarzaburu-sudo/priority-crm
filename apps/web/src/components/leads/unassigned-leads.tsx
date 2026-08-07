@@ -1,5 +1,6 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserCheck, Phone, Mail, Shield, Car, Clock } from 'lucide-react'
@@ -26,9 +27,22 @@ interface Agent {
   role: string
 }
 
+interface Equipo {
+  id: string
+  nombre: string
+  jefe: Agent
+  miembros: Agent[]
+}
+
+const PUEDEN_MOVER_DE_EQUIPO = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
 export function UnassignedLeads() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { data: session } = useSession()
+  const rol = (session?.user as any)?.role ?? ''
+  const esJefeEquipo = rol === 'JEFE_EQUIPO'
+  const puedeMoverDeEquipo = PUEDEN_MOVER_DE_EQUIPO.includes(rol)
 
   const { data: deals = [], isLoading } = useQuery<Deal[]>({
     queryKey: ['pipeline', 'unassigned'],
@@ -36,10 +50,47 @@ export function UnassignedLeads() {
     refetchInterval: 30_000,
   })
 
-  const { data: agents = [] } = useQuery<Agent[]>({
+  const { data: todosLosUsuarios = [] } = useQuery<Agent[]>({
     queryKey: ['users'],
     queryFn: () => api.get('/users').then((r) => r.data),
-    select: (users) => users.filter((u: Agent) => u.role === 'SALES_REP'),
+  })
+
+  // El jefe necesita saber quienes son sus miembros para armar el desplegable.
+  // Este endpoint devuelve solo SU equipo, sin darle el listado completo.
+  const { data: miEquipo } = useQuery<Equipo | null>({
+    queryKey: ['equipos', 'mi-equipo'],
+    queryFn: () => api.get('/equipos/mi-equipo').then((r) => r.data),
+    enabled: esJefeEquipo,
+  })
+
+  // Equipos existentes, para que administracion pueda mover un lead de lote.
+  const { data: equipos = [] } = useQuery<Equipo[]>({
+    queryKey: ['equipos'],
+    queryFn: () => api.get('/equipos').then((r) => r.data),
+    enabled: puedeMoverDeEquipo,
+  })
+
+  // A quien se le puede asignar un lead.
+  //
+  // El jefe reparte solo dentro de su equipo, y se incluye a si mismo porque
+  // tambien vende y muchas veces se queda el lead. Administracion sigue viendo a
+  // todos los vendedores, como siempre.
+  const agents: Agent[] = esJefeEquipo
+    ? miEquipo
+      ? [miEquipo.jefe, ...miEquipo.miembros]
+      : []
+    : todosLosUsuarios.filter((u) => u.role === 'SALES_REP')
+
+  const moverDeEquipo = useMutation({
+    mutationFn: ({ dealId, equipoId }: { dealId: string; equipoId: string | null }) =>
+      api.patch(`/pipeline/deals/${dealId}/equipo`, { equipoId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline', 'unassigned'] })
+      toast({ title: 'Lead movido', description: 'Cambió de equipo.' })
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'No se pudo mover el lead.', variant: 'destructive' })
+    },
   })
 
   const assignMutation = useMutation({
@@ -88,6 +139,8 @@ export function UnassignedLeads() {
           agents={agents}
           onAssign={(agentId) => assignMutation.mutate({ dealId: deal.id, agentId })}
           isAssigning={assignMutation.isPending}
+          equipos={puedeMoverDeEquipo ? equipos : []}
+          onMoverEquipo={(equipoId) => moverDeEquipo.mutate({ dealId: deal.id, equipoId })}
         />
       ))}
     </div>
@@ -105,11 +158,16 @@ function LeadCard({
   agents,
   onAssign,
   isAssigning,
+  equipos,
+  onMoverEquipo,
 }: {
   deal: Deal
   agents: Agent[]
   onAssign: (agentId: string) => void
   isAssigning: boolean
+  /** Vacío para quien no puede mover leads entre equipos. */
+  equipos: Equipo[]
+  onMoverEquipo: (equipoId: string | null) => void
 }) {
   const [selectedAgent, setSelectedAgent] = useState('')
   const cf = (deal as any).customFields as Record<string, string> | null
@@ -164,6 +222,24 @@ function LeadCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Solo para administracion: de que equipo es este lead y a cual
+              moverlo. Un jefe no ve esto porque no mueve leads entre equipos. */}
+          {equipos.length > 0 && (
+            <Select
+              value={(deal as any).equipoId ?? 'ninguno'}
+              onValueChange={(v) => onMoverEquipo(v === 'ninguno' ? null : v)}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectValue placeholder="Equipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ninguno">Sin equipo</SelectItem>
+                {equipos.map((eq) => (
+                  <SelectItem key={eq.id} value={eq.id}>{eq.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={selectedAgent} onValueChange={setSelectedAgent}>
             <SelectTrigger className="h-8 w-44 text-xs">
               <SelectValue placeholder="Seleccionar agente" />

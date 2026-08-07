@@ -11,6 +11,19 @@ import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 
+/**
+ * Roles con acceso a informacion comercial sensible.
+ *
+ * Se declaran como LISTA BLANCA a proposito. Antes cada endpoint preguntaba
+ * `if (role === 'SALES_REP') prohibido`, o sea una lista negra de un solo rol:
+ * cualquier rol nuevo que se agregara al sistema quedaba automaticamente con
+ * acceso, sin que nadie lo decidiera. Fue lo que paso con los perfiles de
+ * Operaciones. Con lista blanca, un rol nuevo entra sin permisos hasta que se lo
+ * agregue aqui de forma explicita.
+ */
+const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
 @Injectable()
 export class PipelineService {
   private readonly logger = new Logger(PipelineService.name)
@@ -78,7 +91,15 @@ export class PipelineService {
   }
 
   async getCommissionsReport(organizationId: string, role: string) {
-    if (role === 'SALES_REP') throw new ForbiddenException('No tienes acceso al reporte de comisiones')
+    // Lista blanca, no lista negra. Antes esto decia "si es SALES_REP, prohibido",
+    // asi que CUALQUIER otro rol pasaba —incluidos los perfiles de Operaciones—
+    // y se llevaba todos los negocios ganados de la empresa con el nombre del
+    // vendedor de cada uno. La pantalla si estaba bien protegida, pero la API no:
+    // bastaba con llamarla directamente. Se enumera quien SI puede entrar, que
+    // ademas es la misma lista que ya usa la ruta del frontend.
+    if (!PUEDEN_VER_COMISIONES.includes(role)) {
+      throw new ForbiddenException('No tienes acceso al reporte de comisiones')
+    }
     return this.prisma.deal.findMany({
       where: { organizationId, status: 'WON' },
       orderBy: { closedAt: 'desc' },
@@ -90,7 +111,12 @@ export class PipelineService {
   }
 
   async getUnassignedDeals(organizationId: string, role: string) {
-    if (role === 'SALES_REP') throw new ForbiddenException('Agents cannot view unassigned deals')
+    // Misma correccion que en comisiones: lista blanca en vez de lista negra.
+    // Los leads sin asignar son material comercial (datos de contacto de
+    // prospectos); solo administracion los reparte.
+    if (!PUEDEN_REPARTIR_LEADS.includes(role)) {
+      throw new ForbiddenException('No tienes acceso a los leads sin asignar')
+    }
     return this.prisma.deal.findMany({
       where: { organizationId, assignedToId: null, status: 'OPEN' },
       orderBy: { createdAt: 'desc' },
@@ -104,7 +130,9 @@ export class PipelineService {
   }
 
   async assignDeal(id: string, dto: AssignDealDto, organizationId: string, assignedById: string, role: string) {
-    if (role === 'SALES_REP') throw new ForbiddenException('Agents cannot assign deals')
+    if (!PUEDEN_REPARTIR_LEADS.includes(role)) {
+      throw new ForbiddenException('No tienes permiso para asignar negocios')
+    }
     const deal = await this.getDeal(id, organizationId)
 
     const agent = await this.prisma.user.findFirst({

@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SystemRole = 'SUPER_ADMIN' | 'OWNER' | 'MANAGER' | 'SALES_REP'
+type SystemRole = 'SUPER_ADMIN' | 'OWNER' | 'MANAGER' | 'JEFE_EQUIPO' | 'SALES_REP'
 
 interface TeamMember {
   id: string
@@ -73,6 +73,12 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; description: string; icon
     icon: UserCog,
     variant: 'secondary',
   },
+  JEFE_EQUIPO: {
+    label: 'Jefe de equipo',
+    description: 'Reparte leads y supervisa a su equipo; también vende',
+    icon: UserCog,
+    variant: 'secondary',
+  },
   SALES_REP: {
     label: 'Vendedor',
     description: 'Solo ve y gestiona sus propios deals',
@@ -89,7 +95,7 @@ const createSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Ingresa un email válido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
-  role: z.enum(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'], { required_error: 'Selecciona un rol' }),
+  role: z.enum(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO', 'SALES_REP'], { required_error: 'Selecciona un rol' }),
   phone: z.string().regex(phoneRegex, 'Formato inválido. Usa +593XXXXXXXXX').or(z.literal('')).optional(),
 })
 
@@ -195,7 +201,7 @@ function CreateMemberForm() {
           <div className="space-y-2">
             <Label>Rol *</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP'] as SystemRole[]).map((role) => {
+              {(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO', 'SALES_REP'] as SystemRole[]).map((role) => {
                 const { label, description, icon: Icon } = ROLE_CONFIG[role]
                 const active = selectedRole === role
                 return (

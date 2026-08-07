@@ -37,6 +37,7 @@ model Organization {
   reclamos    Reclamo[]
   requerimientos Requerimiento[]
   renovaciones   Renovacion[]
+  equipos        Equipo[]
 
   @@map("organizations")
 }
@@ -61,11 +62,21 @@ model User {
   // y una ejecutiva nueva entra sin el hasta que se lo activen a mano.
   // Apagado por defecto, igual que puedeCotizarPorOtros.
   puedeVender          Boolean @default(false)
+  // Equipo comercial al que pertenece. Un usuario esta en UN equipo o en ninguno.
+  // Lo asigna el super admin desde la pantalla de Usuarios; los jefes no se
+  // auto-asignan gente.
+  equipoId       String?
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Equipo al que pertenece como miembro. SetNull: si se borra el equipo, la
+  // persona queda sin equipo, no se borra.
+  equipo         Equipo?       @relation("EquipoMiembros", fields: [equipoId], references: [id], onDelete: SetNull)
+  // Equipos que lidera. Es una lista por como funciona Prisma, pero en la
+  // practica un jefe lidera un solo equipo.
+  equiposLiderados Equipo[]    @relation("EquipoJefe")
   contacts       Contact[]     @relation("ContactCreatedBy")
   assignedContacts Contact[]   @relation("ContactAssignedTo")
   deals          Deal[]        @relation("DealCreatedBy")
@@ -284,9 +295,36 @@ enum UserRole {
   OWNER
   MANAGER
   SALES_REP
+  // Jefe de un equipo comercial: ve y reparte los leads de SU equipo, y ademas
+  // vende (tiene su propio Mi Pipeline). No ve nada de los otros equipos.
+  JEFE_EQUIPO
   // Perfiles del módulo de Operaciones
   OPERACIONES      // ejecutivo de cuenta: ve SOLO sus clientes
   JEFE_OPERACIONES // ve todos los clientes
+}
+
+/// Equipo comercial: un jefe y sus vendedores.
+///
+/// Existe para que cada jefe reparta y supervise UNICAMENTE los leads de su
+/// gente. Antes esto se hacia por Excel y mensajes sueltos.
+model Equipo {
+  id             String   @id @default(cuid())
+  nombre         String
+  jefeId         String
+  organizationId String
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Restrict: no se puede borrar al usuario que es jefe de un equipo sin antes
+  // reasignar el equipo. Evita dejar un equipo huerfano con leads dentro.
+  jefe           User     @relation("EquipoJefe", fields: [jefeId], references: [id], onDelete: Restrict)
+  miembros       User[]   @relation("EquipoMiembros")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([jefeId])
+  @@map("equipos")
 }
 
 model PushSubscription {

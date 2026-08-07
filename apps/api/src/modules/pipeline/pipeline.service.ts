@@ -11,6 +11,8 @@ import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { soloVeSusNegocios } from './puede-vender'
+import { EquiposService } from '../equipos/equipos.service'
+import { filtroDeEquipo, origenDeLead, sePuedeReasignar, veSoloSuEquipo } from '../equipos/equipos-scope'
 
 /**
  * Roles con acceso a informacion comercial sensible.
@@ -36,7 +38,14 @@ const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN']
 /**
  * Reparto de leads: administracion comercial.
  */
-const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+/**
+ * Quien reparte leads.
+ *
+ * JEFE_EQUIPO entra aqui, pero con dos limites que se aplican mas abajo en
+ * assignDeal: solo reparte a gente de SU equipo, y solo leads de la empresa
+ * (PRIORITY_HEALTH / PRIORITY). Los PROPIO no los puede tocar nadie.
+ */
+const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO']
 
 @Injectable()
 export class PipelineService {
@@ -46,6 +55,7 @@ export class PipelineService {
     private readonly prisma: PrismaService,
     private readonly gateway: PipelineGateway,
     private readonly notifications: NotificationsService,
+    private readonly equipos: EquiposService,
   ) {}
 
   async getStagesWithDeals(organizationId: string) {
@@ -66,7 +76,15 @@ export class PipelineService {
 
   async getDeals(organizationId: string, userId: string, role: string, puedeVender?: boolean) {
     const where: any = { organizationId }
-    if (soloVeSusNegocios(role, puedeVender)) where.assignedToId = userId
+    if (soloVeSusNegocios(role, puedeVender)) {
+      where.assignedToId = userId
+    } else if (veSoloSuEquipo(role)) {
+      // El jefe de equipo ve los negocios de su gente y los suyos propios, nada
+      // mas. Si todavia no tiene equipo asignado se vera solo a si mismo, que es
+      // lo correcto: no hay a quien supervisar todavia.
+      const miembros = await this.equipos.miembrosDelJefe(userId, organizationId)
+      Object.assign(where, filtroDeEquipo(userId, miembros))
+    }
     const deals = await this.prisma.deal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -149,10 +167,30 @@ export class PipelineService {
     }
     const deal = await this.getDeal(id, organizationId)
 
+    // REGLA QUE NO SE ROMPE: un lead PROPIO es del vendedor que lo consiguio.
+    // Se comprueba para TODOS los roles, no solo para el jefe de equipo: si el
+    // dueno pudiera reasignarlo, la regla no seria tal.
+    if (!sePuedeReasignar(deal.customFields)) {
+      throw new ForbiddenException(
+        'Los leads propios no se pueden reasignar: pertenecen al asesor que los consiguio',
+      )
+    }
+
     const agent = await this.prisma.user.findFirst({
       where: { id: dto.agentId, organizationId },
     })
     if (!agent) throw new NotFoundException('Agent not found')
+
+    // El jefe de equipo solo reparte dentro de su equipo. Se valida en el
+    // servidor y no solo escondiendo opciones en el desplegable, porque si no
+    // bastaria con editar la peticion para colgarle un lead a otro equipo.
+    if (veSoloSuEquipo(role)) {
+      const miembros = await this.equipos.miembrosDelJefe(assignedById, organizationId)
+      const permitidos = new Set([assignedById, ...miembros])
+      if (!permitidos.has(dto.agentId)) {
+        throw new ForbiddenException('Solo puedes asignar leads a integrantes de tu equipo')
+      }
+    }
 
     const updated = await this.prisma.deal.update({
       where: { id },
@@ -677,7 +715,11 @@ export class PipelineService {
       customFields.leadOrigin = 'PROPIO'
       assignedToId = createdById
     } else {
-      customFields.leadOrigin = customFields.leadOrigin === 'PROPIO' ? 'PROPIO' : 'PRIORITY_HEALTH'
+      // Antes esto aplastaba a PRIORITY_HEALTH cualquier origen que no fuera
+      // PROPIO, asi que los leads subidos por Excel (PRIORITY) perdian su
+      // etiqueta en silencio. Ahora se respetan los tres valores validos y solo
+      // se normaliza lo desconocido.
+      customFields.leadOrigin = origenDeLead(customFields)
     }
 
     return this.prisma.deal.create({

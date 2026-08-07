@@ -14,7 +14,13 @@ import { authOptions } from '@/lib/auth'
  */
 
 export const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
-export const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
+export const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP', 'JEFE_EQUIPO']
+/**
+ * Quien reparte leads. El jefe de equipo entra, pero la API le devuelve solo lo
+ * de su equipo y le impide asignar fuera de el: aqui se decide el acceso a la
+ * pantalla, no el alcance de lo que ve.
+ */
+export const REPARTEN_LEADS = [...ELEVATED, 'JEFE_EQUIPO']
 export const OPS = ['OPERACIONES', 'JEFE_OPERACIONES']
 export const COMUNES = [...ALL_ROLES, ...OPS]
 
@@ -36,6 +42,9 @@ export const OPS_Y_ADMIN = [...OPS, 'SUPER_ADMIN', 'OWNER']
 export function inicioSegunRol(rol: string): string {
   if (OPS.includes(rol)) return '/clientes'
   if (rol === 'SALES_REP') return '/my-pipeline'
+  // El jefe de equipo aterriza en el tablero de su equipo, que es su vista de
+  // trabajo principal.
+  if (rol === 'JEFE_EQUIPO') return '/pipeline'
   return '/pipeline'
 }
 

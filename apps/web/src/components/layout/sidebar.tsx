@@ -36,7 +36,10 @@ import {
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
-const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP']
+// El jefe de equipo ve las mismas pantallas comerciales que un vendedor, mas el
+// reparto de leads. La diferencia no esta en QUE pantallas ve, sino en que todas
+// le llegan acotadas a su equipo desde el backend.
+const ALL_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP', 'JEFE_EQUIPO']
 // Perfiles del area de Operaciones. No ven Pipeline ni Leads (eso es comercial),
 // pero si la base de Clientes, el cotizador y las herramientas comunes.
 const OPS = ['OPERACIONES', 'JEFE_OPERACIONES']
@@ -57,10 +60,11 @@ const NAV_ITEMS = [
   { href: '/registro-acceso',  label: 'Registro de acceso', icon: ShieldCheck,     roles: ['SUPER_ADMIN', 'OWNER'] },
   { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
   { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ['SUPER_ADMIN'] },
+  { href: '/equipos',          label: 'Equipos',            icon: Users,           roles: ['SUPER_ADMIN', 'OWNER'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
-  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP'] },
+  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP', 'JEFE_EQUIPO'] },
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN'] },
-  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: ELEVATED },
+  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: [...ELEVATED, 'JEFE_EQUIPO'] },
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES },
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES },
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES },

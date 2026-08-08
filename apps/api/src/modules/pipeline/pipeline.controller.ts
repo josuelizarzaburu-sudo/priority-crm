@@ -6,7 +6,7 @@ import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
 import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
-import { CambiarEquipoDealDto } from './dto/cambiar-equipo-deal.dto'
+import { CambiarEquipoDealDto, CambiarOrigenDealDto } from './dto/cambiar-equipo-deal.dto'
 import { LogActivityDto } from './dto/log-activity.dto'
 import { CloseDealDto } from './dto/close-deal.dto'
 import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
@@ -81,6 +81,18 @@ export class PipelineController {
   assignDeal(@Param('id') id: string, @Body() dto: AssignDealDto, @Req() req: any) {
     return this.pipelineService.assignDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
+  @Patch('deals/:id/origen')
+  @ApiOperation({ summary: 'Corregir el origen de un lead (solo administración)' })
+  cambiarOrigenDeal(@Param('id') id: string, @Body() dto: CambiarOrigenDealDto, @Req() req: any) {
+    return this.pipelineService.cambiarOrigenDeal(
+      id,
+      dto.leadOrigin,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Patch('deals/:id/equipo')
   @ApiOperation({ summary: 'Mover un lead al lote de otro equipo (solo administración)' })
   cambiarEquipoDeal(@Param('id') id: string, @Body() dto: CambiarEquipoDealDto, @Req() req: any) {

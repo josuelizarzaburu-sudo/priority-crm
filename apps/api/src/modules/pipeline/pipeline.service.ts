@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { horasLaborables, sumarHorasLaborables, HORAS_PLAZO_GESTION } from './horas-laborables'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateDealDto } from './dto/create-deal.dto'
@@ -12,7 +12,14 @@ import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { soloVeSusNegocios } from './puede-vender'
 import { EquiposService } from '../equipos/equipos.service'
-import { filtroDeEquipo, origenDeLead, sePuedeReasignar, veSoloSuEquipo } from '../equipos/equipos-scope'
+import {
+  filtroDeEquipo,
+  origenDeLead,
+  sePuedeReasignar,
+  veSoloSuEquipo,
+  ORIGENES_VALIDOS,
+  type LeadOrigin,
+} from '../equipos/equipos-scope'
 
 /**
  * Roles con acceso a informacion comercial sensible.
@@ -149,6 +156,70 @@ export class PipelineService {
         assignedTo: { select: { id: true, name: true } },
       },
     })
+  }
+
+  /**
+   * Corrige el origen de un lead ya creado.
+   *
+   * Existe porque el origen decide la comision, y hasta ahora un negocio creado
+   * desde Mi Pipeline por alguien no restringido (super admin, dueño) quedaba
+   * como PRIORITY_HEALTH cuando en realidad era propio.
+   *
+   * Va aparte de updateDeal a proposito: updateDeal sobrescribe customFields
+   * entero con lo que mande el cliente, asi que usarlo para tocar un solo campo
+   * se llevaria por delante prima, seguimiento y todo lo demas. Aqui se fusiona.
+   *
+   * Solo gerencia: el origen no es algo que cada quien deba poder subirse a
+   * PROPIO por su cuenta, justamente porque comisiona mas.
+   */
+  async cambiarOrigenDeal(
+    id: string,
+    origen: LeadOrigin,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!PUEDEN_ADMINISTRAR_LOTES.includes(role)) {
+      throw new ForbiddenException('Solo administración puede cambiar el origen de un lead')
+    }
+    if (!ORIGENES_VALIDOS.includes(origen)) {
+      throw new BadRequestException('Origen no válido')
+    }
+
+    const deal = await this.getDeal(id, organizationId)
+    const anterior = origenDeLead(deal.customFields)
+    if (anterior === origen) return deal
+
+    const customFields = {
+      ...((deal.customFields as Record<string, unknown>) ?? {}),
+      leadOrigin: origen,
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data: {
+        customFields: customFields as any,
+        // Un lead que pasa a PROPIO deja de pertenecer al lote de un equipo: es
+        // del asesor que lo consiguio, no material que se reparta.
+        ...(origen === 'PROPIO' ? { equipoId: null } : {}),
+      },
+      include: { stage: true },
+    })
+
+    // Queda en la bitacora porque cambia la comision: tiene que ser rastreable
+    // quien lo cambio y cuando.
+    await this.prisma.activity.create({
+      data: {
+        type: 'NOTE',
+        description: `Origen del lead cambiado de ${anterior} a ${origen}`,
+        dealId: id,
+        contactId: deal.contactId,
+        organizationId,
+        userId,
+      },
+    })
+
+    return updated
   }
 
   async getUnassignedDeals(organizationId: string, role: string, userId?: string) {

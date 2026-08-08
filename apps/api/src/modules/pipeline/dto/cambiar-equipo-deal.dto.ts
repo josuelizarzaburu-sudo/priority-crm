@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsString, ValidateIf } from 'class-validator'
+import { IsIn, IsString, ValidateIf } from 'class-validator'
 
 /**
  * Mueve un lead al lote de otro equipo.
@@ -17,4 +17,10 @@ export class CambiarEquipoDealDto {
   @ValidateIf((_, valor) => valor !== null)
   @IsString()
   equipoId!: string | null
+}
+
+/** Corrige el origen de un lead ya creado. Cambia la comisión, por eso es de gerencia. */
+export class CambiarOrigenDealDto {
+  @IsIn(['PRIORITY_HEALTH', 'PRIORITY', 'PROPIO'])
+  leadOrigin!: 'PRIORITY_HEALTH' | 'PRIORITY' | 'PROPIO'
 }

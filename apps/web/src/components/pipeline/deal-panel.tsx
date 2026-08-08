@@ -334,6 +334,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   }
 
   // Generic customFields patch — merges with existing fields
+  // Corregir el origen del lead. Va por su propio endpoint y no por
+  // patchCustomFields porque el origen decide la comision: el backend lo valida,
+  // lo restringe a gerencia y lo deja anotado en la bitacora.
+  const cambiarOrigen = useMutation({
+    mutationFn: (leadOrigin: string) =>
+      api.patch(`/pipeline/deals/${dealId}/origen`, { leadOrigin }),
+    onSuccess: invalidate,
+  })
+
   const patchCustomFields = useMutation({
     mutationFn: (fields: Record<string, unknown>) =>
       api.put(`/pipeline/deals/${dealId}`, {
@@ -697,7 +706,25 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                         <span>{profile.label}</span>
                       </div>
                     )}
-                    <LeadOriginBadge leadOrigin={leadOrigin} className="px-3 py-1.5 text-sm" />
+                    {isAdminOrManager ? (
+                      // Gerencia puede corregirlo: un negocio creado a mano podia
+                      // quedar con el origen equivocado, y eso cambia la comision.
+                      <Select
+                        value={leadOrigin ?? 'PRIORITY_HEALTH'}
+                        onValueChange={(v) => cambiarOrigen.mutate(v)}
+                      >
+                        <SelectTrigger className="h-9 w-44 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PRIORITY_HEALTH">Priority Health</SelectItem>
+                          <SelectItem value="PRIORITY">Priority</SelectItem>
+                          <SelectItem value="PROPIO">Propio</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <LeadOriginBadge leadOrigin={leadOrigin} className="px-3 py-1.5 text-sm" />
+                    )}
                   </div>
                 )
               })()}

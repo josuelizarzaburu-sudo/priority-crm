@@ -19,6 +19,9 @@ export type LeadOrigin = 'PRIORITY_HEALTH' | 'PRIORITY' | 'PROPIO'
  */
 export const ORIGENES_REPARTIBLES: LeadOrigin[] = ['PRIORITY_HEALTH', 'PRIORITY']
 
+/** Los tres origenes que acepta el sistema. */
+export const ORIGENES_VALIDOS: LeadOrigin[] = ['PRIORITY_HEALTH', 'PRIORITY', 'PROPIO']
+
 /**
  * Lee el origen de un deal, tolerando datos viejos.
  *

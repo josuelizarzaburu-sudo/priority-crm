@@ -33,6 +33,7 @@ interface KanbanBoardProps {
   filterUserId: string | null
   originFilter: OriginFilter
   insuranceFilter: InsuranceFilter
+  mesFilter: string
   currentUserId: string
   userRole: string
   onSelectDeal: (id: string) => void
@@ -49,7 +50,7 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFilter, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
+export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFilter, mesFilter, currentUserId, userRole, onSelectDeal }: KanbanBoardProps) {
   const { stages, deals, setStages, setDeals, searchQuery, moveDeal } = usePipelineStore()
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
@@ -130,6 +131,20 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
       result = result.filter((d) => d.assignedToId === filterUserId)
     } else if (viewMode === 'mine') {
       result = result.filter((d) => d.assignedToId === currentUserId)
+    }
+    if (mesFilter !== 'ALL') {
+      // Se filtra por el mes en que ENTRO el lead. Se prefiere leadCreatedAt
+      // cuando existe, porque createdAt del deal puede ser posterior si el
+      // registro se creo despues; si falta, createdAt es la mejor aproximacion.
+      result = result.filter((d) => {
+        const cf = (d as any).customFields
+        const fuente = cf?.leadCreatedAt ?? (d as any).createdAt
+        if (!fuente) return false
+        const f = new Date(fuente)
+        if (Number.isNaN(f.getTime())) return false
+        const clave = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`
+        return clave === mesFilter
+      })
     }
     if (originFilter !== 'ALL') {
       result = result.filter((d) => (d as any).customFields?.leadOrigin === originFilter)

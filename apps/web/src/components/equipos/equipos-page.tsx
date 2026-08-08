@@ -92,11 +92,27 @@ export function EquiposPage() {
     ['JEFE_EQUIPO', 'SALES_REP', 'MANAGER'].includes(u.role),
   )
 
-  // Vendedores que todavia no estan en ningun equipo ni son jefes de uno.
+  // Quien puede integrar un equipo: cualquier perfil comercial que no este ya en
+  // otro equipo ni sea jefe de uno.
+  //
+  // No se limita a SALES_REP a proposito. El super admin y el dueño tambien
+  // venden, y estar en un equipo les permite recibir leads del reparto y tener
+  // seguimiento de un jefe. No les recorta nada: el filtro por equipo solo se
+  // aplica al rol JEFE_EQUIPO, asi que siguen viendo toda la empresa.
+  const ROLES_QUE_VENDEN = ['SALES_REP', 'SUPER_ADMIN', 'OWNER', 'MANAGER']
   const idsJefes = new Set(activos.map((e) => e.jefe.id))
   const sinEquipo = (usuarios ?? []).filter(
-    (u) => u.role === 'SALES_REP' && !u.equipoId && !idsJefes.has(u.id),
+    (u) => ROLES_QUE_VENDEN.includes(u.role) && !u.equipoId && !idsJefes.has(u.id),
   )
+
+  // Etiqueta corta del rol, para distinguir en el desplegable a un vendedor de
+  // alguien de gerencia que se suma al equipo.
+  const etiquetaRol: Record<string, string> = {
+    SUPER_ADMIN: 'admin',
+    OWNER: 'dueño',
+    MANAGER: 'gerencia',
+    SALES_REP: 'vendedor',
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4">
@@ -196,7 +212,14 @@ export function EquiposPage() {
                       key={m.id}
                       className="flex items-center justify-between rounded-md border px-2.5 py-1.5 text-sm"
                     >
-                      <span>{m.name}</span>
+                      <span>
+                        {m.name}
+                        {m.role !== 'SALES_REP' && (
+                          <span className="ml-1.5 text-[11px] text-muted-foreground">
+                            {etiquetaRol[m.role] ?? m.role}
+                          </span>
+                        )}
+                      </span>
                       <button
                         type="button"
                         onClick={() => moverMiembro.mutate({ userId: m.id, equipoId: null })}
@@ -223,6 +246,7 @@ export function EquiposPage() {
                     {sinEquipo.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name}
+                        {u.role !== 'SALES_REP' && ` · ${etiquetaRol[u.role] ?? u.role}`}
                       </SelectItem>
                     ))}
                   </SelectContent>

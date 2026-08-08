@@ -79,6 +79,40 @@ export class UsersService {
     })
   }
 
+  /**
+   * Restablece la contraseña de otro usuario.
+   *
+   * Va en su propio metodo y no dentro de updateMember a proposito: mezclar la
+   * contraseña con la edicion normal hace facil enviarla sin querer en un guardado
+   * cualquiera. Aqui es una accion explicita y separada.
+   *
+   * No se pide la contraseña anterior porque el caso de uso es justamente que la
+   * persona la perdio. Por eso el permiso esta limitado a SUPER_ADMIN.
+   */
+  async resetPassword(
+    targetId: string,
+    nuevaPassword: string,
+    organizationId: string,
+    callerRole: string,
+  ): Promise<{ ok: true }> {
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede restablecer contraseñas')
+    }
+    if (!nuevaPassword || nuevaPassword.length < 8) {
+      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres')
+    }
+
+    const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+
+    const hashed = await bcrypt.hash(nuevaPassword, 12)
+    await this.prisma.user.update({ where: { id: targetId }, data: { password: hashed } })
+
+    // Se devuelve solo una confirmacion: la contraseña no vuelve nunca en una
+    // respuesta, ni siquiera hasheada.
+    return { ok: true }
+  }
+
   async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: string) {
     if (callerRole !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Solo SUPER_ADMIN puede crear usuarios')

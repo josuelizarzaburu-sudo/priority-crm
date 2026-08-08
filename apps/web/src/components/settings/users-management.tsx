@@ -350,7 +350,31 @@ function EditMemberDialog({
   // asi que para convertir a alguien en Jefe de equipo habia que borrarlo y
   // volverlo a crear.
   const [rol, setRol] = useState<string>(member.role)
+
+  // Restablecer contraseña. Va aparte del formulario y con su propio boton: si
+  // viajara junto al resto de campos seria facil cambiarla sin querer al guardar
+  // cualquier otra cosa.
+  const [nuevaPassword, setNuevaPassword] = useState('')
   const esPerfilOperativo = ['OPERACIONES', 'JEFE_OPERACIONES'].includes(rol)
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: () => api.patch(`/users/${member.id}/password`, { password: nuevaPassword }),
+    onSuccess: () => {
+      setNuevaPassword('')
+      toast({
+        title: 'Contraseña restablecida',
+        description: `${member.name} debe entrar con la contraseña nueva.`,
+      })
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'No se pudo cambiar la contraseña.'
+      toast({
+        title: 'Error',
+        description: Array.isArray(msg) ? msg.join(', ') : msg,
+        variant: 'destructive',
+      })
+    },
+  })
 
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
@@ -468,6 +492,32 @@ function EditMemberDialog({
               </label>
             </div>
           )}
+
+          <div className="space-y-1.5 rounded-md border p-3">
+            <label className="text-sm font-medium">Restablecer contraseña</label>
+            <p className="text-[11px] text-muted-foreground">
+              Se cambia de inmediato y por separado; no hace falta guardar el
+              formulario. Avísale la contraseña nueva por un medio seguro.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                type="text"
+                autoComplete="off"
+                placeholder="Mínimo 8 caracteres"
+                value={nuevaPassword}
+                onChange={(e) => setNuevaPassword(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={nuevaPassword.length < 8 || resetPasswordMutation.isPending}
+                onClick={() => resetPasswordMutation.mutate()}
+              >
+                Cambiar
+              </Button>
+            </div>
+          </div>
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>

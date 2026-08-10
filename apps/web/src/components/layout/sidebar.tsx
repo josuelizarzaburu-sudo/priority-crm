@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   ClipboardCheck,
   CalendarClock,
+  Sparkles,
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
@@ -66,6 +67,7 @@ const NAV_ITEMS = [
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES },
   { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: [...COMUNES, 'SUPER_ADMIN'] },
   { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: [...COMUNES, 'SUPER_ADMIN'] },
+  { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: [...COMUNES, 'SUPER_ADMIN'] },
   { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: COMUNES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },

@@ -19,6 +19,7 @@ import { CalendarModule } from './modules/calendar/calendar.module'
 import { TrainingModule } from './modules/training/training.module'
 import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 import { ChatModule } from './modules/chat/chat.module'
+import { PriorityHelpModule } from './modules/priority-help/priority-help.module'
 import { ClientesModule } from './modules/clientes/clientes.module'
 import { ReclamosModule } from './modules/reclamos/reclamos.module'
 import { CargaReclamosModule } from './modules/carga-reclamos/carga-reclamos.module'
@@ -89,6 +90,7 @@ import { RenovacionesModule } from './modules/renovaciones/renovaciones.module'
     TrainingModule,
     WhatsappChatModule,
     ChatModule,
+    PriorityHelpModule,
     ClientesModule,
     ReclamosModule,
     CargaReclamosModule,

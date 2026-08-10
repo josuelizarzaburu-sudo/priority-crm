@@ -2,6 +2,9 @@
 
 > Fuente: `Saludsa_Plan_cobertura_y_red_Optimus.pdf` (páginas de coberturas)
 
+> NOTA: se omitieron paginas de premios y sorteos del programa Vitality por no aportar informacion de cobertura. Todo lo demas del documento original se conserva.
+
+
 > NOTA: Priority no comercializa los planes "Lite". Si el material los menciona en notas al pie, no deben ofrecerse ni compararse.
 
 ## Página 1
@@ -71,87 +74,6 @@ G^éäáÅ~ ÅçÉêíìê~ Éå ÉëéÉÅá~äáÇ~ÇÉë ã?ÇáÅ~ë ó É�
 GG^éäáÅ~å í?êãáåçë ó ÅçåÇáÅáçåÉëK
 ```
 
-## Página 4
-
-```text
-Vitality Lite
-                                                                  El programa de bienestar que te premia
-                                                                  por cumplir metas de actividad física.
-
-                                                               Vitality Lite
-                                                               El programa de bienestar que te premia
-                                                               por cumplir metas de actividad física.
-
-                                                                                                                                               87
-                                                                                                                        83           84       años
-                                                                                                     81
-                                                                                          79         años              años años
-                                                                                76       años
-                                                                               años                                                87
-                                                                   63                                                 84          años
-                                                                  años                      81        83
-                                                                                  79       años      años años
-                                                                          76      años
-                                                                         años
-                                                                63
- Con Vitality puedes tener una años
-    Conesperanza
- mayor  Vitality puedes
-                     de tener
-                        vida.una Sudáfrica Ecuador                                        USA     Promedio              Italia      Japón    Categoría
-       mayor esperanza de vida.                                                                                                              Platinum
-                                                                                                                                              y Gold
-                                                              Sudáfrica Ecuador   USA     Promedio   Italia          Japón       Categoría
-                                                                                                                                 Platinum
-                                                                                                                                  y Gold
-
-         Conoce los premios que puedes ganar con Vitality Lite:
-                Conoce los premios que puedes ganar con Vitality Lite:
-                                          Cumple tus metas semanales de ejercicio y recibe medallas
-Premios Semanales                         para acumular y canjear por cualquiera de estos premios:
-                                          Cumple tus metas semanales de ejercicio y recibe medallas
-    Premios Semanales                     para acumular y canjear por cualquiera de estos premios:
-
-                                                                                                     Gift Card
-
-                                                                                                                 Gift Card
-
-  Entradas y combos        Equipo                 Tipti                   Bebidas en                 GIFTCARDS                            Descuento
-    en Multicines         deportivo               Cards                  Juan Valdez                   de Nike                        en entrenamientos
-                                                                                                                                             BET
-
-                Bebidas en            Dona Geranios       Artículos de                   Donaciones                              NFTree
-              Bombons Coffee            para Quito        Tecnología                       ROMP
-                  Shop
-```
-
-## Página 5
-
-```text
-Premios Mensuales                         Acumula puntos por actividad física para ganar:
-
-                                 Hasta el 50% de devolución
-                          del reloj inteligente que más te guste entre
-                            las opciones que tenemos disponibles
-
-           Obtén un 25% de descuento                             Obtén un 10% de descuento
-             adicional al momento de                              adicional al momento de
-               comprar tu Garmin.                                 comprar tu Apple Watch.
-
-Premios Anuales                  Cashback en tu plan.
-
-               BRONZE                          SILVER                    GOLD                 PLATINUM
- De 5.000 a                     De 10.000 a                De 20.000 a              De 30.000 pts.
- 9.999 pts.*                    19.999 pts.                29.999 pts.              en adelante.
-
-               5%*de
-                                              7,5%de
-                                                                         10%de
-                                                                                                 20%    de
-               cashback                        cashback                  cashback                    cashback
-
-*Después de obtener al menos 5.000 pts.
-```
 
 ## Página 7
 

@@ -1,15 +1,20 @@
-# Confiamed — CONFIPLUS 60K - RED 2 CON/SIN MATERNIDAD
+# Confiamed — CONFIPLUS 60K (Red 1 TOP y Red 2)
 
-> Fuente: `Confiamed_Confiplus_60_RED_2.pdf`
+> Fuente: `Confiamed_Confiplus_60_RED_TOP.pdf` y `Confiamed_Confiplus_60_RED_2.pdf`
 
 > Documento de referencia de coberturas. Los valores de tarifa del formato original fueron excluidos: para precios usar el cotizador del CRM.
+
+> IMPORTANTE: la tabla de abajo corresponde a **RED 1 TOP**.
+> Las coberturas de **RED 2** son las mismas SALVO las diferencias
+> listadas en la seccion "Diferencias entre redes" al final de este
+> documento. Al responder sobre RED 2, aplicar esas diferencias.
 
 ```text
   III. DATOS DE COBERTURA Y BENEFICIOS
 
   TABLA DE BENEFICIOS
 
-  NOMBRE DEL PLAN  CONFIPLUS 60K - RED 2 CON/SIN MATERNIDAD
+  NOMBRE DEL PLAN  CONFIPLUS 60K - RED 1 TOP CON/SIN MATERNIDAD
 
   TIPO DE PLAN  INDIVIDUAL
 
@@ -22,7 +27,7 @@
   fuera de la red)
   MONTO MAXIMO DE COBERTURA  $60.000
 
-  TARIFARIO  MC GRAW HILL -30%
+  TARIFARIO  MC GRAW HILL
 
   COBERTURAS
   RED CERRADA  RED ABIERTA
@@ -99,7 +104,7 @@
 
   Atención Hospitalaria  10%  $60.000  90 días  20%  $60.000  90 días
 
-  Atención Hospitalaria preferencial  N/A  N/A  N/A  N/A
+  Atención Hospitalaria preferencial  0%  $60.000  90 días  N/A
 
   Atención  Hospitalaria  domiciliaria
   10%  $60.000  90 días  N/A
@@ -492,3 +497,12 @@
   BENEFICIOS
 
 ```
+
+## Diferencias entre redes (60K)
+
+| Concepto | RED 1 TOP | RED 2 |
+|---|---|---|
+| Tarifario | MC GRAW HILL | MC GRAW HILL -30% |
+| Atención Hospitalaria Preferencial | 0% $60.000 90 días N/A | N/A N/A N/A N/A |
+
+Todo lo demas es identico entre RED 1 TOP y RED 2 en el plan de 60K.

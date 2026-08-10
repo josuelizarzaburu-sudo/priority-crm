@@ -2,24 +2,11 @@
 
 > Fuente: `Saludsa_Plan_coberturas_y_Red_65.pdf` (páginas de coberturas)
 
+> NOTA: se omitieron paginas de premios y sorteos del programa Vitality por no aportar informacion de cobertura. Todo lo demas del documento original se conserva.
+
+
 > NOTA: Priority no comercializa los planes "Lite". Si el material los menciona en notas al pie, no deben ofrecerse ni compararse.
 
-## Página 1
-
-```text
-Tu ahorro anual con
-
-Calcula el ahorro anual que puedes tener por cumplir tus metas de
-ejercicio y bienestar con nuestro programa Vitality.
-
-El programa de bienestar más exitoso del mundo
-Te premiamos por hacer ejercicio y llevar una vida saludable.
-¡Conoce los premios que puedes ganar!
-
-      Premios semanales            Premios mensuales   Premios anuales
-
-*Aplican términos y condiciones.
-```
 
 ## Página 2
 

@@ -2,6 +2,9 @@
 
 > Fuente: `Saludsa_Plan_Cobertuas_y_red_Pro_150k.pdf` (páginas de coberturas)
 
+> NOTA: se omitieron paginas de premios y sorteos del programa Vitality por no aportar informacion de cobertura. Todo lo demas del documento original se conserva.
+
+
 > NOTA: Priority no comercializa los planes "Lite". Si el material los menciona en notas al pie, no deben ofrecerse ni compararse.
 
 ## Página 1
@@ -98,48 +101,6 @@ incluidas en tu plan
                             • Urgencias odontológicas                   • Extracciones simples
 ```
 
-## Página 8
-
-```text
-Conoce los premios que puedes ganar con
-                            Cumple tus metas semanales de ejercicio y bienestar y recibe medallas para acumular y
-    Semanales               canjear por cualquiera de estos premios.
-
-                                                                                                                       Gift Card
-
-                                                                                                                                   Gift Card
-
-        Entradas y combos             Equipo                     Cupones                   Bebidas y comida            GIFTCARDS
-          en Multicines              deportivo                    Tipti                     en Juan Valdez               de Nike
-
-   Descuento en         Bebidas y comida         Dona Geranios                Artículos                Dona en                          NFTree
-entrenamientos BET      en Café Bombon’s           para Quito              de Tecnología                ROMP
-
-                                                     ¡Y muchos premios más!
-
-    Mensuales               Completa tu Chequeo de Salud Vitality y acumula puntos por actividad física para ganar:
-
- 01                                                                          02
- Hasta el 100% de devolución del reloj Inteligente                           Hasta el 25% de devolución de lo pagado en
- qué más te guste entre las opciones que tenemos                             tus compras mensuales de frutas y verduras en
- disponibles. Este valor será pagado a tu cuenta                             Supermaxi y Megamaxi.
- bancaria mes a mes durante 24 meses.
-
-      Anuales               Cashback en tu plan
-
-                     BRONZE                          SILVER                                GOLD                         PLATINUM
-          De 5.000 a                   De 10.000 a                         De 2 0.000 a                          De 30.000 pts
-           9.999 pts.                  19.999 pts.                         29.999 pts.                           en adelante.
-
- Después de
- obtener al
- menos
-                     5%*de
-                                                    7,5%de
-                                                                                           10%de
-                                                                                                                               20%     de
- 5000 pts.           cashback                        cashback                              cashback                                 cashback
-```
 
 ## Página 9
 

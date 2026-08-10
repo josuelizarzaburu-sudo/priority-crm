@@ -17,6 +17,10 @@ import { PriorityHelpDto } from './dto/priority-help.dto'
 // separadas: aca, en apps/web/src/app/(dashboard)/priority-help/page.tsx
 // y en el sidebar. El alcance previsto es el mismo del Cotizador:
 //   [...COMUNES, 'SUPER_ADMIN']
+// que hoy equivale a: SUPER_ADMIN, OWNER, MANAGER, SALES_REP, JEFE_EQUIPO,
+// OPERACIONES, JEFE_OPERACIONES. Ojo: esta lista del backend esta escrita
+// a mano, asi que si se agrega un rol nuevo al CRM hay que acordarse de
+// sumarlo aca tambien.
 const ROLES_HELP = ['SUPER_ADMIN']
 
 @ApiTags('Priority Help')

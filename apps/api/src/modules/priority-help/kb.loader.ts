@@ -106,7 +106,12 @@ export class KbLoader implements OnModuleInit {
         // Coincidir en el nombre del archivo pesa mucho mas: si el asesor
         // dice "sigma", el documento de Sigma es el que importa.
         if (nombre.includes(t)) puntos += 25
-        const veces = cuerpo.split(t).length - 1
+
+        // En el cuerpo se cuenta PALABRA COMPLETA, no fragmento. Buscar
+        // "me" como substring daba 70 aciertos dentro de "medicina" y
+        // "mensual", lo que inflaba los documentos largos y hundia los
+        // cortos (el argumentario de objeciones se perdia por esto).
+        const veces = (cuerpo.match(bordes(t)) ?? []).length
         puntos += Math.min(veces, 8)
       }
       return { doc, puntos }
@@ -118,10 +123,19 @@ export class KbLoader implements OnModuleInit {
       .slice(0, limite)
       .map((p) => p.doc)
 
-    // Preguntas sin nombre de plan (tipicamente objeciones: "esta caro",
-    // "ya tiene IESS") no matchean nada util. En vez de dejar al modelo sin
-    // material, se le manda una muestra de cada aseguradora.
-    if (conPuntaje.length < 3) return this.muestraVariada(limite)
+    // Preguntas con poca coincidencia (tipicamente objeciones dictadas por
+    // voz, con mucho relleno) devuelven uno o dos documentos. Antes se
+    // descartaban y se reemplazaban por la muestra generica, lo que botaba
+    // justo el argumentario correcto. Ahora se CONSERVAN y se completan.
+    if (conPuntaje.length < limite) {
+      const yaEstan = new Set(conPuntaje.map((d) => d.archivo))
+      for (const d of this.muestraVariada(limite)) {
+        if (conPuntaje.length >= limite) break
+        if (yaEstan.has(d.archivo)) continue
+        conPuntaje.push(d)
+        yaEstan.add(d.archivo)
+      }
+    }
 
     return conPuntaje
   }
@@ -147,10 +161,23 @@ function normalizar(s: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+/** Coincidencia de palabra completa, tolerante a signos alrededor. */
+function bordes(termino: string): RegExp {
+  const escapado = termino.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![a-z0-9])${escapado}(?![a-z0-9])`, 'g')
+}
+
 const VACIAS = new Set([
   'para', 'como', 'este', 'esta', 'esto', 'pero', 'porque', 'cuando',
   'donde', 'desde', 'hasta', 'sobre', 'entre', 'tiene', 'tienen', 'puede',
   'pueden', 'cual', 'cuales', 'que', 'los', 'las', 'del', 'con', 'por',
   'una', 'unos', 'unas', 'mas', 'muy', 'todo', 'toda', 'todos', 'todas',
   'plan', 'planes', 'cliente', 'seguro',
+  // Muletillas de la pregunta hablada. Josue suele dictar por voz, asi que
+  // llegan frases largas con mucho relleno que no aporta a la busqueda.
+  'dice', 'dices', 'quiere', 'quieren', 'saber', 'cuanto', 'cuanta',
+  'ademas', 'menos', 'sale', 'salen', 'osea', 'nomas', 'digamos',
+  'necesito', 'ayuda', 'respondo', 'responder', 'decir', 'hacer',
+  'me', 'le', 'lo', 'la', 'el', 'ya', 'es', 'en', 'de', 'un', 'al',
+  'su', 'sus', 'si', 'no', 'yo', 'te', 'se', 'mi', 'tu', 'ese', 'esa',
 ])

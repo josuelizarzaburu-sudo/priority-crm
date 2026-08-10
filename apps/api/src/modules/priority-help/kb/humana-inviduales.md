@@ -23,7 +23,7 @@
 | **AMBULATORIA** | | | | | | |
 | Consultas médicas preautorizadas en Centros de Atención Médica RED CAM. Especialidades básicas: medicina familiar, medicina general, medicina interna, ginecología, traumatología y pediatría. | Metrored $4 / Otros $8 | Metrored $4 / Otros $8 | Metrored $4 / Otros $8 | Metrored $4 / Otros $8 | Metrored $4 / Otros $8 | Metrored $4 / Otros $8 |
 | Consultas médicas preautorizadas en Centros de Atención Médica RED CAM. Otras sub-especialidades. | Metrored $8 / Otros $12 | Metrored $8 / Otros $12 | Metrored $8 / Otros $12 | Metrored $8 / Otros $12 | Metrored $8 / Otros $12 | Metrored $8 / Otros $12 |
-| Consultas médicas preautorizadas en la Red Preferida (Practihumana) | 15 | 15 | 15 | 15 | 15 | 15 |
+| Consultas médicas preautorizadas en la Red Preferida (Practihumana) | 15 consultas | 15 consultas | 15 consultas | 15 consultas | 15 consultas | 15 consultas |
 | Consultas médicas preautorizadas en la Red Preferida (Metrohumana) | No aplica | No aplica | No aplica | $ 25 | $ 25 | $ 25 |
 | Consultas Médicas en la Red Humana - Por Reembolso | 80% de $25 | 80% de $25 | 80% de $30 | 90% de $60 | 80% de $70 | 90% de $80 |
 | Consultas Médicas Libre Elección (aplica deducible) | 80% de $25 | 80% de $25 | 80% de $30 | 80% de $60 | 70% de $70 | 80% de $80 |

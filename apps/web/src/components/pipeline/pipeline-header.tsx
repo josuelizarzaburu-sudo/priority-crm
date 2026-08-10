@@ -20,7 +20,30 @@ interface TeamMember {
   name: string
 }
 
-export type OriginFilter = 'ALL' | 'PRIORITY_HEALTH' | 'PROPIO'
+export type OriginFilter = 'ALL' | 'PRIORITY_HEALTH' | 'PRIORITY' | 'PROPIO'
+
+/**
+ * Filtro de mes. 'ALL' = todo acumulado, que era el unico comportamiento antes.
+ * El resto es 'YYYY-MM'.
+ */
+export type MesFilter = string
+
+/**
+ * Ultimos 12 meses para el desplegable, del mas reciente al mas antiguo.
+ *
+ * Se calculan sobre el dia 1 de cada mes a proposito: restar meses partiendo de
+ * un dia 29-31 salta meses cortos (el 31 de marzo menos un mes da 3 de marzo).
+ */
+export function ultimosMeses(cantidad = 12): { valor: string; etiqueta: string }[] {
+  const hoy = new Date()
+  const base = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+  return Array.from({ length: cantidad }, (_, i) => {
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const etiqueta = d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })
+    return { valor, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1) }
+  })
+}
 export type InsuranceFilter = 'ALL' | 'SALUD' | 'AUTO'
 
 interface PipelineHeaderProps {
@@ -32,6 +55,8 @@ interface PipelineHeaderProps {
   setOriginFilter: (origin: OriginFilter) => void
   insuranceFilter: InsuranceFilter
   setInsuranceFilter: (f: InsuranceFilter) => void
+  mesFilter: MesFilter
+  setMesFilter: (m: MesFilter) => void
   users: TeamMember[]
   isAdminOrManager: boolean
   userRole: string
@@ -44,6 +69,8 @@ export function PipelineHeader({
   setFilterUserId,
   originFilter,
   setOriginFilter,
+  mesFilter,
+  setMesFilter,
   insuranceFilter,
   setInsuranceFilter,
   users,
@@ -127,7 +154,29 @@ export function PipelineHeader({
                 <SelectContent>
                   <SelectItem value="ALL">Todos los orígenes</SelectItem>
                   <SelectItem value="PRIORITY_HEALTH">Priority Health</SelectItem>
+                  {/* Leads que sube el jefe de equipo por Excel. */}
+                  <SelectItem value="PRIORITY">Priority</SelectItem>
                   <SelectItem value="PROPIO">Propios</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Filtro por mes: el tablero acumula todo desde siempre, asi que
+                con el tiempo se vuelve ilegible. Filtra por el mes en que ENTRO
+                el lead, no por cuando se cerro: en un tablero de gestion importa
+                de que camada viene cada negocio. */}
+            {isAdminOrManager && (
+              <Select value={mesFilter} onValueChange={setMesFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos los meses</SelectItem>
+                  {ultimosMeses().map((m) => (
+                    <SelectItem key={m.valor} value={m.valor}>
+                      {m.etiqueta}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}

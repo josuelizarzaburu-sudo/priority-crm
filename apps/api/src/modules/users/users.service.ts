@@ -3,6 +3,16 @@ import * as bcrypt from 'bcryptjs'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateTeamMemberDto } from './dto/create-team-member.dto'
 
+/**
+ * Roles asignables desde la pantalla de Usuarios.
+ *
+ * Lista blanca: un rol nuevo no se puede asignar hasta agregarlo aqui.
+ */
+const ROLES_VALIDOS = [
+  'SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO',
+  'SALES_REP', 'OPERACIONES', 'JEFE_OPERACIONES',
+]
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -69,6 +79,40 @@ export class UsersService {
     })
   }
 
+  /**
+   * Restablece la contraseña de otro usuario.
+   *
+   * Va en su propio metodo y no dentro de updateMember a proposito: mezclar la
+   * contraseña con la edicion normal hace facil enviarla sin querer en un guardado
+   * cualquiera. Aqui es una accion explicita y separada.
+   *
+   * No se pide la contraseña anterior porque el caso de uso es justamente que la
+   * persona la perdio. Por eso el permiso esta limitado a SUPER_ADMIN.
+   */
+  async resetPassword(
+    targetId: string,
+    nuevaPassword: string,
+    organizationId: string,
+    callerRole: string,
+  ): Promise<{ ok: true }> {
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede restablecer contraseñas')
+    }
+    if (!nuevaPassword || nuevaPassword.length < 8) {
+      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres')
+    }
+
+    const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+
+    const hashed = await bcrypt.hash(nuevaPassword, 12)
+    await this.prisma.user.update({ where: { id: targetId }, data: { password: hashed } })
+
+    // Se devuelve solo una confirmacion: la contraseña no vuelve nunca en una
+    // respuesta, ni siquiera hasheada.
+    return { ok: true }
+  }
+
   async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: string) {
     if (callerRole !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Solo SUPER_ADMIN puede crear usuarios')
@@ -98,9 +142,11 @@ export class UsersService {
       phone?: string | null
       puedeCotizarPorOtros?: boolean
       puedeVender?: boolean
+      role?: string
     },
     organizationId: string,
     callerRole: string,
+    callerId?: string,
   ): Promise<object> {
     if (callerRole !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Solo SUPER_ADMIN puede editar usuarios')
@@ -111,6 +157,38 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({ where: { id: targetId, organizationId } })
     if (!user) throw new NotFoundException('Usuario no encontrado')
 
+    if (data.role && data.role !== user.role) {
+      if (!ROLES_VALIDOS.includes(data.role)) {
+        throw new BadRequestException('Rol no válido')
+      }
+      // No puedes quitarte a ti mismo el super admin: perderias el acceso a esta
+      // misma pantalla y no habria como revertirlo.
+      if (callerId && targetId === callerId && user.role === 'SUPER_ADMIN') {
+        throw new BadRequestException('No puedes cambiar tu propio rol de super admin')
+      }
+      // Tiene que quedar al menos un super admin, o nadie podria volver a
+      // administrar usuarios.
+      if (user.role === 'SUPER_ADMIN') {
+        const otros = await this.prisma.user.count({
+          where: { organizationId, role: 'SUPER_ADMIN', NOT: { id: targetId } },
+        })
+        if (otros === 0) throw new BadRequestException('Debe quedar al menos un super admin')
+      }
+      // Si deja de ser jefe no puede seguir liderando un equipo: quedaria un
+      // equipo cuyo jefe ya no ve el tablero.
+      if (user.role === 'JEFE_EQUIPO' && data.role !== 'JEFE_EQUIPO') {
+        const lidera = await this.prisma.equipo.findFirst({
+          where: { jefeId: targetId, organizationId, activo: true },
+          select: { nombre: true },
+        })
+        if (lidera) {
+          throw new BadRequestException(
+            `Sigue siendo jefe del equipo "${lidera.nombre}". Cambia primero el jefe de ese equipo.`,
+          )
+        }
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: targetId },
       data: {
@@ -120,6 +198,7 @@ export class UsersService {
           ? { puedeCotizarPorOtros: data.puedeCotizarPorOtros }
           : {}),
         ...(data.puedeVender !== undefined ? { puedeVender: data.puedeVender } : {}),
+        ...(data.role ? { role: data.role as any } : {}),
       },
       select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true },
     })

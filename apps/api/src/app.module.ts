@@ -19,12 +19,14 @@ import { CalendarModule } from './modules/calendar/calendar.module'
 import { TrainingModule } from './modules/training/training.module'
 import { WhatsappChatModule } from './modules/whatsapp-chat/whatsapp-chat.module'
 import { ChatModule } from './modules/chat/chat.module'
+import { PriorityHelpModule } from './modules/priority-help/priority-help.module'
 import { ClientesModule } from './modules/clientes/clientes.module'
 import { ReclamosModule } from './modules/reclamos/reclamos.module'
 import { CargaReclamosModule } from './modules/carga-reclamos/carga-reclamos.module'
 import { RegistroAccesoModule } from './modules/registro-acceso/registro-acceso.module'
 import { RequerimientosModule } from './modules/requerimientos/requerimientos.module'
 import { RenovacionesModule } from './modules/renovaciones/renovaciones.module'
+import { EquiposModule } from './modules/equipos/equipos.module'
 
 @Module({
   imports: [
@@ -89,12 +91,14 @@ import { RenovacionesModule } from './modules/renovaciones/renovaciones.module'
     TrainingModule,
     WhatsappChatModule,
     ChatModule,
+    PriorityHelpModule,
     ClientesModule,
     ReclamosModule,
     CargaReclamosModule,
     RegistroAccesoModule,
     RequerimientosModule,
     RenovacionesModule,
+    EquiposModule,
   ],
   providers: [
     // El ThrottlerModule estaba configurado pero NUNCA se aplicaba: sin este

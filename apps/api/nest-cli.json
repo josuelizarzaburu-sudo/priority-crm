@@ -5,6 +5,13 @@
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
     "deleteOutDir": true,
-    "plugins": ["@nestjs/swagger"]
+    "plugins": ["@nestjs/swagger"],
+    "assets": [
+      {
+        "include": "modules/priority-help/kb/**/*.md",
+        "outDir": "dist"
+      }
+    ],
+    "watchAssets": true
   }
 }

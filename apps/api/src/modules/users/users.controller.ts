@@ -29,15 +29,35 @@ export class UsersController {
     return this.usersService.updateMemberPhone(id, body.phone, req.user.organizationId, req.user.role)
   }
 
+  @Patch(':id/password')
+  @ApiOperation({ summary: 'Restablecer la contraseña de un usuario — solo SUPER_ADMIN' })
+  // Va ANTES de @Patch(':id') para que Nest no interprete 'password' como parte
+  // de esa ruta mas generica.
+  resetPassword(@Param('id') id: string, @Body() body: { password: string }, @Req() req: any) {
+    return this.usersService.resetPassword(id, body.password, req.user.organizationId, req.user.role)
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update name and/or phone of a team member — SUPER_ADMIN only' })
   updateMember(
     @Param('id') id: string,
     @Body()
-    body: { name?: string; phone?: string | null; puedeCotizarPorOtros?: boolean; puedeVender?: boolean },
+    body: {
+      name?: string
+      phone?: string | null
+      puedeCotizarPorOtros?: boolean
+      puedeVender?: boolean
+      role?: string
+    },
     @Req() req: any,
   ) {
-    return this.usersService.updateMember(id, body, req.user.organizationId, req.user.role)
+    return this.usersService.updateMember(
+      id,
+      body,
+      req.user.organizationId,
+      req.user.role,
+      req.user.id,
+    )
   }
 
   @Get()

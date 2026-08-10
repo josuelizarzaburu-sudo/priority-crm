@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common'
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards, Req } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { PipelineService } from './pipeline.service'
@@ -6,6 +6,7 @@ import { CreateDealDto } from './dto/create-deal.dto'
 import { UpdateDealDto } from './dto/update-deal.dto'
 import { MoveDealDto } from './dto/move-deal.dto'
 import { AssignDealDto } from './dto/assign-deal.dto'
+import { CambiarEquipoDealDto, CambiarOrigenDealDto } from './dto/cambiar-equipo-deal.dto'
 import { LogActivityDto } from './dto/log-activity.dto'
 import { CloseDealDto } from './dto/close-deal.dto'
 import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
@@ -32,7 +33,7 @@ export class PipelineController {
   @Get('unassigned')
   @ApiOperation({ summary: 'Get unassigned deals — MANAGER/ADMIN only' })
   getUnassigned(@Req() req: any) {
-    return this.pipelineService.getUnassignedDeals(req.user.organizationId, req.user.role)
+    return this.pipelineService.getUnassignedDeals(req.user.organizationId, req.user.role, req.user.id)
   }
 
   @Get('commissions')
@@ -80,6 +81,30 @@ export class PipelineController {
   assignDeal(@Param('id') id: string, @Body() dto: AssignDealDto, @Req() req: any) {
     return this.pipelineService.assignDeal(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
+  @Patch('deals/:id/origen')
+  @ApiOperation({ summary: 'Corregir el origen de un lead (solo administración)' })
+  cambiarOrigenDeal(@Param('id') id: string, @Body() dto: CambiarOrigenDealDto, @Req() req: any) {
+    return this.pipelineService.cambiarOrigenDeal(
+      id,
+      dto.leadOrigin,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Patch('deals/:id/equipo')
+  @ApiOperation({ summary: 'Mover un lead al lote de otro equipo (solo administración)' })
+  cambiarEquipoDeal(@Param('id') id: string, @Body() dto: CambiarEquipoDealDto, @Req() req: any) {
+    return this.pipelineService.cambiarEquipoDeal(
+      id,
+      dto.equipoId,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
 
   @Post('deals/:id/activity')
   @ApiOperation({ summary: 'Log a CALL/NOTE/EMAIL/MEETING/TASK activity on a deal' })

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
 import { KanbanBoard } from '@/components/pipeline/kanban-board'
-import { PipelineHeader, type OriginFilter, type InsuranceFilter } from '@/components/pipeline/pipeline-header'
+import { PipelineHeader, type OriginFilter, type InsuranceFilter, type MesFilter } from '@/components/pipeline/pipeline-header'
 import { DealPanel } from '@/components/pipeline/deal-panel'
 import { api } from '@/lib/api'
 
@@ -32,6 +32,9 @@ export function PipelineClient() {
   const [filterUserId, setFilterUserId] = useState<string | null>(null)
   const [originFilter, setOriginFilter] = useState<OriginFilter>('ALL')
   const [insuranceFilter, setInsuranceFilter] = useState<InsuranceFilter>('ALL')
+  // Arranca en 'ALL' para no cambiarle el tablero a nadie sin avisar: quien no
+  // toque el filtro sigue viendo exactamente lo mismo que antes.
+  const [mesFilter, setMesFilter] = useState<MesFilter>('ALL')
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
   const { data: users = [] } = useQuery<TeamMember[]>({
@@ -51,6 +54,8 @@ export function PipelineClient() {
         setOriginFilter={setOriginFilter}
         insuranceFilter={insuranceFilter}
         setInsuranceFilter={setInsuranceFilter}
+        mesFilter={mesFilter}
+        setMesFilter={setMesFilter}
         users={users}
         isAdminOrManager={isAdminOrManager}
         userRole={userRole}
@@ -60,6 +65,7 @@ export function PipelineClient() {
         filterUserId={filterUserId}
         originFilter={originFilter}
         insuranceFilter={insuranceFilter}
+        mesFilter={mesFilter}
         currentUserId={currentUserId}
         userRole={userRole}
         onSelectDeal={setSelectedDealId}

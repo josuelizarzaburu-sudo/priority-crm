@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common'
+import { Controller, Post, Get, Body, Query, Req, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { RolesGuard } from '../auth/guards/roles.guard'
@@ -7,17 +7,17 @@ import { PriorityHelpService } from './priority-help.service'
 import { KbLoader } from './kb.loader'
 import { PriorityHelpDto } from './dto/priority-help.dto'
 
-// Mismo alcance que el Cotizador en el sidebar: comercial + operaciones
-// + super admin. Si esto cambia, hay que cambiarlo tambien en el sidebar
-// del frontend, porque son dos listas separadas.
-const ROLES_HELP = [
-  'SUPER_ADMIN',
-  'OWNER',
-  'MANAGER',
-  'SALES_REP',
-  'OPERACIONES',
-  'JEFE_OPERACIONES',
-]
+// FASE DE PRUEBAS: solo SUPER_ADMIN.
+//
+// El bot todavia no se ha validado con preguntas reales de venta. Abrirlo
+// al equipo antes de eso multiplica los errores: mas gente, mas rapido y
+// con menos supervision.
+//
+// Para abrirlo despues hay que cambiarlo en TRES lugares, que son listas
+// separadas: aca, en apps/web/src/app/(dashboard)/priority-help/page.tsx
+// y en el sidebar. El alcance previsto es el mismo del Cotizador:
+//   [...COMUNES, 'SUPER_ADMIN']
+const ROLES_HELP = ['SUPER_ADMIN']
 
 @ApiTags('Priority Help')
 @ApiBearerAuth()
@@ -32,8 +32,17 @@ export class PriorityHelpController {
 
   @Post('chat')
   @ApiOperation({ summary: 'Consulta de apoyo a la venta sobre coberturas' })
-  chat(@Body() dto: PriorityHelpDto) {
-    return this.service.responder(dto.messages)
+  chat(@Body() dto: PriorityHelpDto, @Req() req: any) {
+    return this.service.responder(dto.messages, req.user?.id)
+  }
+
+  @Get('huecos')
+  @ApiOperation({
+    summary:
+      'Consultas que el bot no supo responder. Es la lista de material que falta.',
+  })
+  huecos(@Query('dias') dias?: string) {
+    return this.service.huecos(dias ? Number(dias) : 30)
   }
 
   @Get('documentos')

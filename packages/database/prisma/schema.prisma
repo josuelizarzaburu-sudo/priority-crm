@@ -88,6 +88,7 @@ model User {
   requerimientos          Requerimiento[]
   notasRequerimientos     NotaRequerimiento[]
   renovaciones            Renovacion[]        @relation("RenovacionEjecutivo")
+  consultasPriorityHelp   PriorityHelpConsulta[]
   notasRenovaciones       NotaRenovacion[]
   reclamosGestionados     Reclamo[]
 
@@ -981,4 +982,35 @@ enum EstadoEnvio {
   NO_ENVIADO
   PRIMER_ENVIO
   SEGUNDO_ENVIO
+}
+
+
+/// Historial de Priority Help.
+///
+/// Existe para saber QUE preguntan los asesores: donde falta material, que
+/// dudas se repiten y en que casos el bot no supo responder. Sin esto, ir
+/// llenando los huecos del conocimiento depende de que alguien avise.
+///
+/// Guarda la pregunta, la respuesta y los documentos que se usaron. Con
+/// `sinRespuesta` se marcan los casos en que el bot admitio no tener el
+/// dato: esa es la lista de trabajo para saber que documento subir.
+model PriorityHelpConsulta {
+  id        String   @id @default(cuid())
+  userId    String
+  pregunta  String
+  respuesta String
+  /// Archivos .md que se le pasaron al modelo en esa consulta.
+  fuentes   String[]
+  /// true si el bot dijo que no tenia el dato. Marca un hueco del material.
+  sinRespuesta Boolean @default(false)
+  /// true si se activo el filtro de precios sobre la salida del modelo.
+  filtroPrecio Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([sinRespuesta])
+  @@map("priority_help_consultas")
 }

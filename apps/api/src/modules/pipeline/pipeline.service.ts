@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { horasLaborables, sumarHorasLaborables, HORAS_PLAZO_GESTION } from './horas-laborables'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CreateDealDto } from './dto/create-deal.dto'
@@ -11,6 +11,15 @@ import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { soloVeSusNegocios } from './puede-vender'
+import { EquiposService } from '../equipos/equipos.service'
+import {
+  filtroDeEquipo,
+  origenDeLead,
+  sePuedeReasignar,
+  veSoloSuEquipo,
+  ORIGENES_VALIDOS,
+  type LeadOrigin,
+} from '../equipos/equipos-scope'
 
 /**
  * Roles con acceso a informacion comercial sensible.
@@ -36,7 +45,23 @@ const PUEDEN_VER_COMISIONES = ['SUPER_ADMIN']
 /**
  * Reparto de leads: administracion comercial.
  */
-const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+/**
+ * Quien reparte leads.
+ *
+ * JEFE_EQUIPO entra aqui, pero con dos limites que se aplican mas abajo en
+ * assignDeal: solo reparte a gente de SU equipo, y solo leads de la empresa
+ * (PRIORITY_HEALTH / PRIORITY). Los PROPIO no los puede tocar nadie.
+ */
+const PUEDEN_REPARTIR_LEADS = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_EQUIPO']
+
+/**
+ * Quien decide de que equipo es un lead.
+ *
+ * Sin JEFE_EQUIPO a proposito: un jefe reparte DENTRO de su equipo, pero no mueve
+ * leads entre equipos. Si pudiera, podria vaciarse los suyos o quitarle los del
+ * otro jefe.
+ */
+const PUEDEN_ADMINISTRAR_LOTES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 
 @Injectable()
 export class PipelineService {
@@ -46,6 +71,7 @@ export class PipelineService {
     private readonly prisma: PrismaService,
     private readonly gateway: PipelineGateway,
     private readonly notifications: NotificationsService,
+    private readonly equipos: EquiposService,
   ) {}
 
   async getStagesWithDeals(organizationId: string) {
@@ -66,7 +92,15 @@ export class PipelineService {
 
   async getDeals(organizationId: string, userId: string, role: string, puedeVender?: boolean) {
     const where: any = { organizationId }
-    if (soloVeSusNegocios(role, puedeVender)) where.assignedToId = userId
+    if (soloVeSusNegocios(role, puedeVender)) {
+      where.assignedToId = userId
+    } else if (veSoloSuEquipo(role)) {
+      // El jefe de equipo ve los negocios de su gente y los suyos propios, nada
+      // mas. Si todavia no tiene equipo asignado se vera solo a si mismo, que es
+      // lo correcto: no hay a quien supervisar todavia.
+      const miembros = await this.equipos.miembrosDelJefe(userId, organizationId)
+      Object.assign(where, filtroDeEquipo(userId, miembros))
+    }
     const deals = await this.prisma.deal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -124,23 +158,160 @@ export class PipelineService {
     })
   }
 
-  async getUnassignedDeals(organizationId: string, role: string) {
+  /**
+   * Corrige el origen de un lead ya creado.
+   *
+   * Existe porque el origen decide la comision, y hasta ahora un negocio creado
+   * desde Mi Pipeline por alguien no restringido (super admin, dueño) quedaba
+   * como PRIORITY_HEALTH cuando en realidad era propio.
+   *
+   * Va aparte de updateDeal a proposito: updateDeal sobrescribe customFields
+   * entero con lo que mande el cliente, asi que usarlo para tocar un solo campo
+   * se llevaria por delante prima, seguimiento y todo lo demas. Aqui se fusiona.
+   *
+   * Solo gerencia: el origen no es algo que cada quien deba poder subirse a
+   * PROPIO por su cuenta, justamente porque comisiona mas.
+   */
+  async cambiarOrigenDeal(
+    id: string,
+    origen: LeadOrigin,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!PUEDEN_ADMINISTRAR_LOTES.includes(role)) {
+      throw new ForbiddenException('Solo administración puede cambiar el origen de un lead')
+    }
+    if (!ORIGENES_VALIDOS.includes(origen)) {
+      throw new BadRequestException('Origen no válido')
+    }
+
+    const deal = await this.getDeal(id, organizationId)
+    const anterior = origenDeLead(deal.customFields)
+    if (anterior === origen) return deal
+
+    const customFields = {
+      ...((deal.customFields as Record<string, unknown>) ?? {}),
+      leadOrigin: origen,
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data: {
+        customFields: customFields as any,
+        // Un lead que pasa a PROPIO deja de pertenecer al lote de un equipo: es
+        // del asesor que lo consiguio, no material que se reparta.
+        ...(origen === 'PROPIO' ? { equipoId: null } : {}),
+      },
+      include: { stage: true },
+    })
+
+    // Queda en la bitacora porque cambia la comision: tiene que ser rastreable
+    // quien lo cambio y cuando.
+    await this.prisma.activity.create({
+      data: {
+        type: 'NOTE',
+        description: `Origen del lead cambiado de ${anterior} a ${origen}`,
+        dealId: id,
+        contactId: deal.contactId,
+        organizationId,
+        userId,
+      },
+    })
+
+    return updated
+  }
+
+  async getUnassignedDeals(organizationId: string, role: string, userId?: string) {
     // Misma correccion que en comisiones: lista blanca en vez de lista negra.
     // Los leads sin asignar son material comercial (datos de contacto de
     // prospectos); solo administracion los reparte.
     if (!PUEDEN_REPARTIR_LEADS.includes(role)) {
       throw new ForbiddenException('No tienes acceso a los leads sin asignar')
     }
+
+    const where: any = { organizationId, assignedToId: null, status: 'OPEN' }
+
+    if (veSoloSuEquipo(role) && userId) {
+      // El jefe ve UNICAMENTE el lote de su equipo: los que le tocaron por
+      // reparto automatico y los que subio el mismo. Nunca los de otro equipo ni
+      // los que estan en la bolsa comun sin repartir.
+      const equipoId = await this.equipos.equipoDelJefe(userId, organizationId)
+      // Sin equipo asignado todavia no le corresponde ningun lote. Se usa un id
+      // imposible en vez de omitir el filtro: omitirlo le mostraria los leads de
+      // toda la empresa por un dato faltante.
+      where.equipoId = equipoId ?? '__sin_equipo__'
+    }
+
     return this.prisma.deal.findMany({
-      where: { organizationId, assignedToId: null, status: 'OPEN' },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         stage: true,
+        equipo: { select: { id: true, nombre: true } },
         contact: {
           select: { id: true, firstName: true, lastName: true, phone: true, email: true, customFields: true },
         },
       },
     })
+  }
+
+  /**
+   * Mueve un lead de un equipo a otro (o lo deja sin equipo con null).
+   *
+   * Solo gerencia. Un jefe no puede pasarle sus leads a otro equipo ni quitarle
+   * los suyos: el reparto entre equipos lo decide administracion.
+   *
+   * Sirve para dos cosas: corregir un reparto automatico que no cuadra, y
+   * repartir los leads viejos que quedaron sin equipo al activar esta funcion.
+   */
+  async cambiarEquipoDeal(
+    id: string,
+    equipoId: string | null,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!PUEDEN_ADMINISTRAR_LOTES.includes(role)) {
+      throw new ForbiddenException('Solo administración puede mover leads entre equipos')
+    }
+
+    const deal = await this.getDeal(id, organizationId)
+
+    // Un lead PROPIO no cambia de equipo, por la misma razon por la que no se
+    // reasigna: es del vendedor que lo consiguio.
+    if (!sePuedeReasignar(deal.customFields)) {
+      throw new ForbiddenException('Los leads propios no se pueden mover de equipo')
+    }
+
+    if (equipoId) {
+      const equipo = await this.prisma.equipo.findFirst({
+        where: { id: equipoId, organizationId, activo: true },
+        select: { id: true, nombre: true },
+      })
+      if (!equipo) throw new NotFoundException('Equipo no encontrado o inactivo')
+    }
+
+    const updated = await this.prisma.deal.update({
+      where: { id },
+      data: { equipoId },
+      include: { stage: true, equipo: { select: { id: true, nombre: true } } },
+    })
+
+    await this.prisma.activity.create({
+      data: {
+        type: 'NOTE',
+        description: equipoId
+          ? `Lead movido al equipo ${(updated as any).equipo?.nombre ?? equipoId}`
+          : 'Lead devuelto a la bolsa común',
+        dealId: id,
+        contactId: deal.contactId,
+        organizationId,
+        userId,
+      },
+    })
+
+    return updated
   }
 
   async assignDeal(id: string, dto: AssignDealDto, organizationId: string, assignedById: string, role: string) {
@@ -149,10 +320,30 @@ export class PipelineService {
     }
     const deal = await this.getDeal(id, organizationId)
 
+    // REGLA QUE NO SE ROMPE: un lead PROPIO es del vendedor que lo consiguio.
+    // Se comprueba para TODOS los roles, no solo para el jefe de equipo: si el
+    // dueno pudiera reasignarlo, la regla no seria tal.
+    if (!sePuedeReasignar(deal.customFields)) {
+      throw new ForbiddenException(
+        'Los leads propios no se pueden reasignar: pertenecen al asesor que los consiguio',
+      )
+    }
+
     const agent = await this.prisma.user.findFirst({
       where: { id: dto.agentId, organizationId },
     })
     if (!agent) throw new NotFoundException('Agent not found')
+
+    // El jefe de equipo solo reparte dentro de su equipo. Se valida en el
+    // servidor y no solo escondiendo opciones en el desplegable, porque si no
+    // bastaria con editar la peticion para colgarle un lead a otro equipo.
+    if (veSoloSuEquipo(role)) {
+      const miembros = await this.equipos.miembrosDelJefe(assignedById, organizationId)
+      const permitidos = new Set([assignedById, ...miembros])
+      if (!permitidos.has(dto.agentId)) {
+        throw new ForbiddenException('Solo puedes asignar leads a integrantes de tu equipo')
+      }
+    }
 
     const updated = await this.prisma.deal.update({
       where: { id },
@@ -677,7 +868,11 @@ export class PipelineService {
       customFields.leadOrigin = 'PROPIO'
       assignedToId = createdById
     } else {
-      customFields.leadOrigin = customFields.leadOrigin === 'PROPIO' ? 'PROPIO' : 'PRIORITY_HEALTH'
+      // Antes esto aplastaba a PRIORITY_HEALTH cualquier origen que no fuera
+      // PROPIO, asi que los leads subidos por Excel (PRIORITY) perdian su
+      // etiqueta en silencio. Ahora se respetan los tres valores validos y solo
+      // se normaliza lo desconocido.
+      customFields.leadOrigin = origenDeLead(customFields)
     }
 
     return this.prisma.deal.create({

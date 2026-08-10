@@ -372,7 +372,16 @@ export function MyPipelineBoard() {
         users={[]}
       />
 
-      <CreateDealDialog open={createOpen} onOpenChange={setCreateOpen} />
+      {/* En Mi Pipeline el negocio nace PROPIO: es el tablero de uno mismo, o sea
+          un cliente conseguido por cuenta propia. Al super admin y al dueño se les
+          deja el selector por si alguna vez registran a mano un lead que vino de
+          Priority Health. */}
+      <CreateDealDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        defaultOrigin="PROPIO"
+        showOriginSelector={userRole === 'SUPER_ADMIN' || userRole === 'OWNER'}
+      />
 
       <WonDealModal
         open={showWonModal}

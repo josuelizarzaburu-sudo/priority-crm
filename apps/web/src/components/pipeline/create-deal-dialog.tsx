@@ -44,9 +44,24 @@ interface CreateDealDialogProps {
   onOpenChange: (open: boolean) => void
   /** Only SUPER_ADMIN gets to pick the lead origin — sales reps always create 'PROPIO' deals. */
   showOriginSelector?: boolean
+  /**
+   * Origen con el que arranca el formulario.
+   *
+   * Desde Mi Pipeline se manda 'PROPIO': si alguien crea un negocio en SU propio
+   * tablero, lo normal es que sea un cliente que consiguio por su cuenta. Para un
+   * vendedor el backend ya lo forzaba, pero a quien no esta restringido (super
+   * admin, dueño) le quedaba PRIORITY_HEALTH sin querer, y los propios comisionan
+   * mas.
+   */
+  defaultOrigin?: LeadOrigin
 }
 
-export function CreateDealDialog({ open, onOpenChange, showOriginSelector = false }: CreateDealDialogProps) {
+export function CreateDealDialog({
+  open,
+  onOpenChange,
+  showOriginSelector = false,
+  defaultOrigin = 'PRIORITY_HEALTH',
+}: CreateDealDialogProps) {
   const [saving, setSaving] = useState(false)
 
   const [firstName, setFirstName] = useState('')
@@ -55,7 +70,7 @@ export function CreateDealDialog({ open, onOpenChange, showOriginSelector = fals
   const [email, setEmail]         = useState('')
   const [doSport, setDoSport]     = useState<boolean | null>(null)
   const [hasInsurance, setHasInsurance] = useState<boolean | null>(null)
-  const [leadOrigin, setLeadOrigin] = useState<LeadOrigin>('PRIORITY_HEALTH')
+  const [leadOrigin, setLeadOrigin] = useState<LeadOrigin>(defaultOrigin)
 
   const queryClient = useQueryClient()
 
@@ -77,7 +92,7 @@ export function CreateDealDialog({ open, onOpenChange, showOriginSelector = fals
     setEmail('')
     setDoSport(null)
     setHasInsurance(null)
-    setLeadOrigin('PRIORITY_HEALTH')
+    setLeadOrigin(defaultOrigin)
   }
 
   async function handleCreate() {
@@ -107,7 +122,11 @@ export function CreateDealDialog({ open, onOpenChange, showOriginSelector = fals
           sport: doSport,
           insured: hasInsurance,
           source: 'MANUAL',
-          ...(showOriginSelector ? { leadOrigin } : {}),
+          // Se manda siempre, no solo cuando el selector esta a la vista: desde
+          // Mi Pipeline no hay selector pero el origen correcto es PROPIO. El
+          // backend igual lo fuerza para quien esta restringido a lo suyo, asi
+          // que esto no permite declararse un origen que no corresponda.
+          leadOrigin,
           leadCreatedAt: new Date().toISOString(),
         },
       })

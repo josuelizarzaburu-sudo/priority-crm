@@ -190,6 +190,10 @@ model Requerimiento {
   estado         EstadoRequerimiento @default(EN_TRAMITE)
 
   observaciones  String?
+  /// Cuando se envio el correo de bienvenida. Null = todavia no.
+  /// Es fecha y no booleano para saber cuando fue, y ademas evita que se mande
+  /// dos veces al mismo cliente.
+  correoBienvenidaEnviado DateTime?
   notas          NotaRequerimiento[]
 
   ejecutivoId    String?
@@ -1001,6 +1005,11 @@ model Reclamo {
   contrato       String?
   diagnostico    String?
 
+  /// Reembolso: el cliente ya pago y se le devuelve el dinero.
+  /// Credito hospitalario: la aseguradora paga directo a la clinica.
+  /// Son flujos y tiempos distintos, por eso se distinguen.
+  tipoReclamo    TipoReclamo @default(REEMBOLSO)
+
   // Solo la hoja corporativa la usa; en las individuales no existe.
   fechaRecepcion       DateTime?
   fechaEnvioAseguradora DateTime?
@@ -1040,6 +1049,9 @@ model Reclamo {
 }
 
 enum TipoRequerimiento {
+  /// Se crea SOLO al asignarle ejecutiva a un cliente nuevo: verificar datos y
+  /// mandarle el correo de bienvenida.
+  BIENVENIDA
   DATOS_FACTURACION
   CAMBIO_FORMA_PAGO
   CAMBIO_DEDUCIBLE
@@ -1056,6 +1068,11 @@ enum EstadoRequerimiento {
   EN_TRAMITE   // recibido, en gestión
   MAS_INFORMACION // se pidió información adicional al cliente
   SOLUCIONADO  // cerrado
+}
+
+enum TipoReclamo {
+  REEMBOLSO             // el cliente pago y se le devuelve
+  CREDITO_HOSPITALARIO  // la aseguradora paga directo a la clinica
 }
 
 enum EstadoRenovacion {

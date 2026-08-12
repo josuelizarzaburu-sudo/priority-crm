@@ -180,6 +180,59 @@ export class NotificationsService {
    * A proposito NO vende nada. Un "feliz cumpleaños, mira estos planes" se lee
    * como publicidad disfrazada y logra lo contrario de lo que busca.
    */
+  /**
+   * Correo de bienvenida a un cliente nuevo.
+   *
+   * Lo dispara la ejecutiva desde el requerimiento de bienvenida, no una tarea
+   * automatica: asi se manda recien cuando ya verifico que los datos del cliente
+   * estan correctos.
+   *
+   * Incluye el nombre de su ejecutiva porque es el dato mas util del correo: el
+   * cliente sabe a quien escribirle cuando necesite algo.
+   */
+  async enviarCorreoBienvenida(data: {
+    email: string
+    saludo: string
+    ejecutivaNombre?: string | null
+  }): Promise<void> {
+    const nombre = this.escape(data.saludo)
+    const ejecutiva = data.ejecutivaNombre ? this.escape(data.ejecutivaNombre) : null
+    const html = `
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <div style="background:#0C2057;padding:28px 24px;text-align:center;">
+      <p style="margin:0;color:#DBAA59;font-size:22px;font-weight:bold;">
+        Bienvenido a Priority, ${nombre}
+      </p>
+    </div>
+    <div style="padding:28px 24px;color:#25324b;font-size:15px;line-height:1.7;">
+      <p style="margin:0 0 16px;">
+        Gracias por confiarnos el cuidado de lo que más te importa.
+      </p>
+      <p style="margin:0 0 16px;">
+        No te vendemos un seguro: te acompañamos para que cuando más lo necesites,
+        tu seguro realmente funcione.
+      </p>
+      ${
+        ejecutiva
+          ? `<div style="margin:20px 0;padding:16px;background:#f8f9fb;border-left:3px solid #DBAA59;">
+              <p style="margin:0;font-size:14px;">
+                Tu ejecutiva asignada es <strong style="color:#0C2057;">${ejecutiva}</strong>.
+                Escríbenos cuando necesites algo, estamos para ayudarte.
+              </p>
+            </div>`
+          : ''
+      }
+      <p style="margin:24px 0 0;color:#6b7585;font-size:14px;">
+        Un abrazo,<br/>
+        <strong style="color:#0C2057;">El equipo de Priority</strong>
+      </p>
+    </div>
+  </div>
+</body>`
+    await this.sendEmail(data.email, `Bienvenido a Priority, ${data.saludo}`, html, FROM_CLIENTES)
+  }
+
   async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {
     const nombre = this.escape(data.saludo)
     // La imagen vive en priority.ec y no incrustada: los correos no pueden

@@ -73,6 +73,17 @@ export class RequerimientosController {
   update(@Param('id') id: string, @Body() dto: UpdateRequerimientoDto, @Req() req: any) {
     return this.service.update(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
+  @Post(':id/enviar-bienvenida')
+  @ApiOperation({ summary: 'Envía el correo de bienvenida al cliente' })
+  enviarBienvenida(@Param('id') id: string, @Req() req: any) {
+    return this.service.enviarBienvenida(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar (solo jefe de operaciones y admin)' })

@@ -98,8 +98,15 @@ export function ReclamoForm({
     valor: txt(reclamo?.valor),
     valorLiquidado: txt(reclamo?.valorLiquidado),
     estado: txt(reclamo?.estado) || 'EN_TRAMITE',
+    tipoReclamo: txt((reclamo as any)?.tipoReclamo) || 'REEMBOLSO',
     medioComunicacion: txt(reclamo?.medioComunicacion),
-    observaciones: txt(reclamo?.observaciones),
+    // Al EDITAR el cuadro arranca vacio a proposito: es para escribir una
+    // observacion NUEVA que se agrega a la bitacora, no para editar la anterior.
+    // Antes se precargaba con la observacion previa, y eso hacia dos cosas mal:
+    // al guardar sin tocar nada se duplicaba la nota anterior, y al escribir algo
+    // nuevo se mandaba el texto viejo pegado al nuevo. Como el cuadro siempre
+    // mostraba lo mismo, parecia que "no se guardaba".
+    observaciones: reclamo ? '' : txt(reclamo?.observaciones),
   })
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -332,6 +339,20 @@ export function ReclamoForm({
               value={form.valorLiquidado}
               onChange={(e) => set('valorLiquidado', e.target.value)}
             />
+          </Campo>
+
+          {/* Reembolso: el cliente ya pago y se le devuelve el dinero.
+              Credito hospitalario: la aseguradora paga directo a la clinica.
+              Son gestiones distintas y hay que poder separarlas en reportes. */}
+          <Campo label="Tipo">
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={form.tipoReclamo}
+              onChange={(e) => set('tipoReclamo', e.target.value)}
+            >
+              <option value="REEMBOLSO">Reembolso</option>
+              <option value="CREDITO_HOSPITALARIO">Crédito hospitalario</option>
+            </select>
           </Campo>
 
           <Campo label="Estado">

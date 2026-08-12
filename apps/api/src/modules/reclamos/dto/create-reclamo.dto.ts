@@ -3,6 +3,7 @@ import { Type } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
 
 const ESTADOS = ['EN_TRAMITE', 'LIQUIDADO', 'NEGADO', 'DEVUELTO']
+const TIPOS_RECLAMO = ['REEMBOLSO', 'CREDITO_HOSPITALARIO']
 
 export class CreateReclamoDto {
   // Si viene, el reclamo queda enlazado al cliente del CRM.
@@ -14,6 +15,12 @@ export class CreateReclamoDto {
   @ApiProperty()
   @IsString()
   clienteNombre!: string
+
+  /** REEMBOLSO (el cliente ya pago) o CREDITO_HOSPITALARIO (paga la aseguradora). */
+  @ApiProperty({ required: false, enum: TIPOS_RECLAMO })
+  @IsIn(TIPOS_RECLAMO)
+  @IsOptional()
+  tipoReclamo?: string
 
   @ApiProperty({ required: false })
   @IsString()

@@ -182,24 +182,21 @@ export class NotificationsService {
    */
   async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {
     const nombre = this.escape(data.saludo)
+    // La imagen vive en priority.ec y no incrustada: los correos no pueden
+    // llevar imagenes dentro del HTML, necesitan una URL publica.
+    const imagen = 'https://priority.ec/img/cumpleanos.jpg'
     const html = `
-<body style="margin:0;padding:24px;background:#f4f5f7;font-family:sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-    <div style="background:#0C2057;padding:28px 24px;text-align:center;">
-      <h1 style="margin:0;color:#DBAA59;font-size:22px;">¡Feliz cumpleaños, ${nombre}!</h1>
-    </div>
-    <div style="padding:28px 24px;color:#25324b;font-size:15px;line-height:1.6;">
-      <p style="margin:0 0 16px;">
-        En Priority queremos desearte un año lleno de salud y buenos momentos.
-      </p>
-      <p style="margin:0 0 16px;">
-        Gracias por confiar en nosotros para cuidar lo que más importa.
-      </p>
-      <p style="margin:24px 0 0;color:#6b7585;font-size:14px;">
-        Con aprecio,<br/>
-        <strong style="color:#0C2057;">El equipo de Priority</strong>
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <div style="padding:28px 24px 20px;text-align:center;">
+      <p style="margin:0;color:#0C2057;font-size:22px;font-weight:bold;">
+        ¡Feliz cumpleaños, ${nombre}!
       </p>
     </div>
+    <img src="${imagen}"
+         width="600"
+         alt="En Priority queremos celebrar contigo este día especial. Te deseamos un año lleno de salud, alegría y buenos momentos. Disfruta tu día."
+         style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
   </div>
 </body>`
     await this.sendEmail(data.email, `¡Feliz cumpleaños, ${data.saludo}!`, html, FROM_CLIENTES)

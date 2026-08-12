@@ -38,6 +38,7 @@ model Organization {
   requerimientos Requerimiento[]
   renovaciones   Renovacion[]
   equipos        Equipo[]
+  correosAutomaticos CorreoAutomatico[]
 
   @@map("organizations")
 }
@@ -327,6 +328,40 @@ model Equipo {
   @@index([organizationId])
   @@index([jefeId])
   @@map("equipos")
+}
+
+/// Registro de correos automaticos enviados a clientes.
+///
+/// Su razon de ser es la IDEMPOTENCIA: la clave unica (clienteId, tipo, fecha)
+/// hace imposible mandarle dos veces el mismo correo al mismo cliente el mismo
+/// dia, aunque la tarea se ejecute repetida por un reinicio, un reintento de la
+/// cola o dos instancias de la API corriendo a la vez.
+///
+/// Sin esto, un cliente podria recibir tres "feliz cumpleanos" el mismo dia.
+model CorreoAutomatico {
+  id             String   @id @default(cuid())
+  clienteId      String
+  /// CUMPLEANOS | BIENVENIDA | RENOVACION
+  tipo           String
+  /// Dia al que corresponde el envio, en formato YYYY-MM-DD hora de Ecuador.
+  /// Es texto y no DateTime a proposito: asi la clave unica compara dias
+  /// calendario y no instantes, sin lios de zona horaria.
+  fecha          String
+  /// Correo al que se envio, guardado tal como estaba ese dia.
+  destinatario   String
+  /// true = solo se simulo (modo prueba), no se envio nada de verdad.
+  simulado       Boolean  @default(false)
+  /// Mensaje de error si el envio fallo. null = salio bien.
+  error          String?
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([clienteId, tipo, fecha])
+  @@index([organizationId, tipo, fecha])
+  @@map("correos_automaticos")
 }
 
 model PushSubscription {
@@ -826,6 +861,7 @@ model Cliente {
   notas_          NotaCliente[]
   reclamos        Reclamo[]
   requerimientos  Requerimiento[]
+  correosAutomaticos CorreoAutomatico[]
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])

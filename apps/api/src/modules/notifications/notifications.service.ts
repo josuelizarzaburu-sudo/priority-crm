@@ -147,6 +147,41 @@ export class NotificationsService {
     })
   }
 
+  /**
+   * Saludo de cumpleaños a un CLIENTE.
+   *
+   * Ojo: este correo va a un cliente final, no al equipo. Por eso el tono es
+   * distinto al resto de plantillas de este archivo, que son avisos internos:
+   * sin datos operativos, sin enlaces al CRM y sin jerga interna.
+   *
+   * A proposito NO vende nada. Un "feliz cumpleaños, mira estos planes" se lee
+   * como publicidad disfrazada y logra lo contrario de lo que busca.
+   */
+  async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {
+    const nombre = this.escape(data.saludo)
+    const html = `
+<body style="margin:0;padding:24px;background:#f4f5f7;font-family:sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#0C2057;padding:28px 24px;text-align:center;">
+      <h1 style="margin:0;color:#DBAA59;font-size:22px;">¡Feliz cumpleaños, ${nombre}!</h1>
+    </div>
+    <div style="padding:28px 24px;color:#25324b;font-size:15px;line-height:1.6;">
+      <p style="margin:0 0 16px;">
+        En Priority queremos desearte un año lleno de salud y buenos momentos.
+      </p>
+      <p style="margin:0 0 16px;">
+        Gracias por confiar en nosotros para cuidar lo que más importa.
+      </p>
+      <p style="margin:24px 0 0;color:#6b7585;font-size:14px;">
+        Con aprecio,<br/>
+        <strong style="color:#0C2057;">El equipo de Priority</strong>
+      </p>
+    </div>
+  </div>
+</body>`
+    await this.sendEmail(data.email, `¡Feliz cumpleaños, ${data.saludo}!`, html)
+  }
+
   private escape(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }

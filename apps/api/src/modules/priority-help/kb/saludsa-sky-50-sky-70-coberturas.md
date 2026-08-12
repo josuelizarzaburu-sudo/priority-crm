@@ -1,203 +1,208 @@
-# Saludsa — Sky 50 y Sky 70
+# Saludsa — Saludsa_cobertuas_y_red_Sky_50_y_Sky_70_
 
 > Fuente: `Saludsa_cobertuas_y_red_Sky_50_y_Sky_70_.pdf` (páginas de coberturas)
 
-> NOTA: Priority no comercializa los planes "Lite". Si el material los menciona en notas al pie, no deben ofrecerse ni compararse.
+> NOTA: se omitieron paginas de premios y sorteos del programa Vitality por no aportar informacion de cobertura. Todo lo demas del documento original se conserva.
 
-> Se omitieron las páginas de premios y sorteos de Vitality (p8), por no aportar información de cobertura.
+
+> NOTA: Priority no comercializa los planes "Lite". Si el material los menciona en notas al pie, no deben ofrecerse ni compararse.
 
 ## Página 1
 
-Conoce las coberturas
+```text
+Conoce las coberturas                                                                                                          Sky50K
+                                                                                                                                     PLUS
+
+                                                       $50.000                                  $100 / $200 / $500
+                                                       Cobertura por enfermedad                 Deducible a tu elección anual
+                                                       anual por persona                        por persona
 
 ¿Desde cuándo aplica la cobertura del producto?
-
 A partir de la contratación del producto
 
-24 horas
-Emergencia/
+ 24 horas                     30 días                    45 días                   90 días                                        13 mes
+Emergencia/                 Ambulatorio                 Maternidad               Hospitalario                                  Preexistencias
+ Urgencia
 
-Urgencia
+                        Hospitalario                                                             Ambulatorio
+                        Red Sky 90%                                                              Red Sky 80%
+                        Libre elección 70%
+                        • Servicios hospitalarios
+                                                                                                 Libre elección 70%
+                                                                                                • Consultas médicas      Medicinas en Red Sky:
+                        • Cuarto y alimento
+                                                                                                  (hasta $35)            • NO continuas 70%
+                        • Honorarios médicos                                                    • Exámenes               • Continuas
+                        • Trasplantes hasta $35.000                                             • Hospital del día         Genéricas 80%
+                        • Cama de acompañante                                                   • Terapias (30 c/tipo)     Marca 60%
+
+                         Prótesis / coils / implantes no dentales                                            Emergencia/
+                         y material de osteosíntesis                                                         Urgencia
+                         Red Sky y libre elección 70% hasta $15.000
+                                                                                                             Hospitalaria:
+                                                                                                             Red Sky 90%
+                                                                                                             Libre elección 70%
+
+                Maternidad                                       Recién Nacido
+                Monto limite por                                 Aﬁliado intrautero:                         Emergencia/
+                evento $2.500.                                   como otro beneﬁciario                       Urgencia
+                Monto adicional por                              No aﬁliado intrautero:                      Ambulatoria:
+                complicaciones $2.000                            hasta el día 7 $250,                        Red Sky 80%
+                                                                 hasta el día 28 $750                        Libre elección 70%
+
+                                                                                                             Preexistencias
+                Ambulancia
+                Terrestre hasta $500                               Discapacidades                            Mes 13 a 24 hasta $700
+                                                                   Hasta 20 SBU                              Mes 25 en adelante hasta
+                Aérea y ﬂuvial hasta
+                                                                                                             20 SBU
+                $2.000.
 
 *Para conocer a detalle todas las coberturas consulta con tu asesor comercial.
+```
 
-30 días
-Ambulatorio
+## Página 2
 
-Hospitalario
-Red Sky 90%
-Libre elección 70%
+```text
+Red Sky
 
-Ambulatorio
-Red Sky 80%
-Libre elección 70%
-• Servicios hospitalarios
-• Cuarto y alimento
-• Honorarios médicos
-• Trasplantes hasta $35.000
-• Cama de acompañante
+     Red Sky
+     Contamos con una red exclusiva en                                                      Con la red Sky
+     prestaciones ambulatorias con los
+                                                                                            tendrás acceso a:
+     más altos porcentajes de cobertura,                                                    • Centros médicos.
+     atención integral y derivaciones                                                       • Médicos particulares.
+     hospitalarias con prestadores                                                          • Centros de laboratorio e imagen.
+     seleccionados.                                                                         • Farmacias.
+                                                                                            • Hospitales.
 
-Prótesis / coils / implantes no dentales 
-y material de osteosíntesis
+                                                                                                                              CENTROS MÉDICOS / CENTROS DE LABORATORIO
+       RED                    CIUDAD                                HOSPITALES Y CLÍNICAS                                                E IMAGEN / MÉDICOS
+                                                                                                                                                                                FARMACIAS
 
-Red Sky y libre elección 70% hasta $15.000
+                                                                                                                                Clinica de Osteoporosis, Medimagenes,
+                                                                                                                                Synlab S.a.s., Alpha Imagen y Diagnostico,
+                                                        Clinica Moderna, Clinica el Batan, Clinica                              Ctlaser S.a, Zurita & Zurita Laboratorios,
+                                                        Oftalmica Ubaldo Velastegui, Clínica                                    Metrored, Radiólogos y Asociados Clínica
+                                                        Infes, Hospital Padre Carollo, Clinica de                               Oftálmica, Oftalmodex, Praxmed, Cendiavia
+                                                        Especialidades Maria Auxiliadora, Clínica                               Cia. Ltda. (centro Medico Vida) Batan,
+                                                        San Rafael, Centro Quirurgico Da Vinci,                                 Recreoscan Imágenes Medisur, Medinuclear,
+                                                        Clinica Sancho, Clinica Arthros, Palcare                                Avantmed, Ayumed, Biodimed, Oncoquito
+                                                        Cuidados Paleativos, Hospital Alianza                                   Clínica de Oncología, Instasalud, Centro
+                                                        del Ecuador, Hospital Vozandes Quito,                                   Médico Vidasur, Ceeda Centro de Estudios
+                                                        Quirurgic Cirugía Ambulatoria, Hospital                                 de Endoscopia Digestiva , Salud Pulmonar,
+                               Quito
+                                                        de Emergencias San Francisco, Clínica                                   Centro Médico Vida Carapungo S.a., Fisai
+                                                        Pasteur, Novaclínica Santa Cecilia, Clinica                             Fisioterapia Deporte y Alto Rendimiento,
+                                                        de la Mujer, Axxis Hospital de                                          Paramí, Sukhawellness Center S.a.s., Clínica
+                                                        Especialidades, Hospital del Dia Sime                                   Santa Lucia, Axxis Can, Laboratorio Axxis,
+                                                        Usfq, Citimed Clínica Quirúrgica,                                       Ecuasistencia, Neurored Cia. Ltda., Veris,
+                                                        Northospital, Clínica Tumbaco, Andes                                    Centro Médico Sime, Dr. Marco Albuja            Pharmacys,
+                                                        Visión Clínica Oftalmológica, Clínica                                   Centros Médicos, Corposano.                     Farmacias
+                                                        Internacional.                                                                                                          Económicas,
+                                                                                                                                + Red Sky Médicos privados aﬁliados en          Farmacias
+                                                                                                                                todas las especialidades.                       Medicity, Sana
+                                                                                                                                                                                Sana, Fybeca.
 
-Maternidad
-
-Monto limite por
-evento $2.500.
-
-Monto adicional por
-complicaciones $2.000
-
-Ambulancia
-
-Terrestre hasta $500
-Aérea y ﬂuvial hasta 
-$2.000.
-
-$50.000
-
-$100 / $200 / $500
-Cobertura por enfermedad
-anual por persona
-
-45 días
-Maternidad
-
-Recién Nacido
-
-Aﬁliado intrautero:
-como otro beneﬁciario
-
-No aﬁliado intrautero: 
-hasta el día 7 $250, 
-hasta el día 28 $750
-
-Hasta 20 SBU
-Discapacidades
-
-90 días
-Hospitalario
-
-Deducible a tu elección anual 
-por persona
-
-• Consultas médicas
- (hasta $35)
-• Exámenes
-• Hospital del día
-• Terapias (30 c/tipo)
-
-Emergencia/
-Urgencia
-Hospitalaria:
-
-Red Sky 90%
-Libre elección 70%
-
-Emergencia/
-Urgencia
-Ambulatoria:
-
-Red Sky 80%
-Libre elección 70%
-
-Preexistencias
-
-Mes 13 a 24 hasta $700
-Mes 25 en adelante hasta
-20 SBU
-
-Sky50K
-
-13 mes
-Preexistencias
-
-Medicinas en Red Sky:
-• NO continuas 70%
-• Continuas
- Genéricas 80%
- Marca 60%
-
-PLUS
+  RED SKY                                                                                                                                                                       De
+                                                                                                                                  Medigroup, Cerid, Mediglobal, Medilink,       Especialidad:
+                                                                                                                                  Medikal, Labs Medicina Diagnóstica,           Farmacia de
+                                                                                                                                  Fisiosmart Physiotherapy, Ceridlab,           Especialidad
+                                                                                                                                  Synlab S.a.s., Avantmed, Ayumed,              Genesismed,
+                                                                                                                                  Biodimed, Paramí, Instasalud, Veris,
+                                                                                                                                  Centro de Rehabilitación Dr. Gustavo          Vanttive
+                                                                                                                                  Bocca, Centro de Especialidades Omni          Health
+                                                                                                                                  Hospital, Dlm Centro Traumatológico y         Solutions,
+                                                                                                                                  Rehabilitación, Centro de Imagen,             Farmarapid
+                                                        Clínica Politzer, Clínica Panamericana,                                   Praxmed, Metrored.
+                                                        Clínica Guayaquil, Aprofe, Hospital San
+                                                        Francisco, Clínica Milenium, Clínica                                      El Empalme: Hospital del Día Ortiz Giler,
+                                                        Unión, Surhospital, Hospital Luis                                         Instasalud.
+                                                        Vernaza, Hospital de Especialidades de
+                           Guayaquil                    la Ciudad, Hospital Alcívar,                                              Playas: Hospital Básico "San Gregorio",
+                                                        Omnihospital, Clínica Kennedy                                             Instasalud.
+                                                        Policentro.
+                                                                                                                                  Daule: Vitalsalud, Instasalud.
+                                                        El Empalme: Hospital del Día Ortiz Giler.
+                                                                                                                                  Durán: Imedent, Instasalud.
+                                                        Playas: Hospital Básico "San Gregorio".
+                                                                                                                                  Milagro: Instituto de Especialidades
+                                                                                                                                  Medicas Cajas Iemc - Cajasmed,
+                                                                                                                                  Instasalud, Centro Médico Vitalcen.
+                                                                                                                                  Posorja: Fisio-med, Instasalud.
+                                                                                                                                  + Red Sky Médicos privados aﬁliados en
+                                                                                                                                  todas las especialidades.
+Nota: Este documento es referencial, para consultar la red de prestadores médicos actualizada, por favor consulte la Guía médica en: https://www.saludsa.com/seleccionar_plan
+Según lo establecido en el contrato, Saludsa puede actualizar o modificar su red de prestadores en cualquier momento, según criterios de calidad y mejora continua.
+```
 
 ## Página 7
 
+```text
 Coberturas Adicionales
-
 incluidas en tu plan
 
-Alta especialización plus en la
+                       Alta especialización plus en la
+                       Clínica Universidad de Navarra.
+                       Para todos los beneﬁciarios del Plan
 
-Clínica Universidad de Navarra.
+                       El hospital privado con mayor dotación y
+                       alta especialización tecnológica, con más de
+                       2.000 profesionales y todas las especialida-
+                       des médicas en un solo lugar.
+                         Cobertura ilimitada
+                          Deducible: $5.000
 
-Para todos los beneﬁciarios del Plan
+                       Saludsa Travel
+                       Para todos los beneﬁciarios del Plan
 
-El hospital privado con mayor dotación y 
-alta especialización tecnológica, con más de 
-2.000 profesionales y todas las especialida-
-des médicas en un solo lugar.
+                       Realiza el viaje de tus sueños totalmente
+                       protegido. Saludsa Travel te ofrece protec-
+                       ción en tus viajes de negocios o de placer.
 
-Cobertura ilimitada
+                           Asistencia médica y
+                                                        Cobertura hasta             Asistencia mundial
+                            Hospitalaria por
+                                                           $30.000                 24 Horas - 365 Días
+                        Enfermedad o Accidente
 
-Deducible: $5.000
+                       Dental Básico
+                       Incluido para todos los beneﬁciarios del Plan.
 
-Saludsa Travel
+                       Presume de una sonrisa radiante y llena de
+                       salud con el plan dental básico incluído en
+                       el Plan Sky.
 
-Para todos los beneﬁciarios del Plan
+                       100% de cobertura                        70% de cobertura
+                            • Consulta de diagnóstico
+                            • Proﬁlaxis                                 • Calzas
+                            • Urgencias odontológicas                   • Extracciones simples
+```
 
-Realiza el viaje de tus sueños totalmente 
-protegido. Saludsa Travel te ofrece protec-
-ción en tus viajes de negocios o de placer.
-
-Asistencia médica y
-
-Hospitalaria por
-Enfermedad o Accidente
-
-Dental Básico
-
-Incluido para todos los beneﬁciarios del Plan.
-
-Presume de una sonrisa radiante y llena de 
-salud con el plan dental básico incluído en 
-el Plan Sky.
-
-100% de cobertura
-
-• Consulta de diagnóstico
-• Proﬁlaxis
-• Urgencias odontológicas
-
-Asistencia mundial
-24 Horas - 365 Días
-Cobertura hasta
-
-$30.000
-
-70% de cobertura
-
-• Calzas
-• Extracciones simples
 
 ## Página 9
 
+```text
 Beneﬁcios exclusivos
 
 AppSaludsa / Portal web
-
-Conoce la aplicación que hará tu vida más sencilla. 
+Conoce la aplicación que hará tu vida más sencilla.
 Ahora todo es más fácil y rápido.
+      Accede a detalles de tus coberturas.
+      Conoce el avance de tu deducible.
+      Conversa con un médico en línea.
+      Agenda citas médicas.
+      Gestiona tus reembolsos.
 
 DrSalud
-
 Es un servicio de asesoramiento 24/7 que te
-permite coordinar cualquier atención médica 
+permite coordinar cualquier atención médica
 con los distintos prestadores.
 
-Reembolso online*
+   AppSaludsa               saludsa.com          6020920
+                                                  Opción 1
 
+Reembolso online*
 Queremos que disfrutes tu tiempo con las
 personas que amas.
 
@@ -205,163 +210,45 @@ Innovamos los procesos para que puedas
 realizar tus reembolsos en cualquier momento
 desde cualquier lugar.
 
-*Aplica para ciertos beneﬁcios según tu plan.
-
-Accede a detalles de tus coberturas.
-
-Conoce el avance de tu deducible.
-
-Conversa con un médico en línea.
-
-Agenda citas médicas.
-
-Gestiona tus reembolsos.
-
-6020920
-Opción 1
-saludsa.com
-AppSaludsa
-
-## Página 10
-
-Beneﬁcios exclusivos
-
-Acude a todos nuestros prestadores médicos
-ambulatorios de la RED de tu plan sin tener
-que superar el deducible en:
-
-accede fácilmente a los 
-centros médicos aﬁliados 
-*Aplican Términos y Condiciones.
-**Este beneﬁcio no aplica en planes Wallet
-
-Cuando nos sentimos mal no queremos salir de
-casa. Por eso, con Saludsa tendrás acceso al
-primer servicio de telemedicina del Ecuador
-sin costos adicionales en tu plan.
-
-No busques tus síntomas en internet.
-Conoce Mediktor, un innovador asistente virtual,
-con Inteligencia Artiﬁcial que determina el nivel de 
-atención y especialidad médica que necesitas.
-
-Accede a este servicio a través de la AppSaludsa.
-
-Consultas médicas
-
-Laboratorio - Imagen
-
-Consulta médica
-vía Chat
-
-Acceso cuando lo
-necesites
-
-Médicos especialistas
-caliﬁcados
-
-Medicina no
-continua
-
-Terapias
-
-Video Consulta
-médica
-
-Horario de
-atención 24/7
-
-Ilimitadas y sin
-costo adicional
-
-Con tu HUELLA DIGITAL
+*Aplica para ciertos beneficios según tu plan.
+```
 
 ## Página 11
 
+```text
 ¿Necesitas
 una razón?
-
 ¡Te damos 10!
 
-1
-2
+ 1                       2
 
-Cobertura anual
-por enfermedad
+Cobertura anual            Deducible a
+por enfermedad             tu elección
+  por persona            Que se ajuste a tus
+                           necesidades
 
-por persona
+ 3                       4                         5
 
-3
-4
-5
+       Sello de
+       garantía                                    Videoconsultas
+     Cumplimos con         Plan Dental                médicas
+      las coberturas    Incluido para todos los
+     ofrecidas dentro    beneﬁciarios del plan     Ilimitadas sin costo
+         de la Red
 
-Sello de
-garantía
+ 6                       7                         8
 
-Cumplimos con
+                              Evaluador                  Cero
+       Vitality              de síntomas               deducible
+                        Asistente virtual que        Accede servicios
+   El programa de       determina el nivel de         ambulatorios
+bienestar más exitoso   atención médica que        dentro de la Red sin
+      del mundo               necesitas            superar el deducible
 
-las coberturas
-ofrecidas dentro
+ 9                       10
 
-de la Red
-
-6
-7
-
-Vitality
-
-El programa de
-bienestar más exitoso
-
-del mundo
-
-9
-10
-
-DrSalud
-Plan 100%
-
-Asesoría médica 24/7
-Servicios digitales para
-
-Deducible a
-
-tu elección
-
-Que se ajuste a tus
-
-Plan Dental
-Incluido para todos los
-
-beneﬁciarios del plan
-
-Cero
-deducible
-Evaluador
-de síntomas
-
-Asistente virtual que 
-determina el nivel de 
-atención médica que
-
-tu comodidad
-
-necesidades
-
-necesitas
-
-Digital
-
-Videoconsultas
-
-médicas
-
-Ilimitadas sin costo
-
-8
-
-Accede servicios
-
-ambulatorios
-dentro de la Red sin
-superar el deducible
+       DrSalud                Plan 100%
+                                Digital
+Asesoría médica 24/7    Servicios digitales para
+                            tu comodidad
+```

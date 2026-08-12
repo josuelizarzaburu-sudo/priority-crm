@@ -244,6 +244,20 @@ export class ClientesService {
       }
     }
 
+    // fechaNacimiento llega como texto 'YYYY-MM-DD' desde el formulario, pero
+    // Prisma espera un Date: sin esta conversion el update revienta con un 500.
+    // El metodo de crear si convertia; a update se le habia pasado.
+    //
+    // Se construye con 'T00:00:00.000Z' para fijarla a medianoche UTC, igual que
+    // en el resto del sistema. Un new Date('1990-08-12') a secas la interpreta
+    // en hora local y guardaria el dia anterior en Ecuador, que es justo el bug
+    // que ya corregimos en Renovaciones y en el saludo de cumpleanos.
+    if (data.fechaNacimiento !== undefined) {
+      data.fechaNacimiento = data.fechaNacimiento
+        ? new Date(`${String(data.fechaNacimiento).slice(0, 10)}T00:00:00.000Z`)
+        : null
+    }
+
     return this.prisma.cliente.update({ where: { id }, data })
   }
 

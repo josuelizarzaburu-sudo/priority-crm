@@ -574,6 +574,7 @@ export class PipelineService {
       this.logger.log(
         `[crearClienteDesdeDeal] cliente ${creado.id} creado desde el deal ${dealId} (cedula: ${identificacion})`,
       )
+      await this.migrarDependientes(creado.id, cf)
       await this.crearPolizasYNota(creado.id, cf, organizationId, userId)
       return creado
     } catch (e) {
@@ -605,6 +606,65 @@ export class PipelineService {
    * `revisar` encendido porque los datos vienen del comercial y no de la poliza
    * emitida: hay que confirmarlos antes de darlos por buenos.
    */
+  /**
+   * Copia los dependientes que el comercial cargo en el lead a la ficha del
+   * cliente.
+   *
+   * En el lead viven dentro de customFields.additionalContacts (nombre historico,
+   * en pantalla se llaman Dependientes). Sin esto, la ejecutiva tenia que volver a
+   * teclearlos uno por uno.
+   *
+   * No revienta si algo falla: el cliente ya se creo y es lo importante.
+   */
+  private async migrarDependientes(clienteId: string, cf: any) {
+    const lista = Array.isArray(cf?.additionalContacts) ? cf.additionalContacts : []
+    if (lista.length === 0) return
+
+    // El lead usa etiquetas sueltas ('esposa', 'hijo'); la ficha usa el enum
+    // Parentesco. Lo que no cuadre entra como OTRO en vez de perderse.
+    const PARENTESCO: Record<string, string> = {
+      esposa: 'CONYUGE',
+      esposo: 'CONYUGE',
+      conyuge: 'CONYUGE',
+      hijo: 'HIJO',
+      hija: 'HIJA',
+      padre: 'PADRE',
+      madre: 'MADRE',
+      hermano: 'HERMANO',
+      hermana: 'HERMANA',
+    }
+
+    for (const d of lista) {
+      const nombres = typeof d?.firstName === 'string' ? d.firstName.trim() : ''
+      if (!nombres) continue
+      try {
+        // La fecha se fija a medianoche UTC: leerla en hora local guardaria el
+        // dia anterior, el mismo error que ya corregimos en otras partes.
+        const nac =
+          typeof d?.birthDate === 'string' && d.birthDate
+            ? new Date(`${d.birthDate.slice(0, 10)}T00:00:00.000Z`)
+            : null
+
+        await this.prisma.dependiente.create({
+          data: {
+            clienteId,
+            nombres,
+            apellidos: typeof d?.lastName === 'string' ? d.lastName.trim() || null : null,
+            identificacion:
+              typeof d?.identificacion === 'string' ? d.identificacion.trim() || null : null,
+            ...(nac && !Number.isNaN(nac.getTime()) ? { fechaNacimiento: nac } : {}),
+            parentesco: (PARENTESCO[String(d?.relationship ?? '').toLowerCase()] ?? 'OTRO') as any,
+          },
+        })
+      } catch (err) {
+        // Uno que falle no debe impedir que se copien los demas.
+        this.logger.error(
+          `[migrarDependientes] no se pudo copiar un dependiente del cliente ${clienteId}: ${err}`,
+        )
+      }
+    }
+  }
+
   private async crearPolizasYNota(
     clienteId: string,
     customFields: any,

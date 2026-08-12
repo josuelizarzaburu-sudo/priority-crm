@@ -65,12 +65,21 @@ interface ActivityEntry {
   user?: { id: string; name: string }
 }
 
+/**
+ * Un dependiente del lead: conyuge, hijos, padres.
+ *
+ * La clave sigue llamandose additionalContacts en customFields para no perder
+ * los que ya estan cargados en deals existentes; solo cambia como se le dice en
+ * pantalla.
+ */
 interface AdditionalContact {
   id: string
   firstName: string
   lastName: string
   relationship: string
   birthDate?: string
+  /** Cedula. Hace falta para que la ficha del dependiente quede completa. */
+  identificacion?: string
 }
 
 interface InsuranceEntry {
@@ -219,8 +228,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   // ── Contact extra fields state ────────────────────────────────────────────
   const [addingContact, setAddingContact] = useState(false)
   const [newContactFirstName, setNewContactFirstName] = useState('')
+  const [newContactCedula, setNewContactCedula] = useState('')
   const [newContactLastName, setNewContactLastName] = useState('')
-  const [newContactRelationship, setNewContactRelationship] = useState('esposa')
+  const [newContactRelationship, setNewContactRelationship] = useState('conyuge')
   const [newContactBirthDate, setNewContactBirthDate] = useState('')
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -499,11 +509,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       lastName: newContactLastName.trim(),
       relationship: newContactRelationship,
       ...(newContactBirthDate ? { birthDate: newContactBirthDate } : {}),
+      ...(newContactCedula.trim() ? { identificacion: newContactCedula.trim() } : {}),
     }
     patchCustomFields.mutate({ additionalContacts: [...existing, entry] })
     setNewContactFirstName('')
     setNewContactLastName('')
-    setNewContactRelationship('esposa')
+    setNewContactCedula('')
+    setNewContactRelationship('conyuge')
     setNewContactBirthDate('')
     setAddingContact(false)
   }
@@ -1013,16 +1025,16 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                   )}
                 </div>
 
-                {/* Contactos adicionales */}
+                {/* Dependientes del titular */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Contactos adicionales</span>
+                    <span className="text-xs font-medium text-muted-foreground">Dependientes</span>
                     {!addingContact && !isGanadoLocked && (
                       <button
                         onClick={() => setAddingContact(true)}
                         className="flex items-center gap-1 text-xs text-primary hover:underline"
                       >
-                        <Plus className="h-3 w-3" /> Agregar contacto
+                        <Plus className="h-3 w-3" /> Agregar dependiente
                       </button>
                     )}
                   </div>
@@ -1032,9 +1044,12 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       <div className="min-w-0">
                         <span className="font-medium">{c.firstName} {c.lastName}</span>
                         <span className="ml-1.5 text-xs text-muted-foreground">· {c.relationship}</span>
-                        {c.birthDate && (
+                        {(c.birthDate || c.identificacion) && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Nac. {format(new Date(c.birthDate), "d MMM yyyy", { locale: es })}
+                            {c.identificacion}
+                            {c.identificacion && c.birthDate && ' · '}
+                            {c.birthDate &&
+                              `Nac. ${format(new Date(c.birthDate), 'd MMM yyyy', { locale: es })}`}
                           </p>
                         )}
                       </div>
@@ -1065,15 +1080,27 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           className="h-8 text-sm"
                         />
                       </div>
+                      <Input
+                        placeholder="Cédula (opcional)"
+                        value={newContactCedula}
+                        onChange={(e) => setNewContactCedula(e.target.value)}
+                        className="h-8 text-sm"
+                      />
                       <Select value={newContactRelationship} onValueChange={setNewContactRelationship}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="esposa">Esposa / Esposo</SelectItem>
-                          <SelectItem value="hijo">Hijo / Hija</SelectItem>
-                          <SelectItem value="madre">Madre</SelectItem>
+                          {/* Mismas opciones que el enum Parentesco de la ficha
+                              del cliente, para que al migrar no haya que adivinar.
+                              Antes 'Hijo / Hija' iba junto y se perdia el sexo. */}
+                          <SelectItem value="conyuge">Cónyuge</SelectItem>
+                          <SelectItem value="hijo">Hijo</SelectItem>
+                          <SelectItem value="hija">Hija</SelectItem>
                           <SelectItem value="padre">Padre</SelectItem>
+                          <SelectItem value="madre">Madre</SelectItem>
+                          <SelectItem value="hermano">Hermano</SelectItem>
+                          <SelectItem value="hermana">Hermana</SelectItem>
                           <SelectItem value="otro">Otro</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1099,7 +1126,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-xs"
-                          onClick={() => { setAddingContact(false); setNewContactFirstName(''); setNewContactLastName(''); setNewContactRelationship('esposa'); setNewContactBirthDate('') }}
+                          onClick={() => { setAddingContact(false); setNewContactFirstName(''); setNewContactLastName(''); setNewContactRelationship('conyuge'); setNewContactBirthDate('') }}
                         >
                           Cancelar
                         </Button>

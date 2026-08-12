@@ -78,6 +78,8 @@ interface ClienteDetalle {
   celular: string | null
   ciudad: string | null
   direccion: string | null
+  origenLead: string | null
+  vieneDeOtroSeguro: string | null
   notas: string | null
   revisar: boolean
   revisarMotivo: string | null
@@ -256,6 +258,21 @@ export function ClienteDetalle({ id }: { id: string }) {
           <Dato label="Género" valor={bonito(c.genero)} />
           <Dato label="Ciudad" valor={c.ciudad} />
           <Dato label="Dirección" valor={c.direccion} />
+          {/* Datos que vienen del CRM comercial al ganarse el deal. Solo se
+              muestran si existen: las fichas cargadas a mano no los traen. */}
+          <Dato
+            label="Origen"
+            valor={
+              c.origenLead === 'PROPIO'
+                ? 'Propio'
+                : c.origenLead === 'PRIORITY'
+                  ? 'Priority'
+                  : c.origenLead === 'PRIORITY_HEALTH'
+                    ? 'Priority Health'
+                    : null
+            }
+          />
+          <Dato label="Viene de otro seguro" valor={c.vieneDeOtroSeguro} />
           <Dato label="Persona de contacto" valor={c.contactoSugerido} />
           <Dato label="Referido de" valor={c.referidoDe} />
           <div>

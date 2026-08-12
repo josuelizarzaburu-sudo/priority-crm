@@ -833,6 +833,14 @@ model Cliente {
   celular         String?
   ciudad          String?
   direccion       String?
+
+  /// De donde vino el cliente: PRIORITY_HEALTH (web y campañas), PRIORITY
+  /// (carga por Excel del jefe de equipo) o PROPIO (lo consiguio el asesor).
+  /// Se copia del deal al ganarlo; antes ese dato se perdia al crear la ficha.
+  origenLead      String?
+  /// Si traia un seguro anterior, y de que aseguradora. Texto y no booleano para
+  /// poder guardar el nombre de la aseguradora previa.
+  vieneDeOtroSeguro String?
   notas           String?
 
   // La cedula se puede corregir UNA sola vez por la ejecutiva (para arreglar

@@ -530,6 +530,14 @@ export class PipelineService {
     const identificacion = tieneCedula ? cedula : `PENDIENTE-${deal.contact.id.slice(-8)}`
 
     try {
+      // Datos que captura el comercial al cerrar y que operaciones necesita.
+      // Vienen repetidos en cada entrada de insuranceData, asi que se toma el
+      // primero que traiga algo.
+      const primero = (campo: string) =>
+        entradas.map((e) => e?.[campo]).find((v) => typeof v === 'string' && v.trim()) ?? null
+      const direccion = primero('direccion')
+      const vieneDeOtroSeguro = primero('vieneDeOtroSeguro')
+
       const creado = await this.prisma.cliente.create({
         data: {
           nombres: deal.contact.firstName,
@@ -537,6 +545,11 @@ export class PipelineService {
           identificacion,
           email: deal.contact.email,
           celular: deal.contact.phone,
+          ...(direccion ? { direccion } : {}),
+          ...(vieneDeOtroSeguro ? { vieneDeOtroSeguro } : {}),
+          // De donde vino el cliente. Se copia del deal porque despues no hay
+          // forma de recuperarlo: la ficha nace sin ese contexto.
+          origenLead: origenDeLead(deal.customFields),
           organizationId,
           contactId: deal.contact.id,
           createdById: userId,

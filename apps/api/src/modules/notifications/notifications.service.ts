@@ -7,7 +7,25 @@ import { UserRole } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 
-const FROM = 'Priority CRM <leads@priorityhealth.ec>'
+/**
+ * Remitente de los avisos INTERNOS al equipo (nuevo lead, deal asignado,
+ * recordatorios). Que diga "Priority CRM" aqui esta bien: quien lo recibe
+ * trabaja con el sistema y le ayuda a identificar de donde viene.
+ */
+const FROM = 'Priority CRM <comercial@priority.ec>'
+
+/**
+ * Remitente de los correos que van a CLIENTES (cumpleaños, bienvenida,
+ * renovaciones).
+ *
+ * Dice solo "Priority", sin "CRM": el cliente no tiene por que enterarse del
+ * nombre de nuestra herramienta interna, y ver "CRM" en el remitente delata que
+ * el correo lo genero un sistema.
+ *
+ * Se usa comercial@priority.ec porque es un buzon real: si un cliente responde
+ * al saludo, la respuesta le llega a alguien.
+ */
+const FROM_CLIENTES = 'Priority <comercial@priority.ec>'
 
 const PROFILE_INFO: Record<string, { label: string; pitch: string }> = {
   A: {
@@ -96,13 +114,18 @@ export class NotificationsService {
     }
   }
 
-  private async sendEmail(to: string, subject: string, html: string): Promise<void> {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    from: string = FROM,
+  ): Promise<void> {
     if (!this.resend) {
       this.logger.log(`[EMAIL] To: ${to} | Subject: ${subject}\n--- (set RESEND_API_KEY to send real emails)`)
       return
     }
     try {
-      const { data, error } = await this.resend.emails.send({ from: FROM, to: [to], subject, html })
+      const { data, error } = await this.resend.emails.send({ from, to: [to], subject, html })
       if (error) {
         console.log('Resend error →', to, error)
         this.logger.error(`Email failed → ${to}: ${JSON.stringify(error)}`)
@@ -179,7 +202,7 @@ export class NotificationsService {
     </div>
   </div>
 </body>`
-    await this.sendEmail(data.email, `¡Feliz cumpleaños, ${data.saludo}!`, html)
+    await this.sendEmail(data.email, `¡Feliz cumpleaños, ${data.saludo}!`, html, FROM_CLIENTES)
   }
 
   private escape(s: string): string {

@@ -87,6 +87,24 @@ export class KbLoader implements OnModuleInit {
    * documentos alcanza y evita montar infraestructura de vectores. Si el
    * material crece bastante, aca es donde habria que cambiar a RAG.
    */
+  /**
+   * Detecta a que aseguradoras apunta la pregunta.
+   *
+   * Si el asesor nombra un plan ("sigma", "sky 70", "confiplus"), no tiene
+   * sentido mirar documentos de las otras aseguradoras: solo encarecen la
+   * consulta y meten ruido en el ranking.
+   */
+  private aseguradorasDe(consulta: string): Set<string> {
+    const t = normalizar(consulta)
+    const encontradas = new Set<string>()
+    for (const [termino, aseguradora] of Object.entries(PLANES)) {
+      if (new RegExp(`(?<![a-z0-9])${termino}(?![a-z0-9])`).test(t)) {
+        encontradas.add(aseguradora)
+      }
+    }
+    return encontradas
+  }
+
   buscar(consulta: string, limite = 6): DocumentoKb[] {
     // Ojo con el umbral de longitud: terminos cortos como "sky", "red",
     // "30k", "15" o "ph" son justamente los que identifican un plan.
@@ -98,7 +116,20 @@ export class KbLoader implements OnModuleInit {
 
     if (!terminos.length) return this.muestraVariada(limite)
 
-    const puntuados = this.documentos.map((doc) => {
+    // Acotar por aseguradora cuando la pregunta nombra un plan. Los
+    // documentos transversales (objeciones, preguntas frecuentes) siempre
+    // quedan disponibles: aplican a cualquier aseguradora.
+    const asegs = this.aseguradorasDe(consulta)
+    const universo = asegs.size
+      ? this.documentos.filter(
+          (d) =>
+            asegs.has(d.aseguradora) ||
+            d.archivo.startsWith('objeciones') ||
+            d.archivo.startsWith('preguntas'),
+        )
+      : this.documentos
+
+    const puntuados = universo.map((doc) => {
       const nombre = normalizar(doc.archivo)
       const cuerpo = normalizar(doc.contenido)
       let puntos = 0
@@ -117,27 +148,24 @@ export class KbLoader implements OnModuleInit {
       return { doc, puntos }
     })
 
-    const conPuntaje = puntuados
+    const ordenados = puntuados
       .filter((p) => p.puntos > 0)
       .sort((a, b) => b.puntos - a.puntos)
+
+    if (!ordenados.length) return this.muestraVariada(3)
+
+    // Corte por relevancia RELATIVA al mejor resultado, en vez de mandar
+    // siempre `limite` documentos.
+    //
+    // Antes se rellenaba hasta 6 aunque solo uno viniera al caso: en
+    // "que cubre sky 70 en maternidad" se mandaban 13.400 tokens cuando el
+    // documento util pesaba 1.500. Ese relleno se pagaba en cada consulta y
+    // ademas metia ruido.
+    const mejor = ordenados[0].puntos
+    return ordenados
+      .filter((p) => p.puntos >= mejor * UMBRAL_RELEVANCIA)
       .slice(0, limite)
       .map((p) => p.doc)
-
-    // Preguntas con poca coincidencia (tipicamente objeciones dictadas por
-    // voz, con mucho relleno) devuelven uno o dos documentos. Antes se
-    // descartaban y se reemplazaban por la muestra generica, lo que botaba
-    // justo el argumentario correcto. Ahora se CONSERVAN y se completan.
-    if (conPuntaje.length < limite) {
-      const yaEstan = new Set(conPuntaje.map((d) => d.archivo))
-      for (const d of this.muestraVariada(limite)) {
-        if (conPuntaje.length >= limite) break
-        if (yaEstan.has(d.archivo)) continue
-        conPuntaje.push(d)
-        yaEstan.add(d.archivo)
-      }
-    }
-
-    return conPuntaje
   }
 
   /** Un documento por aseguradora, para preguntas generales. */
@@ -159,6 +187,24 @@ function normalizar(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+}
+
+/**
+ * Un documento entra solo si puntua al menos este porcentaje del mejor.
+ * Mas alto = mas barato pero mas riesgo de dejar fuera algo util; mas bajo
+ * = mas seguro pero mas caro. 0.35 salio de probar preguntas reales.
+ */
+const UMBRAL_RELEVANCIA = 0.35
+
+/** Nombre de plan o marca -> aseguradora a la que pertenece. */
+const PLANES: Record<string, string> = {
+  bmi: 'bmi', sigma: 'bmi', innova: 'bmi', ideal: 'bmi', support: 'bmi',
+  azure: 'bmi', meridian: 'bmi',
+  humana: 'humana', proteger: 'humana', practihumana: 'humana',
+  metrohumana: 'humana', ph15: 'humana', ph30: 'humana', mh150: 'humana',
+  confiamed: 'confiamed', confiplus: 'confiamed', confired: 'confiamed',
+  saludsa: 'saludsa', star: 'saludsa', sky: 'saludsa', optimus: 'saludsa',
+  vitality: 'saludsa',
 }
 
 /** Coincidencia de palabra completa, tolerante a signos alrededor. */

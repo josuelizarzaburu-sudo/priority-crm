@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Clock,
   Mail,
+  MapPin,
+  Shield,
   Users,
   Bell,
   BellOff,
@@ -859,6 +861,71 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       </div>
                     </>
                   )}
+
+                  {/* Direccion y seguro anterior. Van aqui, en los datos del
+                      contacto, y no en el modal de cierre: asi el comercial los
+                      puede ir llenando durante la conversacion en vez de tener
+                      que acordarse de todo justo al cerrar. Viajan a la ficha del
+                      cliente cuando se gana el deal. */}
+                  <div className="px-3 py-2 space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" /> Dirección
+                    </div>
+                    <Input
+                      defaultValue={(deal.customFields?.direccion as string) ?? ''}
+                      placeholder="Calle, número, sector, ciudad"
+                      disabled={isGanadoLocked}
+                      className="h-8 text-sm"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim()
+                        if (v !== ((deal.customFields?.direccion as string) ?? '')) {
+                          patchCustomFields.mutate({ direccion: v || undefined })
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="px-3 py-2 space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Shield className="h-3.5 w-3.5" /> ¿Viene de otro seguro?
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={(deal.customFields?.vieneDeOtroSeguro as string) ?? ''}
+                        disabled={isGanadoLocked}
+                        className="h-8 rounded-md border bg-background px-2 text-sm"
+                        onChange={(e) =>
+                          patchCustomFields.mutate({
+                            vieneDeOtroSeguro: e.target.value || undefined,
+                            // Si dice que no, se limpia la aseguradora anterior
+                            // para no dejar un dato que se contradice con la
+                            // respuesta.
+                            ...(e.target.value !== 'SI' ? { aseguradoraAnterior: undefined } : {}),
+                          })
+                        }
+                      >
+                        <option value="">Sin especificar</option>
+                        <option value="SI">Sí</option>
+                        <option value="NO">No</option>
+                      </select>
+                      {/* Saber de cual aseguradora venia es mas util que un si a
+                          secas: ayuda a preparar la conversacion. */}
+                      {deal.customFields?.vieneDeOtroSeguro === 'SI' && (
+                        <Input
+                          defaultValue={(deal.customFields?.aseguradoraAnterior as string) ?? ''}
+                          placeholder="¿De cuál?"
+                          disabled={isGanadoLocked}
+                          className="h-8 max-w-[150px] text-sm"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim()
+                            if (v !== ((deal.customFields?.aseguradoraAnterior as string) ?? '')) {
+                              patchCustomFields.mutate({ aseguradoraAnterior: v || undefined })
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
 
                   {/* Fecha de nacimiento */}
                   {(() => {

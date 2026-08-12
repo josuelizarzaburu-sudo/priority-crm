@@ -530,13 +530,22 @@ export class PipelineService {
     const identificacion = tieneCedula ? cedula : `PENDIENTE-${deal.contact.id.slice(-8)}`
 
     try {
-      // Datos que captura el comercial al cerrar y que operaciones necesita.
-      // Vienen repetidos en cada entrada de insuranceData, asi que se toma el
-      // primero que traiga algo.
-      const primero = (campo: string) =>
-        entradas.map((e) => e?.[campo]).find((v) => typeof v === 'string' && v.trim()) ?? null
-      const direccion = primero('direccion')
-      const vieneDeOtroSeguro = primero('vieneDeOtroSeguro')
+      // Datos que el comercial va llenando en la ficha del lead (no al cerrar),
+      // y que operaciones necesita. Viven en customFields del deal.
+      const txt = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+      const direccion = txt(cf?.direccion)
+      // Se guarda legible ("Sí — BMI") en vez del codigo, porque la ficha del
+      // cliente lo muestra tal cual y ahi un "SI" a secas no dice nada.
+      const otroSeguro = txt(cf?.vieneDeOtroSeguro)
+      const aseguradoraPrevia = txt(cf?.aseguradoraAnterior)
+      const vieneDeOtroSeguro =
+        otroSeguro === 'SI'
+          ? aseguradoraPrevia
+            ? `Sí — ${aseguradoraPrevia}`
+            : 'Sí'
+          : otroSeguro === 'NO'
+            ? 'No'
+            : null
 
       const creado = await this.prisma.cliente.create({
         data: {

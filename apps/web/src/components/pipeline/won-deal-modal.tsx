@@ -115,10 +115,6 @@ export function WonDealModal({
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
   // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
   const [notaOperaciones, setNotaOperaciones] = useState('')
-  // Datos que hoy no se piden y que operaciones termina persiguiendo despues.
-  const [direccion, setDireccion] = useState('')
-  const [vieneDeOtroSeguro, setVieneDeOtroSeguro] = useState('')
-  const [aseguradoraAnterior, setAseguradoraAnterior] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -143,9 +139,6 @@ export function WonDealModal({
         })),
       )
       setNotaOperaciones(previos.map((d) => d.notaOperaciones).find(Boolean) ?? '')
-      setDireccion(previos.map((d: any) => d.direccion).find(Boolean) ?? '')
-      setVieneDeOtroSeguro(previos.map((d: any) => d.vieneDeOtroSeguro).find(Boolean) ?? '')
-      setAseguradoraAnterior(previos.map((d: any) => d.aseguradoraAnterior).find(Boolean) ?? '')
     } else {
       setEntries([emptyEntry()])
       setNotaOperaciones('')
@@ -203,17 +196,6 @@ export function WonDealModal({
         // La nota es del cierre completo; se adjunta a cada entrada para que
         // llegue igual sin importar cual poliza procese primero el operativo.
         ...(notaOperaciones.trim() ? { notaOperaciones: notaOperaciones.trim() } : {}),
-        ...(direccion.trim() ? { direccion: direccion.trim() } : {}),
-        ...(vieneDeOtroSeguro
-          ? {
-              vieneDeOtroSeguro:
-                vieneDeOtroSeguro === 'SI' && aseguradoraAnterior.trim()
-                  ? `Sí — ${aseguradoraAnterior.trim()}`
-                  : vieneDeOtroSeguro === 'SI'
-                    ? 'Sí'
-                    : 'No',
-            }
-          : {}),
       })),
     )
   }
@@ -420,43 +402,6 @@ export function WonDealModal({
           >
             <Plus className="h-3.5 w-3.5" /> Agregar cliente
           </button>
-        </div>
-
-        {/* Datos que operaciones necesita y que hoy termina persiguiendo despues.
-            Se piden aqui, al cerrar, porque es cuando el comercial todavia tiene
-            al cliente en la conversacion. */}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Dirección</Label>
-          <Input
-            value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            placeholder="Calle, número, sector, ciudad"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">¿Viene de otro seguro?</Label>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={vieneDeOtroSeguro}
-              onChange={(e) => setVieneDeOtroSeguro(e.target.value)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">Sin especificar</option>
-              <option value="SI">Sí</option>
-              <option value="NO">No</option>
-            </select>
-            {/* Saber de que aseguradora venia es mas util que un si a secas:
-                ayuda a entender la cartera y a preparar la conversacion. */}
-            {vieneDeOtroSeguro === 'SI' && (
-              <Input
-                value={aseguradoraAnterior}
-                onChange={(e) => setAseguradoraAnterior(e.target.value)}
-                placeholder="¿De cuál aseguradora?"
-                className="max-w-[220px]"
-              />
-            )}
-          </div>
         </div>
 
         {/* Nota del comercial. Viaja hasta la ficha del cliente en el CRM

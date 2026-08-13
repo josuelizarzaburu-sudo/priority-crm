@@ -328,6 +328,83 @@ export class RequerimientosService {
     })
   }
 
+  /**
+   * Datos que van en la carta de bienvenida, ya reunidos.
+   *
+   * Existe para que la ejecutiva REVISE antes de enviar: si algo falta, es mejor
+   * que lo vea en pantalla y lo corrija, a que la carta salga con huecos justo en
+   * el dato que el cliente espera leer.
+   *
+   * Devuelve `faltantes` con lo que impide enviar, en vez de un error: asi la
+   * pantalla puede decir exactamente que completar y donde.
+   */
+  async datosBienvenida(id: string, organizationId: string, userId: string, role: string) {
+    const req: any = await this.findOne(id, organizationId, userId, role)
+    if (req.tipo !== 'BIENVENIDA') {
+      throw new ForbiddenException('Este requerimiento no es de bienvenida')
+    }
+
+    const cliente = req.clienteId
+      ? await this.prisma.cliente.findFirst({
+          where: { id: req.clienteId, organizationId },
+          select: { id: true, nombres: true, apellidos: true, email: true, genero: true },
+        })
+      : null
+
+    // La poliza de esta bienvenida. Si el requerimiento no quedo ligado a una
+    // (las creadas antes de este cambio), se toma la mas reciente del cliente.
+    const poliza = req.polizaId
+      ? await this.prisma.poliza.findFirst({ where: { id: req.polizaId, organizationId } })
+      : req.clienteId
+        ? await this.prisma.poliza.findFirst({
+            where: { clienteId: req.clienteId, organizationId },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null
+
+    const ejecutiva = req.ejecutivoId
+      ? await this.prisma.user.findFirst({
+          where: { id: req.ejecutivoId, organizationId },
+          select: { id: true, name: true, email: true, phone: true },
+        })
+      : null
+
+    const faltantes: string[] = []
+    if (!cliente) faltantes.push('El requerimiento no está enlazado a un cliente')
+    else if (!cliente.email) faltantes.push('El cliente no tiene correo — complétalo en su ficha')
+    if (!poliza) faltantes.push('El cliente no tiene pólizas cargadas')
+    else if (!poliza.plan) faltantes.push('La póliza no tiene plan — complétalo en la ficha')
+    if (!ejecutiva) faltantes.push('El requerimiento no tiene ejecutiva asignada')
+    else if (!ejecutiva.email) faltantes.push('La ejecutiva no tiene correo registrado')
+
+    return {
+      yaEnviada: req.correoBienvenidaEnviado,
+      preexistencias: req.preexistencias,
+      cliente: cliente
+        ? {
+            nombreCompleto: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+            email: cliente.email,
+            tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
+          }
+        : null,
+      poliza: poliza
+        ? {
+            aseguradora: poliza.aseguradora,
+            plan: poliza.plan,
+            deducible: formatearDeducible(poliza.deducible),
+          }
+        : null,
+      ejecutiva: ejecutiva
+        ? {
+            nombre: ejecutiva.name,
+            email: ejecutiva.email,
+            celular: formatearCelular(ejecutiva.phone),
+          }
+        : null,
+      faltantes,
+    }
+  }
+
   async remove(id: string, organizationId: string, userId: string, role: string) {
     await this.findOne(id, organizationId, userId, role)
     // Borrar pierde información: solo jefe de operaciones y admin.

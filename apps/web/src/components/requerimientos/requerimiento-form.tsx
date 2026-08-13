@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BienvenidaForm } from './bienvenida-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
@@ -153,20 +154,6 @@ export function RequerimientoForm({
     onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo guardar.'),
   })
 
-  // Envio del correo de bienvenida. Va por su propio endpoint y no con el
-  // guardado normal: es una comunicacion al cliente y debe ser una accion
-  // explicita, no un efecto de guardar el formulario.
-  const enviarBienvenida = useMutation({
-    mutationFn: async () =>
-      (await api.post(`/requerimientos/${req?.id}/enviar-bienvenida`)).data,
-    onSuccess: () => {
-      refrescar()
-      onCerrar()
-    },
-    onError: (e: any) =>
-      setError(e?.response?.data?.message ?? 'No se pudo enviar el correo.'),
-  })
-
   const borrar = useMutation({
     mutationFn: async () => (await api.delete(`/requerimientos/${req.id}`)).data,
     onSuccess: () => {
@@ -185,6 +172,22 @@ export function RequerimientoForm({
     return d >= 0 ? d : null
   }
   const diasCli = dias('fechaRecepcion', 'fechaEnvioCliente')
+
+  // Un requerimiento de BIENVENIDA usa su propio formulario: aqui hay campos que
+  // no aplican (paciente, fecha de envio a la aseguradora, contrato) y faltan los
+  // que si importan alli, que son los que salen en la carta.
+  if (editando && req?.tipo === 'BIENVENIDA') {
+    return (
+      <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onCerrar}>
+        <div
+          className="h-full w-full max-w-2xl overflow-y-auto bg-background p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BienvenidaForm requerimientoId={req.id} onCerrar={onCerrar} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onCerrar}>
@@ -453,28 +456,6 @@ export function RequerimientoForm({
             )}
           </div>
           <div className="flex gap-2">
-            {/* Solo en los de bienvenida y una sola vez: si ya se envio, el boton
-                queda deshabilitado para que el cliente no reciba el correo dos
-                veces. El backend lo comprueba igual, esto es solo la señal visual. */}
-            {editando && form.tipo === 'BIENVENIDA' && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={
-                  enviarBienvenida.isPending || !!(req as any)?.correoBienvenidaEnviado
-                }
-                onClick={() => {
-                  setError(null)
-                  enviarBienvenida.mutate()
-                }}
-              >
-                {(req as any)?.correoBienvenidaEnviado
-                  ? 'Bienvenida enviada'
-                  : enviarBienvenida.isPending
-                    ? 'Enviando…'
-                    : 'Enviar bienvenida'}
-              </Button>
-            )}
             <Button type="button" variant="ghost" onClick={onCerrar}>
               Cancelar
             </Button>

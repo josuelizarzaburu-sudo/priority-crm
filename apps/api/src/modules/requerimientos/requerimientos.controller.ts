@@ -73,6 +73,17 @@ export class RequerimientosController {
   update(@Param('id') id: string, @Body() dto: UpdateRequerimientoDto, @Req() req: any) {
     return this.service.update(id, dto, req.user.organizationId, req.user.id, req.user.role)
   }
+  @Get(':id/datos-bienvenida')
+  @ApiOperation({ summary: 'Datos que van en la carta, para revisarlos antes de enviar' })
+  datosBienvenida(@Param('id') id: string, @Req() req: any) {
+    return this.service.datosBienvenida(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Post(':id/enviar-bienvenida')
   @ApiOperation({ summary: 'Envía el correo de bienvenida al cliente' })
   enviarBienvenida(@Param('id') id: string, @Req() req: any) {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
@@ -11,6 +11,8 @@ const VE_TODO = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES']
 
 @Injectable()
 export class ClientesService {
+  private readonly logger = new Logger(ClientesService.name)
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -491,7 +493,63 @@ export class ClientesService {
       }),
     ])
 
+    // Si es la PRIMERA asignacion (el cliente estaba sin ejecutiva), se abre solo
+    // un requerimiento de bienvenida: verificar los datos y mandarle el correo.
+    // Antes ese paso dependia de que alguien se acordara.
+    //
+    // Solo en la primera: un cambio posterior de ejecutiva es una reasignacion, y
+    // abrir otro requerimiento ahi llenaria la bandeja de duplicados.
+    if (!cliente.ejecutivoId) {
+      await this.crearRequerimientoBienvenida(clienteId, nuevoEjecutivoId, nueva.name, organizationId)
+    }
+
     return actualizado
+  }
+
+  /**
+   * Abre el requerimiento de bienvenida de un cliente recien asignado.
+   *
+   * No revienta si algo falla: la asignacion de la ejecutiva ya se guardo y es lo
+   * importante. Si el requerimiento no se pudo crear, se registra y se sigue; que
+   * falle esto no debe deshacer la asignacion.
+   */
+  private async crearRequerimientoBienvenida(
+    clienteId: string,
+    ejecutivoId: string,
+    ejecutivoNombre: string,
+    organizationId: string,
+  ) {
+    try {
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: clienteId },
+        select: { nombres: true, apellidos: true },
+      })
+      if (!cliente) return
+
+      // Si ya existe uno abierto para este cliente no se duplica.
+      const yaExiste = await this.prisma.requerimiento.findFirst({
+        where: { clienteId, tipo: 'BIENVENIDA' as any, organizationId },
+        select: { id: true },
+      })
+      if (yaExiste) return
+
+      await this.prisma.requerimiento.create({
+        data: {
+          clienteId,
+          clienteNombre: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+          tipo: 'BIENVENIDA' as any,
+          requerimiento:
+            'Verificar los datos del cliente y enviarle el correo de bienvenida.',
+          fechaRecepcion: new Date(),
+          estado: 'EN_TRAMITE' as any,
+          ejecutivoId,
+          ejecutivoNombre,
+          organizationId,
+        },
+      })
+    } catch (err) {
+      this.logger.error(`No se pudo crear el requerimiento de bienvenida: ${err}`)
+    }
   }
 
   /** Suma un dependiente a un cliente que ya existe (ej. le nació un hijo). */

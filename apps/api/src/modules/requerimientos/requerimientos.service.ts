@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { NotificationsService } from '../notifications/notifications.service'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
@@ -11,7 +12,10 @@ const fecha = (v?: string | null) => (v ? new Date(v) : null)
 
 @Injectable()
 export class RequerimientosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Filtro base de seguridad: una ejecutiva queda limitada a los suyos. */
   private baseWhere(organizationId: string, userId: string, role: string) {
@@ -222,6 +226,75 @@ export class RequerimientosService {
     }
 
     return this.prisma.requerimiento.update({ where: { id }, data })
+  }
+
+  /**
+   * Envia el correo de bienvenida al cliente de este requerimiento.
+   *
+   * Lo dispara la ejecutiva a mano, no una tarea automatica: asi sale recien
+   * cuando ya verifico que los datos estan correctos, que es justo para lo que
+   * se abre el requerimiento.
+   *
+   * Se guarda la fecha de envio y se comprueba antes de mandar, para que el
+   * cliente no reciba el correo dos veces si alguien pulsa el boton de nuevo.
+   */
+  async enviarBienvenida(id: string, organizationId: string, userId: string, role: string) {
+    const req: any = await this.findOne(id, organizationId, userId, role)
+
+    if (req.tipo !== 'BIENVENIDA') {
+      throw new ForbiddenException('Este requerimiento no es de bienvenida')
+    }
+    if (req.correoBienvenidaEnviado) {
+      throw new ForbiddenException(
+        'El correo de bienvenida ya se envió el ' +
+          new Date(req.correoBienvenidaEnviado).toLocaleDateString('es-EC'),
+      )
+    }
+    if (!req.clienteId) {
+      throw new ForbiddenException('El requerimiento no está enlazado a un cliente')
+    }
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: req.clienteId, organizationId },
+      select: { nombres: true, nombrePreferido: true, email: true },
+    })
+    if (!cliente?.email) {
+      throw new ForbiddenException(
+        'El cliente no tiene correo registrado. Complétalo en su ficha antes de enviar.',
+      )
+    }
+
+    // Se prefiere el nombre preferido: si el cliente pidio que le digan "Pepe",
+    // un "Bienvenido Jose Luis" delata que lo escribio una maquina.
+    const saludo =
+      cliente.nombrePreferido?.trim() || cliente.nombres.trim().split(/\s+/)[0] || cliente.nombres
+
+    await this.notifications.enviarCorreoBienvenida({
+      email: cliente.email,
+      saludo,
+      ejecutivaNombre: req.ejecutivoNombre,
+    })
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    // El envio queda en la bitacora: es una comunicacion al cliente y tiene que
+    // ser rastreable quien la mando y cuando.
+    await this.prisma.notaRequerimiento.create({
+      data: {
+        contenido: `Correo de bienvenida enviado a ${cliente.email}`,
+        requerimientoId: id,
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+      },
+    })
+
+    return this.prisma.requerimiento.update({
+      where: { id },
+      data: { correoBienvenidaEnviado: new Date() },
+    })
   }
 
   async remove(id: string, organizationId: string, userId: string, role: string) {

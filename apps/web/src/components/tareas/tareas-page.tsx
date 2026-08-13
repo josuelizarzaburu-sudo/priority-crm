@@ -7,9 +7,12 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, X } from 'lucide-react'
+import { BuscadorCliente, type ClienteSugerido } from '@/components/reclamos/buscador-cliente'
+import { AlertTriangle, CalendarDays, Check, Inbox, Plus, Trash2, User, X } from 'lucide-react'
 
 const NAVY = '#0C2057'
+const GOLD = '#DBAA59'
+const VERDE = '#5FD38D'
 
 /** Quién puede asignarle tareas a otra persona. Debe coincidir con la API. */
 const PUEDE_ASIGNAR = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES']
@@ -17,7 +20,6 @@ const PUEDE_ASIGNAR = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES']
 interface Persona {
   id: string
   name: string
-  role: string
 }
 
 interface Tarea {
@@ -32,13 +34,12 @@ interface Tarea {
   cliente: { id: string; nombres: string; apellidos: string } | null
 }
 
-const ESTILO_PRIORIDAD: Record<string, { fondo: string; texto: string; label: string }> = {
-  ALTA: { fondo: '#fee2e2', texto: '#b91c1c', label: 'Alta' },
-  MEDIA: { fondo: '#fef3c7', texto: '#b45309', label: 'Media' },
-  BAJA: { fondo: '#f1f5f9', texto: '#64748b', label: 'Baja' },
+const PRIORIDAD: Record<string, { color: string; fondo: string; label: string }> = {
+  ALTA: { color: '#dc2626', fondo: '#fef2f2', label: 'Alta' },
+  MEDIA: { color: '#d97706', fondo: '#fffbeb', label: 'Media' },
+  BAJA: { color: '#64748b', fondo: '#f8fafc', label: 'Baja' },
 }
 
-/** Hoy en Ecuador como 'YYYY-MM-DD'. */
 function hoyISO(): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Guayaquil',
@@ -48,14 +49,13 @@ function hoyISO(): string {
   }).format(new Date())
 }
 
-/** Día de la tarea. Se lee en UTC porque se guarda como fecha sin hora. */
-function diaDe(fecha: string | null): string | null {
-  return fecha ? fecha.slice(0, 10) : null
-}
+const diaDe = (f: string | null) => (f ? f.slice(0, 10) : null)
 
 function fechaLegible(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`)
-  return d.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString('es-EC', {
+    day: 'numeric',
+    month: 'short',
+  })
 }
 
 export function TareasPage() {
@@ -67,9 +67,12 @@ export function TareasPage() {
 
   const [creando, setCreando] = useState(false)
   const [titulo, setTitulo] = useState('')
+  const [detalle, setDetalle] = useState('')
   const [prioridad, setPrioridad] = useState('MEDIA')
   const [fechaLimite, setFechaLimite] = useState(hoyISO())
   const [asignadoId, setAsignadoId] = useState('')
+  const [clienteTexto, setClienteTexto] = useState('')
+  const [clienteId, setClienteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [verTodas, setVerTodas] = useState(false)
 
@@ -89,21 +92,39 @@ export function TareasPage() {
   const fallo = (e: any) =>
     setError(e?.response?.data?.message ?? 'No se pudo completar la acción')
 
+  function limpiar() {
+    setTitulo('')
+    setDetalle('')
+    setPrioridad('MEDIA')
+    setFechaLimite(hoyISO())
+    setAsignadoId('')
+    setClienteTexto('')
+    setClienteId(null)
+    setCreando(false)
+    setError(null)
+  }
+
   const crear = useMutation({
     mutationFn: () =>
       api.post('/tareas', {
         titulo,
+        // Si escribieron un nombre suelto sin elegir de la base, se guarda en el
+        // detalle: sirve igual para saber de quién se trata, sin obligar a que
+        // exista la ficha.
+        ...(detalle.trim() || (clienteTexto.trim() && !clienteId)
+          ? {
+              detalle: [detalle.trim(), !clienteId && clienteTexto.trim() ? `Cliente: ${clienteTexto.trim()}` : '']
+                .filter(Boolean)
+                .join(' · '),
+            }
+          : {}),
         prioridad,
         ...(fechaLimite ? { fechaLimite } : {}),
         ...(asignadoId ? { asignadoId } : {}),
+        ...(clienteId ? { clienteId } : {}),
       }),
     onSuccess: () => {
-      setTitulo('')
-      setPrioridad('MEDIA')
-      setFechaLimite(hoyISO())
-      setAsignadoId('')
-      setCreando(false)
-      setError(null)
+      limpiar()
       refrescar()
     },
     onError: fallo,
@@ -121,92 +142,120 @@ export function TareasPage() {
     onError: fallo,
   })
 
-  // Se agrupan por urgencia y no por fecha exacta: lo que importa al abrir la
-  // pantalla es "que se me paso" y "que toca hoy", no el calendario completo.
-  const grupos = useMemo(() => {
+  // Se agrupa por urgencia y no por fecha exacta: al abrir la pantalla lo que
+  // importa es "qué se me pasó" y "qué toca hoy".
+  const g = useMemo(() => {
     const hoy = hoyISO()
     const vencidas: Tarea[] = []
     const deHoy: Tarea[] = []
     const proximas: Tarea[] = []
     const sinFecha: Tarea[] = []
     const hechas: Tarea[] = []
-
     for (const t of tareas) {
       if (t.completadaEn) {
         hechas.push(t)
         continue
       }
-      const dia = diaDe(t.fechaLimite)
-      if (!dia) sinFecha.push(t)
-      else if (dia < hoy) vencidas.push(t)
-      else if (dia === hoy) deHoy.push(t)
+      const d = diaDe(t.fechaLimite)
+      if (!d) sinFecha.push(t)
+      else if (d < hoy) vencidas.push(t)
+      else if (d === hoy) deHoy.push(t)
       else proximas.push(t)
     }
     return { vencidas, deHoy, proximas, sinFecha, hechas }
   }, [tareas])
 
-  const Fila = ({ t, vencida }: { t: Tarea; vencida?: boolean }) => {
-    const p = ESTILO_PRIORIDAD[t.prioridad]
+  const pendientes = g.vencidas.length + g.deHoy.length + g.proximas.length + g.sinFecha.length
+
+  const Tarjeta = ({ t, urgente }: { t: Tarea; urgente?: boolean }) => {
+    const p = PRIORIDAD[t.prioridad]
     const hecha = !!t.completadaEn
-    // Se muestra quien la pidio solo si fue otra persona: en las propias seria
-    // ruido leer el nombre de uno mismo en cada linea.
     const pedidaPorOtro = t.solicitante.id !== yo && t.solicitante.id !== t.asignado.id
     const asignadaAOtro = t.asignado.id !== yo
 
     return (
       <div
-        className="flex items-start gap-2.5 border-b px-3 py-2.5 last:border-b-0"
+        className="group flex items-start gap-3 rounded-xl border bg-card p-3.5 transition-shadow hover:shadow-sm"
         style={{
-          backgroundColor: vencida && !hecha ? '#fef2f2' : undefined,
-          opacity: hecha ? 0.55 : 1,
+          // Franja de color a la izquierda: la prioridad se lee de un vistazo,
+          // sin recorrer la etiqueta de cada tarjeta.
+          borderLeftWidth: 4,
+          borderLeftColor: hecha ? '#e2e8f0' : p.color,
+          opacity: hecha ? 0.6 : 1,
         }}
       >
         <button
           type="button"
           onClick={() => alternar.mutate(t.id)}
           aria-label={hecha ? 'Marcar como pendiente' : 'Marcar como hecha'}
-          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-2 text-[11px] text-white transition-colors"
+          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
           style={{
-            borderColor: hecha ? '#5FD38D' : '#cbd5e1',
-            backgroundColor: hecha ? '#5FD38D' : 'transparent',
+            borderColor: hecha ? VERDE : '#cbd5e1',
+            backgroundColor: hecha ? VERDE : 'transparent',
           }}
         >
-          {hecha && '✓'}
+          {hecha && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
         </button>
 
         <div className="min-w-0 flex-1">
           <p
-            className="text-sm"
-            style={{ textDecoration: hecha ? 'line-through' : undefined }}
+            className="text-sm font-medium leading-snug"
+            style={{
+              color: hecha ? '#94a3b8' : NAVY,
+              textDecoration: hecha ? 'line-through' : undefined,
+            }}
           >
             {t.titulo}
           </p>
-          <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-muted-foreground">
-            {t.fechaLimite && <span>{fechaLegible(diaDe(t.fechaLimite)!)}</span>}
+
+          {t.detalle && (
+            <p className="mt-1 whitespace-pre-line text-xs text-muted-foreground">{t.detalle}</p>
+          )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            {t.fechaLimite && (
+              <span
+                className="inline-flex items-center gap-1"
+                style={{ color: urgente && !hecha ? '#dc2626' : undefined }}
+              >
+                <CalendarDays className="h-3 w-3" />
+                {fechaLegible(diaDe(t.fechaLimite)!)}
+              </span>
+            )}
             {t.cliente && (
-              <Link href={`/clientes/${t.cliente.id}`} className="underline">
+              <Link
+                href={`/clientes/${t.cliente.id}`}
+                className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground"
+              >
+                <User className="h-3 w-3" />
                 {t.cliente.nombres} {t.cliente.apellidos}
               </Link>
             )}
             {asignadaAOtro && <span>Para {t.asignado.name}</span>}
-            {pedidaPorOtro && <span>Pedido de {t.solicitante.name}</span>}
-          </p>
+            {pedidaPorOtro && (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5">
+                Pedido de {t.solicitante.name}
+              </span>
+            )}
+          </div>
         </div>
 
         {!hecha && (
           <span
-            className="shrink-0 rounded px-2 py-0.5 text-[11px]"
-            style={{ backgroundColor: p.fondo, color: p.texto }}
+            className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+            style={{ backgroundColor: p.fondo, color: p.color }}
           >
             {p.label}
           </span>
         )}
 
+        {/* Aparece al pasar el mouse: siempre visible ensuciaría la lista y
+            haría fácil borrar sin querer. */}
         <button
           type="button"
           onClick={() => borrar.mutate(t.id)}
-          className="shrink-0 text-muted-foreground transition-colors hover:text-red-600"
-          aria-label="Eliminar"
+          className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+          aria-label="Eliminar tarea"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -214,54 +263,88 @@ export function TareasPage() {
     )
   }
 
-  const Grupo = ({
+  const Seccion = ({
+    icono,
     titulo: t,
     lista,
-    vencida,
+    color,
+    urgente,
   }: {
+    icono: React.ReactNode
     titulo: string
     lista: Tarea[]
-    vencida?: boolean
+    color?: string
+    urgente?: boolean
   }) =>
     lista.length === 0 ? null : (
-      <section className="mb-4">
-        <p
-          className="mb-1.5 text-xs font-semibold"
-          style={{ color: vencida ? '#b91c1c' : '#64748b' }}
-        >
-          {t} ({lista.length})
-        </p>
-        <div className="rounded-lg border">
+      <section className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span style={{ color: color ?? '#64748b' }}>{icono}</span>
+          <h2 className="text-sm font-semibold" style={{ color: color ?? '#475569' }}>
+            {t}
+          </h2>
+          <span className="text-xs text-muted-foreground">{lista.length}</span>
+        </div>
+        <div className="space-y-2">
           {lista.map((x) => (
-            <Fila key={x.id} t={x} vencida={vencida} />
+            <Tarjeta key={x.id} t={x} urgente={urgente} />
           ))}
         </div>
       </section>
     )
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: NAVY }}>
-            Tareas
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {PUEDE_ASIGNAR.includes(rol)
-              ? 'Tus tareas y las del equipo'
-              : 'Solo tú y quien te asigna trabajo ven esta lista'}
-          </p>
+    <div className="mx-auto max-w-3xl space-y-5 p-4">
+      {/* Resumen del día arriba: al abrir, lo primero que se quiere saber es
+          cuánto falta, no la lista completa. */}
+      <div
+        className="rounded-2xl p-5 text-white"
+        style={{ background: `linear-gradient(135deg, ${NAVY} 0%, #1a3a6b 100%)` }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold">Mis tareas</h1>
+            <p className="mt-1 text-sm text-slate-300">
+              {pendientes === 0
+                ? '¡Todo al día!'
+                : `${pendientes} pendiente${pendientes === 1 ? '' : 's'}`}
+              {g.vencidas.length > 0 && (
+                <span style={{ color: GOLD }}>
+                  {' '}
+                  · {g.vencidas.length} vencida{g.vencidas.length === 1 ? '' : 's'}
+                </span>
+              )}
+            </p>
+          </div>
+          <Button
+            onClick={() => setCreando((v) => !v)}
+            className="shrink-0"
+            style={{ backgroundColor: GOLD, color: NAVY }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Nueva
+          </Button>
         </div>
-        <Button
-          onClick={() => setCreando((v) => !v)}
-          style={{ backgroundColor: NAVY, color: '#fff' }}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Nueva
-        </Button>
+
+        {g.hechas.length > 0 && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-slate-300">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.round((g.hechas.length / (pendientes + g.hechas.length)) * 100)}%`,
+                  backgroundColor: VERDE,
+                }}
+              />
+            </div>
+            <span>
+              {g.hechas.length} hecha{g.hechas.length === 1 ? '' : 's'}
+            </span>
+          </div>
+        )}
       </div>
 
       {error && (
-        <div className="flex items-start justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-start justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           <span>{error}</span>
           <button type="button" onClick={() => setError(null)} aria-label="Cerrar">
             <X className="h-4 w-4" />
@@ -270,33 +353,61 @@ export function TareasPage() {
       )}
 
       {creando && (
-        <div className="space-y-2 rounded-lg border p-3">
+        <div className="space-y-3 rounded-xl border bg-card p-4">
           <Input
             autoFocus
             placeholder="¿Qué hay que hacer?"
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             onKeyDown={(e) => {
-              // Enter crea la tarea: anotar algo rapido no deberia exigir
-              // soltar el teclado para buscar el boton.
+              // Enter crea la tarea: anotar algo rápido no debería exigir buscar
+              // el botón con el mouse.
               if (e.key === 'Enter' && titulo.trim()) crear.mutate()
             }}
+            className="text-sm"
           />
+
+          <Input
+            placeholder="Motivo o detalle (opcional)"
+            value={detalle}
+            onChange={(e) => setDetalle(e.target.value)}
+            className="text-sm"
+          />
+
+          {/* Cliente relacionado. No es obligatorio: muchas tareas no son de un
+              cliente concreto, y forzarlo haría que se ponga cualquier cosa con
+              tal de poder guardar. */}
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Cliente (opcional)</label>
+            <BuscadorCliente
+              valor={clienteTexto}
+              clienteId={clienteId}
+              onSeleccionar={(c: ClienteSugerido) => {
+                setClienteTexto(`${c.nombres} ${c.apellidos}`.trim())
+                setClienteId(c.id)
+              }}
+              onTextoLibre={(txt) => {
+                setClienteTexto(txt)
+                setClienteId(null)
+              }}
+            />
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={prioridad}
               onChange={(e) => setPrioridad(e.target.value)}
               className="h-9 rounded-md border bg-background px-2 text-sm"
             >
-              <option value="ALTA">Alta</option>
-              <option value="MEDIA">Media</option>
-              <option value="BAJA">Baja</option>
+              <option value="ALTA">Prioridad alta</option>
+              <option value="MEDIA">Prioridad media</option>
+              <option value="BAJA">Prioridad baja</option>
             </select>
             <Input
               type="date"
               value={fechaLimite}
               onChange={(e) => setFechaLimite(e.target.value)}
-              className="h-9 max-w-[160px] text-sm"
+              className="h-9 max-w-[155px] text-sm"
             />
             {puedeAsignar && (
               <select
@@ -312,37 +423,58 @@ export function TareasPage() {
                 ))}
               </select>
             )}
-            <Button
-              onClick={() => crear.mutate()}
-              disabled={!titulo.trim() || crear.isPending}
-              style={{ backgroundColor: NAVY, color: '#fff' }}
-            >
-              Agregar
-            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button variant="ghost" onClick={limpiar}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => crear.mutate()}
+                disabled={!titulo.trim() || crear.isPending}
+                style={{ backgroundColor: NAVY, color: '#fff' }}
+              >
+                Agregar
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       {isLoading ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">Cargando…</p>
+        <p className="py-12 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : tareas.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          No tienes tareas pendientes.
-        </p>
+        <div className="rounded-xl border border-dashed py-12 text-center">
+          <Inbox className="mx-auto h-8 w-8 text-muted-foreground/40" />
+          <p className="mt-3 text-sm text-muted-foreground">No tienes tareas pendientes.</p>
+        </div>
       ) : (
-        <div>
-          <Grupo titulo="⚠ Vencidas" lista={grupos.vencidas} vencida />
-          <Grupo titulo="Hoy" lista={grupos.deHoy} />
-          <Grupo titulo="Próximas" lista={grupos.proximas} />
-          <Grupo titulo="Sin fecha" lista={grupos.sinFecha} />
-          <Grupo titulo="Hechas" lista={grupos.hechas} />
+        <div className="space-y-5">
+          <Seccion
+            icono={<AlertTriangle className="h-4 w-4" />}
+            titulo="Vencidas"
+            lista={g.vencidas}
+            color="#dc2626"
+            urgente
+          />
+          <Seccion
+            icono={<CalendarDays className="h-4 w-4" />}
+            titulo="Hoy"
+            lista={g.deHoy}
+            color={NAVY}
+          />
+          <Seccion
+            icono={<CalendarDays className="h-4 w-4" />}
+            titulo="Próximas"
+            lista={g.proximas}
+          />
+          <Seccion icono={<Inbox className="h-4 w-4" />} titulo="Sin fecha" lista={g.sinFecha} />
+          <Seccion icono={<Check className="h-4 w-4" />} titulo="Hechas" lista={g.hechas} />
         </div>
       )}
 
       <button
         type="button"
         onClick={() => setVerTodas((v) => !v)}
-        className="text-xs text-muted-foreground underline"
+        className="text-xs text-muted-foreground underline underline-offset-2"
       >
         {verTodas ? 'Ocultar completadas anteriores' : 'Ver completadas anteriores'}
       </button>

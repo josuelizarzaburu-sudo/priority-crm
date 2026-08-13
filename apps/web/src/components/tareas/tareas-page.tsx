@@ -8,7 +8,18 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BuscadorCliente, type ClienteSugerido } from '@/components/reclamos/buscador-cliente'
-import { AlertTriangle, CalendarDays, Check, Inbox, Plus, Trash2, User, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+  Plus,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -58,6 +69,45 @@ function fechaLegible(iso: string): string {
   })
 }
 
+/**
+ * Rejilla del mes: 6 semanas de 7 días, con los días de relleno del mes anterior
+ * y el siguiente para que las columnas cuadren con los nombres de los días.
+ *
+ * Todo se calcula en UTC porque las fechas de las tareas se guardan sin hora. Si
+ * se usara la hora local, en Ecuador (UTC-5) los días saldrían corridos.
+ */
+function armarMes(ancla: string): { iso: string; delMes: boolean }[] {
+  const [a, m] = ancla.split('-').map(Number)
+  const primero = new Date(Date.UTC(a, m - 1, 1))
+  // Retrocede hasta el domingo de esa semana.
+  const inicio = new Date(primero)
+  inicio.setUTCDate(inicio.getUTCDate() - inicio.getUTCDay())
+
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(inicio)
+    d.setUTCDate(inicio.getUTCDate() + i)
+    return { iso: d.toISOString().slice(0, 10), delMes: d.getUTCMonth() === m - 1 }
+  })
+}
+
+function nombreMes(ancla: string): string {
+  const [a, m] = ancla.split('-').map(Number)
+  const t = new Date(Date.UTC(a, m - 1, 1)).toLocaleDateString('es-EC', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+function moverMes(ancla: string, delta: number): string {
+  const [a, m] = ancla.split('-').map(Number)
+  const d = new Date(Date.UTC(a, m - 1 + delta, 1))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+const DIAS_SEMANA = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+
 export function TareasPage() {
   const qc = useQueryClient()
   const { data: session } = useSession()
@@ -75,6 +125,9 @@ export function TareasPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [verTodas, setVerTodas] = useState(false)
+  const [mes, setMes] = useState(() => hoyISO().slice(0, 7))
+  /** Día seleccionado en el calendario. null = ver todo. */
+  const [diaFiltro, setDiaFiltro] = useState<string | null>(null)
 
   const { data: tareas = [], isLoading } = useQuery<Tarea[]>({
     queryKey: ['tareas', verTodas],
@@ -166,6 +219,29 @@ export function TareasPage() {
   }, [tareas])
 
   const pendientes = g.vencidas.length + g.deHoy.length + g.proximas.length + g.sinFecha.length
+
+  /**
+   * Cuantas tareas pendientes tiene cada dia, para pintar los puntos del
+   * calendario. Solo pendientes: un dia lleno de tareas ya hechas no deberia
+   * verse igual de cargado que uno con trabajo por delante.
+   */
+  const porDia = useMemo(() => {
+    const m = new Map<string, { total: number; alta: boolean }>()
+    for (const t of tareas) {
+      if (t.completadaEn) continue
+      const d = diaDe(t.fechaLimite)
+      if (!d) continue
+      const actual = m.get(d) ?? { total: 0, alta: false }
+      m.set(d, { total: actual.total + 1, alta: actual.alta || t.prioridad === 'ALTA' })
+    }
+    return m
+  }, [tareas])
+
+  /** Tareas del dia elegido en el calendario. */
+  const tareasDelDia = useMemo(
+    () => (diaFiltro ? tareas.filter((t) => diaDe(t.fechaLimite) === diaFiltro) : []),
+    [tareas, diaFiltro],
+  )
 
   const Tarjeta = ({ t, urgente }: { t: Tarea; urgente?: boolean }) => {
     const p = PRIORIDAD[t.prioridad]
@@ -293,8 +369,112 @@ export function TareasPage() {
       </section>
     )
 
+  const Calendario = () => {
+    const hoy = hoyISO()
+    const dias = armarMes(mes)
+
+    return (
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setMes(moverMes(mes, -1))}
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Mes anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <p className="text-sm font-semibold" style={{ color: NAVY }}>
+            {nombreMes(mes)}
+          </p>
+          <button
+            type="button"
+            onClick={() => setMes(moverMes(mes, 1))}
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Mes siguiente"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
+          {DIAS_SEMANA.map((d, i) => (
+            <span key={i}>{d}</span>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {dias.map(({ iso, delMes }) => {
+            const info = porDia.get(iso)
+            const esHoy = iso === hoy
+            const elegido = iso === diaFiltro
+            const vencido = iso < hoy && !!info
+
+            return (
+              <button
+                key={iso}
+                type="button"
+                // Volver a pulsar el mismo dia quita el filtro: es lo que uno
+                // intenta por instinto para "salir" de la seleccion.
+                onClick={() => setDiaFiltro(elegido ? null : iso)}
+                className="relative flex aspect-square flex-col items-center justify-center rounded-lg text-xs transition-colors"
+                style={{
+                  backgroundColor: elegido ? NAVY : esHoy ? '#eef2f8' : undefined,
+                  color: elegido
+                    ? '#fff'
+                    : !delMes
+                      ? '#cbd5e1'
+                      : esHoy
+                        ? NAVY
+                        : undefined,
+                  fontWeight: esHoy || elegido ? 700 : 400,
+                }}
+              >
+                {Number(iso.slice(8, 10))}
+                {/* Punto solo si hay pendientes. Rojo si el dia ya paso o si
+                    alguna es de prioridad alta. */}
+                {info && (
+                  <span
+                    className="absolute bottom-1 h-1 w-1 rounded-full"
+                    style={{
+                      backgroundColor: elegido
+                        ? '#fff'
+                        : vencido || info.alta
+                          ? '#dc2626'
+                          : GOLD,
+                    }}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {diaFiltro && (
+          <div className="mt-3 border-t pt-3">
+            <p className="text-xs font-semibold" style={{ color: NAVY }}>
+              {fechaLegible(diaFiltro)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {tareasDelDia.length === 0
+                ? 'Sin tareas ese día'
+                : `${tareasDelDia.length} tarea${tareasDelDia.length === 1 ? '' : 's'}`}
+            </p>
+            <button
+              type="button"
+              onClick={() => setDiaFiltro(null)}
+              className="mt-2 text-[11px] underline underline-offset-2"
+            >
+              Ver todas
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4">
+    <div className="mx-auto max-w-6xl space-y-5 p-4">
       {/* Resumen del día arriba: al abrir, lo primero que se quiere saber es
           cuánto falta, no la lista completa. */}
       <div
@@ -439,6 +619,11 @@ export function TareasPage() {
         </div>
       )}
 
+      {/* Dos columnas en pantallas anchas: el calendario aprovecha el espacio que
+          antes quedaba vacio a los lados, y de paso deja filtrar por dia. En
+          movil se apila, con el calendario debajo de la lista. */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+        <div className="order-2 lg:order-1">
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : tareas.length === 0 ? (
@@ -448,6 +633,34 @@ export function TareasPage() {
         </div>
       ) : (
         <div className="space-y-5">
+          {/* Con un dia elegido en el calendario, la lista muestra SOLO ese dia:
+              mezclarlo con las secciones de siempre haria confuso saber que se
+              esta viendo. */}
+          {diaFiltro ? (
+            tareasDelDia.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Sin tareas el {fechaLegible(diaFiltro)}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDiaFiltro(null)}
+                  className="mt-2 text-xs underline underline-offset-2"
+                >
+                  Ver todas
+                </button>
+              </div>
+            ) : (
+              <Seccion
+                icono={<CalendarDays className="h-4 w-4" />}
+                titulo={fechaLegible(diaFiltro)}
+                lista={tareasDelDia}
+                color={NAVY}
+                urgente={diaFiltro < hoyISO()}
+              />
+            )
+          ) : (
+          <>
           <Seccion
             icono={<AlertTriangle className="h-4 w-4" />}
             titulo="Vencidas"
@@ -468,16 +681,28 @@ export function TareasPage() {
           />
           <Seccion icono={<Inbox className="h-4 w-4" />} titulo="Sin fecha" lista={g.sinFecha} />
           <Seccion icono={<Check className="h-4 w-4" />} titulo="Hechas" lista={g.hechas} />
+          </>
+          )}
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setVerTodas((v) => !v)}
-        className="text-xs text-muted-foreground underline underline-offset-2"
-      >
-        {verTodas ? 'Ocultar completadas anteriores' : 'Ver completadas anteriores'}
-      </button>
+          <button
+            type="button"
+            onClick={() => setVerTodas((v) => !v)}
+            className="mt-4 text-xs text-muted-foreground underline underline-offset-2"
+          >
+            {verTodas ? 'Ocultar completadas anteriores' : 'Ver completadas anteriores'}
+          </button>
+        </div>
+
+        <div className="order-1 lg:order-2">
+          {/* Sticky para que el calendario siga a la vista al bajar por una lista
+              larga, que es cuando mas sirve para saltar a otro dia. */}
+          <div className="lg:sticky lg:top-4">
+            <Calendario />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

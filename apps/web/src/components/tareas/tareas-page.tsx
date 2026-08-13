@@ -128,6 +128,10 @@ export function TareasPage() {
   const [mes, setMes] = useState(() => hoyISO().slice(0, 7))
   /** Día seleccionado en el calendario. null = ver todo. */
   const [diaFiltro, setDiaFiltro] = useState<string | null>(null)
+  /** Filtro por prioridad. Vacio = todas. */
+  const [filtroPrioridad, setFiltroPrioridad] = useState<string[]>([])
+  /** Filtro por persona. Solo para quien ve las del equipo. */
+  const [filtroPersona, setFiltroPersona] = useState('')
 
   const { data: tareas = [], isLoading } = useQuery<Tarea[]>({
     queryKey: ['tareas', verTodas],
@@ -197,6 +201,15 @@ export function TareasPage() {
 
   // Se agrupa por urgencia y no por fecha exacta: al abrir la pantalla lo que
   // importa es "qué se me pasó" y "qué toca hoy".
+  // Filtros del panel lateral. Se aplican antes de agrupar para que los
+  // contadores de cada seccion reflejen lo que realmente se esta viendo.
+  const visibles = useMemo(() => {
+    let r = tareas
+    if (filtroPrioridad.length) r = r.filter((t) => filtroPrioridad.includes(t.prioridad))
+    if (filtroPersona) r = r.filter((t) => t.asignado.id === filtroPersona)
+    return r
+  }, [tareas, filtroPrioridad, filtroPersona])
+
   const g = useMemo(() => {
     const hoy = hoyISO()
     const vencidas: Tarea[] = []
@@ -204,7 +217,7 @@ export function TareasPage() {
     const proximas: Tarea[] = []
     const sinFecha: Tarea[] = []
     const hechas: Tarea[] = []
-    for (const t of tareas) {
+    for (const t of visibles) {
       if (t.completadaEn) {
         hechas.push(t)
         continue
@@ -216,7 +229,7 @@ export function TareasPage() {
       else proximas.push(t)
     }
     return { vencidas, deHoy, proximas, sinFecha, hechas }
-  }, [tareas])
+  }, [visibles])
 
   const pendientes = g.vencidas.length + g.deHoy.length + g.proximas.length + g.sinFecha.length
 
@@ -227,7 +240,7 @@ export function TareasPage() {
    */
   const porDia = useMemo(() => {
     const m = new Map<string, { total: number; alta: boolean }>()
-    for (const t of tareas) {
+    for (const t of visibles) {
       if (t.completadaEn) continue
       const d = diaDe(t.fechaLimite)
       if (!d) continue
@@ -235,12 +248,12 @@ export function TareasPage() {
       m.set(d, { total: actual.total + 1, alta: actual.alta || t.prioridad === 'ALTA' })
     }
     return m
-  }, [tareas])
+  }, [visibles])
 
   /** Tareas del dia elegido en el calendario. */
   const tareasDelDia = useMemo(
-    () => (diaFiltro ? tareas.filter((t) => diaDe(t.fechaLimite) === diaFiltro) : []),
-    [tareas, diaFiltro],
+    () => (diaFiltro ? visibles.filter((t) => diaDe(t.fechaLimite) === diaFiltro) : []),
+    [visibles, diaFiltro],
   )
 
   const Tarjeta = ({ t, urgente }: { t: Tarea; urgente?: boolean }) => {
@@ -473,8 +486,100 @@ export function TareasPage() {
     )
   }
 
+  /**
+   * Filtros bajo el calendario, al estilo de las "Categories" de las apps de
+   * calendario: sirven para responder "que tengo pendiente de alta" o "que tiene
+   * Carolina" sin recorrer la lista entera.
+   */
+  const Filtros = () => {
+    const alternarPrioridad = (p: string) =>
+      setFiltroPrioridad((prev) =>
+        prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+      )
+
+    return (
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Prioridad
+        </p>
+        <div className="space-y-2">
+          {(['ALTA', 'MEDIA', 'BAJA'] as const).map((p) => {
+            const activo = filtroPrioridad.includes(p)
+            const cuantas = visibles.filter((t) => !t.completadaEn && t.prioridad === p).length
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => alternarPrioridad(p)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+              >
+                <span
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded border-2"
+                  style={{
+                    borderColor: PRIORIDAD[p].color,
+                    backgroundColor: activo ? PRIORIDAD[p].color : 'transparent',
+                  }}
+                >
+                  {activo && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                </span>
+                <span className="flex-1">{PRIORIDAD[p].label}</span>
+                <span className="text-xs text-muted-foreground">{cuantas}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {puedeAsignar && equipo.length > 0 && (
+          <>
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Persona
+            </p>
+            <select
+              value={filtroPersona}
+              onChange={(e) => setFiltroPersona(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="">Todo el equipo</option>
+              {equipo.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {(filtroPrioridad.length > 0 || filtroPersona) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFiltroPrioridad([])
+              setFiltroPersona('')
+            }}
+            className="mt-3 text-[11px] underline underline-offset-2"
+          >
+            Quitar filtros
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4">
+      {/* Dos columnas, con el calendario a la IZQUIERDA: es donde el ojo lo
+          busca en las apps de calendario, y deja la columna ancha para el
+          contenido. En movil se apila con las tareas primero, porque en el
+          telefono lo urgente es lo de hoy. */}
+      <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+        <aside className="order-2 space-y-4 lg:order-1">
+          <div className="space-y-4 lg:sticky lg:top-4">
+            <Calendario />
+            <Filtros />
+          </div>
+        </aside>
+
+        <div className="order-1 space-y-5 lg:order-2">
       {/* Resumen del día arriba: al abrir, lo primero que se quiere saber es
           cuánto falta, no la lista completa. */}
       <div
@@ -619,11 +724,6 @@ export function TareasPage() {
         </div>
       )}
 
-      {/* Dos columnas en pantallas anchas: el calendario aprovecha el espacio que
-          antes quedaba vacio a los lados, y de paso deja filtrar por dia. En
-          movil se apila, con el calendario debajo de la lista. */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
-        <div className="order-2 lg:order-1">
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : tareas.length === 0 ? (
@@ -689,18 +789,10 @@ export function TareasPage() {
           <button
             type="button"
             onClick={() => setVerTodas((v) => !v)}
-            className="mt-4 text-xs text-muted-foreground underline underline-offset-2"
+            className="text-xs text-muted-foreground underline underline-offset-2"
           >
             {verTodas ? 'Ocultar completadas anteriores' : 'Ver completadas anteriores'}
           </button>
-        </div>
-
-        <div className="order-1 lg:order-2">
-          {/* Sticky para que el calendario siga a la vista al bajar por una lista
-              larga, que es cuando mas sirve para saltar a otro dia. */}
-          <div className="lg:sticky lg:top-4">
-            <Calendario />
-          </div>
         </div>
       </div>
     </div>

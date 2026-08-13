@@ -374,7 +374,10 @@ export function TareasPage() {
           </h2>
           <span className="text-xs text-muted-foreground">{lista.length}</span>
         </div>
-        <div className="space-y-2">
+        {/* En monitores muy anchos las tarjetas van en dos columnas: una sola
+            tarjeta ocupando 1500px con un titulo corto se veria aun mas vacia
+            que la columna estrecha que teniamos antes. */}
+        <div className="grid gap-2 2xl:grid-cols-2">
           {lista.map((x) => (
             <Tarjeta key={x.id} t={x} urgente={urgente} />
           ))}
@@ -565,13 +568,16 @@ export function TareasPage() {
     )
   }
 
+  // Ancho completo: con un max-width centrado quedaba una columna estrecha y
+  // mucho vacio a los lados en monitores anchos. En movil no se notaba porque
+  // ahi el limite nunca llegaba a aplicar.
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-4">
+    <div className="w-full space-y-5 p-4 xl:p-6">
       {/* Dos columnas, con el calendario a la IZQUIERDA: es donde el ojo lo
           busca en las apps de calendario, y deja la columna ancha para el
           contenido. En movil se apila con las tareas primero, porque en el
           telefono lo urgente es lo de hoy. */}
-      <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[300px_1fr] 2xl:grid-cols-[340px_1fr]">
         <aside className="order-2 space-y-4 lg:order-1">
           <div className="space-y-4 lg:sticky lg:top-4">
             <Calendario />

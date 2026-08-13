@@ -516,7 +516,9 @@ export class PipelineService {
     if (tieneCedula) {
       const porCedula = await this.prisma.cliente.findFirst({
         where: { organizationId, identificacion: cedula },
-        select: { id: true },
+        // ejecutivoId hace falta para abrirle la bienvenida del plan nuevo a su
+        // ejecutiva actual.
+        select: { id: true, ejecutivoId: true },
       })
       if (porCedula) {
         this.logger.log(

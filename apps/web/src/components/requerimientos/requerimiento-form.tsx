@@ -194,7 +194,12 @@ export function RequerimientoForm({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold" style={{ color: NAVY }}>
-            {editando ? 'Reclamo' : 'Nuevo requerimiento'}
+            {/* Decia 'Reclamo' al editar, que es otro modulo distinto: confundia
+                a quien abria un requerimiento y creia estar en la pantalla
+                equivocada. Ahora el titulo dice el tipo real. */}
+            {editando
+              ? (TIPOS.find((t) => t.valor === form.tipo)?.label ?? 'Requerimiento')
+              : 'Nuevo requerimiento'}
           </h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="p-1">
             <X className="h-5 w-5" />

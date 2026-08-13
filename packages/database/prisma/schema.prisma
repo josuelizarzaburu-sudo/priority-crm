@@ -195,6 +195,15 @@ model Requerimiento {
   estado         EstadoRequerimiento @default(EN_TRAMITE)
 
   observaciones  String?
+  /// Poliza a la que corresponde esta bienvenida.
+  ///
+  /// Un cliente que ya existe y contrata un plan nuevo tambien recibe
+  /// bienvenida: es un plan distinto y hay que presentarselo. Ligarlo a la
+  /// poliza evita duplicados sin impedir la segunda carta.
+  polizaId       String?
+  /// Diagnosticos preexistentes que van en la carta. Se escriben a mano: salen
+  /// de la poliza emitida por la aseguradora, no de un dato que el CRM tenga.
+  preexistencias String?
   /// Cuando se envio el correo de bienvenida. Null = todavia no.
   /// Es fecha y no booleano para saber cuando fue, y ademas evita que se mande
   /// dos veces al mismo cliente.
@@ -209,11 +218,13 @@ model Requerimiento {
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cliente        Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  poliza         Poliza?       @relation(fields: [polizaId], references: [id], onDelete: SetNull)
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])
   @@index([organizationId, estado])
   @@index([clienteId])
+  @@index([polizaId])
   @@index([organizationId, fechaRecepcion])
   @@map("requerimientos")
 }
@@ -935,6 +946,8 @@ model Poliza {
   @@index([clienteId])
   @@index([organizationId, aseguradora])
   @@index([organizationId, fechaRenovacion])
+  requerimientos  Requerimiento[]
+
   @@index([organizationId, tipo])
   @@map("polizas")
 }
@@ -1052,6 +1065,7 @@ model Reclamo {
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cliente        Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  poliza         Poliza?       @relation(fields: [polizaId], references: [id], onDelete: SetNull)
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])

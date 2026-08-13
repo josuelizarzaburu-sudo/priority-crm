@@ -82,6 +82,12 @@ export class CreateRequerimientoDto {
   @IsOptional()
   observaciones?: string
 
+  /** Diagnósticos preexistentes que van en la carta de bienvenida. */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  preexistencias?: string
+
   // Solo jefes/admin pueden asignárselo a otra persona.
   @ApiProperty({ required: false })
   @IsString()

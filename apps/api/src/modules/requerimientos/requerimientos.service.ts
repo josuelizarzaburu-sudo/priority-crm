@@ -229,14 +229,14 @@ export class RequerimientosService {
   }
 
   /**
-   * Envia el correo de bienvenida al cliente de este requerimiento.
+   * Envia la carta de bienvenida al cliente de este requerimiento.
    *
    * Lo dispara la ejecutiva a mano, no una tarea automatica: asi sale recien
    * cuando ya verifico que los datos estan correctos, que es justo para lo que
    * se abre el requerimiento.
    *
    * Se guarda la fecha de envio y se comprueba antes de mandar, para que el
-   * cliente no reciba el correo dos veces si alguien pulsa el boton de nuevo.
+   * cliente no reciba la carta dos veces si alguien pulsa el boton de nuevo.
    */
   async enviarBienvenida(id: string, organizationId: string, userId: string, role: string) {
     const req: any = await this.findOne(id, organizationId, userId, role)
@@ -246,7 +246,7 @@ export class RequerimientosService {
     }
     if (req.correoBienvenidaEnviado) {
       throw new ForbiddenException(
-        'El correo de bienvenida ya se envió el ' +
+        'La bienvenida ya se envió el ' +
           new Date(req.correoBienvenidaEnviado).toLocaleDateString('es-EC'),
       )
     }
@@ -256,7 +256,7 @@ export class RequerimientosService {
 
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: req.clienteId, organizationId },
-      select: { nombres: true, nombrePreferido: true, email: true },
+      select: { nombres: true, apellidos: true, email: true, genero: true },
     })
     if (!cliente?.email) {
       throw new ForbiddenException(
@@ -264,15 +264,46 @@ export class RequerimientosService {
       )
     }
 
-    // Se prefiere el nombre preferido: si el cliente pidio que le digan "Pepe",
-    // un "Bienvenido Jose Luis" delata que lo escribio una maquina.
-    const saludo =
-      cliente.nombrePreferido?.trim() || cliente.nombres.trim().split(/\s+/)[0] || cliente.nombres
+    // La poliza de esta bienvenida. Si el requerimiento no quedo ligado a una
+    // (bienvenidas creadas antes de este cambio), se toma la mas reciente del
+    // cliente: es la que motivo la carta.
+    const poliza = req.polizaId
+      ? await this.prisma.poliza.findFirst({ where: { id: req.polizaId, organizationId } })
+      : await this.prisma.poliza.findFirst({
+          where: { clienteId: req.clienteId, organizationId },
+          orderBy: { createdAt: 'desc' },
+        })
+
+    // Sin plan la carta saldria coja: es justo el dato que el cliente espera
+    // encontrar. Mejor frenar y pedir que carguen la poliza.
+    if (!poliza?.plan) {
+      throw new ForbiddenException(
+        'El cliente no tiene una póliza con plan registrado. Cárgala antes de enviar la bienvenida.',
+      )
+    }
+
+    const ejecutiva = req.ejecutivoId
+      ? await this.prisma.user.findFirst({
+          where: { id: req.ejecutivoId, organizationId },
+          select: { name: true, email: true, phone: true },
+        })
+      : null
+    if (!ejecutiva?.email) {
+      throw new ForbiddenException(
+        'El requerimiento no tiene ejecutiva asignada con correo. Asígnala antes de enviar.',
+      )
+    }
 
     await this.notifications.enviarCorreoBienvenida({
       email: cliente.email,
-      saludo,
-      ejecutivaNombre: req.ejecutivoNombre,
+      tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
+      nombreCompleto: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+      plan: [poliza.aseguradora, poliza.plan].filter(Boolean).join(' — '),
+      deducible: formatearDeducible(poliza.deducible),
+      ejecutivaNombre: ejecutiva.name,
+      ejecutivaEmail: ejecutiva.email,
+      ejecutivaCelular: formatearCelular(ejecutiva.phone),
+      preexistencias: req.preexistencias,
     })
 
     const autor = await this.prisma.user.findUnique({
@@ -280,11 +311,11 @@ export class RequerimientosService {
       select: { name: true },
     })
 
-    // El envio queda en la bitacora: es una comunicacion al cliente y tiene que
-    // ser rastreable quien la mando y cuando.
+    // Queda en la bitacora: es una comunicacion al cliente y tiene que ser
+    // rastreable quien la mando y cuando.
     await this.prisma.notaRequerimiento.create({
       data: {
-        contenido: `Correo de bienvenida enviado a ${cliente.email}`,
+        contenido: `Bienvenida enviada a ${cliente.email} (copia a ${ejecutiva.email})`,
         requerimientoId: id,
         autorId: userId,
         autorNombre: autor?.name ?? null,
@@ -305,4 +336,35 @@ export class RequerimientosService {
     }
     return this.prisma.requerimiento.delete({ where: { id } })
   }
+}
+
+/**
+ * Pasa el celular de formato internacional al local ecuatoriano.
+ *
+ * En el CRM se guarda como +593984802996 (el formulario exige el +), pero en una
+ * carta al cliente se lee mejor 098 480 2996, que es como la gente lo escribe
+ * aqui. Si no cuadra con el patron esperado se devuelve tal cual en vez de
+ * inventar un formato.
+ */
+export function formatearCelular(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  const limpio = phone.replace(/[\s-]/g, '')
+  const m = limpio.match(/^\+593(9\d{8})$/)
+  if (!m) return phone
+  const n = m[1]
+  return `0${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5)}`
+}
+
+/**
+ * Deja el deducible con simbolo de dolar.
+ *
+ * Se guarda como texto libre, asi que puede venir "150", "$150" o "150.00".
+ * Si ya trae simbolo o no es un numero, se respeta lo que escribieron.
+ */
+export function formatearDeducible(deducible: string | null | undefined): string | null {
+  if (!deducible?.trim()) return null
+  const v = deducible.trim()
+  if (v.startsWith('$')) return v
+  const n = Number(v.replace(/,/g, ''))
+  return Number.isFinite(n) ? `$${n.toFixed(2)}` : v
 }

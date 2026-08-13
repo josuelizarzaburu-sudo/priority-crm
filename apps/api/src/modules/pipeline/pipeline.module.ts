@@ -4,9 +4,10 @@ import { PipelineService } from './pipeline.service'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsModule } from '../notifications/notifications.module'
 import { EquiposModule } from '../equipos/equipos.module'
+import { ClientesModule } from '../clientes/clientes.module'
 
 @Module({
-  imports: [NotificationsModule, EquiposModule],
+  imports: [NotificationsModule, EquiposModule, ClientesModule],
   controllers: [PipelineController],
   providers: [PipelineService, PipelineGateway],
   exports: [PipelineService],

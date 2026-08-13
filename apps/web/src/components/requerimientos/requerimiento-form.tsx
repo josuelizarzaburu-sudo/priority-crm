@@ -110,6 +110,7 @@ export function RequerimientoForm({
     fechaEnvioCliente: dia(req?.fechaEnvioCliente),
     estado: txt(req?.estado) || 'EN_TRAMITE',
     observaciones: txt(req?.observaciones),
+    preexistencias: txt((req as any)?.preexistencias),
   })
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))

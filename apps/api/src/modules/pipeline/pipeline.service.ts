@@ -12,6 +12,7 @@ import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { soloVeSusNegocios } from './puede-vender'
 import { EquiposService } from '../equipos/equipos.service'
+import { ClientesService } from '../clientes/clientes.service'
 import {
   filtroDeEquipo,
   origenDeLead,
@@ -72,6 +73,7 @@ export class PipelineService {
     private readonly gateway: PipelineGateway,
     private readonly notifications: NotificationsService,
     private readonly equipos: EquiposService,
+    private readonly clientes: ClientesService,
   ) {}
 
   async getStagesWithDeals(organizationId: string) {
@@ -521,6 +523,24 @@ export class PipelineService {
           `[crearClienteDesdeDeal] el cliente ${porCedula.id} ya existe (cedula ${cedula}); se le suman las polizas del deal ${dealId}`,
         )
         await this.crearPolizasYNota(porCedula.id, cf, organizationId, userId)
+
+        // El cliente ya existia, pero acaba de contratar un plan nuevo: tambien
+        // lleva bienvenida. Es un plan distinto y hay que presentarselo, con su
+        // aseguradora, deducible y coberturas.
+        // Se le asigna a su ejecutiva actual; si todavia no tiene, la carta se
+        // creara cuando Yessenia se la asigne.
+        if (porCedula.ejecutivoId) {
+          const ejec = await this.prisma.user.findUnique({
+            where: { id: porCedula.ejecutivoId },
+            select: { name: true },
+          })
+          await this.clientes.crearRequerimientoBienvenida(
+            porCedula.id,
+            porCedula.ejecutivoId,
+            ejec?.name ?? '',
+            organizationId,
+          )
+        }
         return porCedula
       }
     }

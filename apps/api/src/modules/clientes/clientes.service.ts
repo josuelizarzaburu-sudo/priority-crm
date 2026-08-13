@@ -513,7 +513,7 @@ export class ClientesService {
    * importante. Si el requerimiento no se pudo crear, se registra y se sigue; que
    * falle esto no debe deshacer la asignacion.
    */
-  private async crearRequerimientoBienvenida(
+  async crearRequerimientoBienvenida(
     clienteId: string,
     ejecutivoId: string,
     ejecutivoNombre: string,
@@ -526,9 +526,22 @@ export class ClientesService {
       })
       if (!cliente) return
 
-      // Si ya existe uno abierto para este cliente no se duplica.
+      // La bienvenida es de una POLIZA, no del cliente: si mas adelante contrata
+      // otro plan, ese plan tambien lleva su carta.
+      const poliza = await this.prisma.poliza.findFirst({
+        where: { clienteId, organizationId },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+
+      // No se duplica la de esta misma poliza.
       const yaExiste = await this.prisma.requerimiento.findFirst({
-        where: { clienteId, tipo: 'BIENVENIDA' as any, organizationId },
+        where: {
+          clienteId,
+          tipo: 'BIENVENIDA' as any,
+          organizationId,
+          ...(poliza ? { polizaId: poliza.id } : {}),
+        },
         select: { id: true },
       })
       if (yaExiste) return
@@ -538,6 +551,7 @@ export class ClientesService {
           clienteId,
           clienteNombre: `${cliente.nombres} ${cliente.apellidos}`.trim(),
           tipo: 'BIENVENIDA' as any,
+          ...(poliza ? { polizaId: poliza.id } : {}),
           requerimiento:
             'Verificar los datos del cliente y enviarle el correo de bienvenida.',
           fechaRecepcion: new Date(),

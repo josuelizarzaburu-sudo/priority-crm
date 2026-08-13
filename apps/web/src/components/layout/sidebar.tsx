@@ -71,8 +71,9 @@ const NAV_ITEMS = [
   { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES },
   { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: [...COMUNES, 'SUPER_ADMIN'] },
   { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: [...COMUNES, 'SUPER_ADMIN'] },
-  // En pruebas: solo SUPER_ADMIN. Al abrirlo usar [...COMUNES, 'SUPER_ADMIN'].
-  { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: ['SUPER_ADMIN'] },
+  // Visible solo con el permiso individual puedePriorityHelp (o SUPER_ADMIN);
+  // la lista de roles queda vacia a proposito para que no entre nadie por rol.
+  { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: [] },
   { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: COMUNES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },
@@ -86,8 +87,13 @@ export function Sidebar() {
   // Permiso individual: habilita Mi Pipeline a los perfiles de Operaciones que
   // venden de vez en cuando, sin cambiarles el rol ni tocar el resto del menu.
   const puedeVender = (session?.user as any)?.puedeVender === true
+  // Acceso a Priority Help: permiso por persona, no por rol. Cada consulta
+  // cuesta, asi que se enciende a quien convenga desde la pantalla de Usuarios.
+  const puedePriorityHelp =
+    (session?.user as any)?.puedePriorityHelp === true || role === 'SUPER_ADMIN'
 
   const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.href === '/priority-help') return puedePriorityHelp
     if (item.roles.includes(role)) return true
     // Unica excepcion por permiso, no por rol.
     if (item.href === '/my-pipeline' && puedeVender && OPS.includes(role)) return true

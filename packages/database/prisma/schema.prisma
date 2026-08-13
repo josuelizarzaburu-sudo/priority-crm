@@ -63,6 +63,11 @@ model User {
   // y una ejecutiva nueva entra sin el hasta que se lo activen a mano.
   // Apagado por defecto, igual que puedeCotizarPorOtros.
   puedeVender          Boolean @default(false)
+  // Acceso a Priority Help (bot de consulta de coberturas). Cada consulta
+  // tiene costo, asi que el acceso se abre asesor por asesor en vez de por
+  // rol: Josue decide a quien conviene activarselo.
+  // Apagado por defecto: nadie lo gana solo por existir.
+  puedePriorityHelp    Boolean @default(false)
   // Equipo comercial al que pertenece. Un usuario esta en UN equipo o en ninguno.
   // Lo asigna el super admin desde la pantalla de Usuarios; los jefes no se
   // auto-asignan gente.

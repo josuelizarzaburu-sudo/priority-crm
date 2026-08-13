@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { PriorityHelpController } from './priority-help.controller'
 import { PriorityHelpService } from './priority-help.service'
 import { KbLoader } from './kb.loader'
+import { PriorityHelpAccessGuard } from './priority-help-access.guard'
 
 /**
  * Priority Help: apoyo a la venta para asesores internos.
@@ -14,7 +15,7 @@ import { KbLoader } from './kb.loader'
 @Module({
   imports: [ConfigModule],
   controllers: [PriorityHelpController],
-  providers: [PriorityHelpService, KbLoader],
+  providers: [PriorityHelpService, KbLoader, PriorityHelpAccessGuard],
   exports: [PriorityHelpService],
 })
 export class PriorityHelpModule {}

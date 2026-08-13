@@ -45,7 +45,7 @@ export class UsersService {
   findByOrganization(organizationId: string) {
     return this.prisma.user.findMany({
       where: { organizationId },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true },
       orderBy: { createdAt: 'asc' },
     })
   }
@@ -142,6 +142,7 @@ export class UsersService {
       phone?: string | null
       puedeCotizarPorOtros?: boolean
       puedeVender?: boolean
+      puedePriorityHelp?: boolean
       role?: string
     },
     organizationId: string,
@@ -198,9 +199,10 @@ export class UsersService {
           ? { puedeCotizarPorOtros: data.puedeCotizarPorOtros }
           : {}),
         ...(data.puedeVender !== undefined ? { puedeVender: data.puedeVender } : {}),
+        ...(data.puedePriorityHelp !== undefined ? { puedePriorityHelp: data.puedePriorityHelp } : {}),
         ...(data.role ? { role: data.role as any } : {}),
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true },
     })
   }
 

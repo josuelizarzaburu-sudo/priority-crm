@@ -61,6 +61,7 @@ interface TeamMember {
   phone: string | null
   puedeCotizarPorOtros?: boolean
   puedeVender?: boolean
+  puedePriorityHelp?: boolean
   role: SystemRole
   avatar: string | null
   createdAt: string
@@ -346,6 +347,13 @@ function EditMemberDialog({
   // los perfiles de Operaciones: los vendedores ya lo traen con el cargo.
   const [puedeVender, setPuedeVender] = useState(member.puedeVender === true)
 
+  // Acceso a Priority Help. Se activa persona por persona porque cada consulta
+  // al bot tiene costo: conviene abrirlo a quien de verdad lo va a usar en la
+  // venta, no a todo un rol de golpe.
+  const [puedePriorityHelp, setPuedePriorityHelp] = useState(
+    member.puedePriorityHelp === true,
+  )
+
   // El rol tambien se edita aqui. Antes solo se podia elegir al crear el usuario,
   // asi que para convertir a alguien en Jefe de equipo habia que borrarlo y
   // volverlo a crear.
@@ -383,6 +391,7 @@ function EditMemberDialog({
         phone: data.phone || null,
         puedeCotizarPorOtros,
         puedeVender,
+        puedePriorityHelp,
         role: rol,
       }),
     onSuccess: () => {
@@ -492,6 +501,28 @@ function EditMemberDialog({
               </label>
             </div>
           )}
+
+          <div className="rounded-md border p-3">
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={puedePriorityHelp}
+                onChange={(e) => setPuedePriorityHelp(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-sm font-medium">
+                  Acceso a Priority Help
+                </span>
+                <span className="block text-[11px] text-muted-foreground">
+                  Consulta de coberturas, carencias y exclusiones durante la
+                  venta. Cada consulta tiene costo, así que conviene activarlo a
+                  quien lo vaya a usar de verdad. No cotiza: los precios siguen
+                  saliendo del cotizador.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <div className="space-y-1.5 rounded-md border p-3">
             <label className="text-sm font-medium">Restablecer contraseña</label>

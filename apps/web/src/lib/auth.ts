@@ -35,6 +35,7 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role
         // Permiso individual para gestionar negocios propios en Mi Pipeline.
         token.puedeVender = (user as any).puedeVender ?? false
+        token.puedePriorityHelp = (user as any).puedePriorityHelp ?? false
         token.organizationId = (user as any).organizationId
         // El token del API dura 15 min. Se guarda cuándo vence para renovarlo
         // ANTES de que caduque, en vez de esperar a que una petición falle.
@@ -75,6 +76,8 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.puedeVender = (token.puedeVender as boolean) ?? false
+        session.user.puedePriorityHelp =
+          (token.puedePriorityHelp as boolean) ?? false
         session.user.organizationId = token.organizationId as string | undefined
         session.accessToken = token.accessToken as string | undefined
         ;(session as any).error = (token as any).error

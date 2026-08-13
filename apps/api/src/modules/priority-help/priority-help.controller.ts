@@ -3,30 +3,33 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { RolesGuard } from '../auth/guards/roles.guard'
 import { Roles } from '../auth/decorators/roles.decorator'
+import { PriorityHelpAccessGuard } from './priority-help-access.guard'
 import { PriorityHelpService } from './priority-help.service'
 import { KbLoader } from './kb.loader'
 import { PriorityHelpDto } from './dto/priority-help.dto'
 
-// FASE DE PRUEBAS: solo SUPER_ADMIN.
+// El ROL define quien PODRIA usar Priority Help; el permiso por usuario
+// (puedePriorityHelp, ver PriorityHelpAccessGuard) define quien lo usa de
+// verdad. Se hace asi porque cada consulta cuesta: el acceso se enciende
+// asesor por asesor desde la pantalla de Usuarios, en vez de abrirlo a
+// todo un rol de golpe.
 //
-// El bot todavia no se ha validado con preguntas reales de venta. Abrirlo
-// al equipo antes de eso multiplica los errores: mas gente, mas rapido y
-// con menos supervision.
-//
-// Para abrirlo despues hay que cambiarlo en TRES lugares, que son listas
-// separadas: aca, en apps/web/src/app/(dashboard)/priority-help/page.tsx
-// y en el sidebar. El alcance previsto es el mismo del Cotizador:
-//   [...COMUNES, 'SUPER_ADMIN']
-// que hoy equivale a: SUPER_ADMIN, OWNER, MANAGER, SALES_REP, JEFE_EQUIPO,
-// OPERACIONES, JEFE_OPERACIONES. Ojo: esta lista del backend esta escrita
-// a mano, asi que si se agrega un rol nuevo al CRM hay que acordarse de
-// sumarlo aca tambien.
-const ROLES_HELP = ['SUPER_ADMIN']
+// Mismo alcance de rol que el Cotizador. Nadie entra solo por el rol: sin
+// el permiso individual, el guard lo rechaza. SUPER_ADMIN siempre pasa.
+const ROLES_HELP = [
+  'SUPER_ADMIN',
+  'OWNER',
+  'MANAGER',
+  'SALES_REP',
+  'JEFE_EQUIPO',
+  'OPERACIONES',
+  'JEFE_OPERACIONES',
+]
 
 @ApiTags('Priority Help')
 @ApiBearerAuth()
 @Controller('priority-help')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PriorityHelpAccessGuard)
 @Roles(...ROLES_HELP)
 export class PriorityHelpController {
   constructor(

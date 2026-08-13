@@ -47,6 +47,7 @@ export class UsersController {
       phone?: string | null
       puedeCotizarPorOtros?: boolean
       puedeVender?: boolean
+      puedePriorityHelp?: boolean
       role?: string
     },
     @Req() req: any,

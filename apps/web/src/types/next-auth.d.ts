@@ -11,6 +11,8 @@ declare module 'next-auth' {
       role?: string
       /** Permiso individual para gestionar negocios propios en Mi Pipeline. */
       puedeVender?: boolean
+    puedePriorityHelp?: boolean
+      puedePriorityHelp?: boolean
       organizationId?: string
     }
   }

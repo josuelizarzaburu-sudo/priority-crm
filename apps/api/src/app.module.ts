@@ -28,6 +28,7 @@ import { RequerimientosModule } from './modules/requerimientos/requerimientos.mo
 import { RenovacionesModule } from './modules/renovaciones/renovaciones.module'
 import { EquiposModule } from './modules/equipos/equipos.module'
 import { CorreosAutomaticosModule } from './modules/correos-automaticos/correos-automaticos.module'
+import { TareasModule } from './modules/tareas/tareas.module'
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { CorreosAutomaticosModule } from './modules/correos-automaticos/correos-
     RenovacionesModule,
     EquiposModule,
     CorreosAutomaticosModule,
+    TareasModule,
   ],
   providers: [
     // El ThrottlerModule estaba configurado pero NUNCA se aplicaba: sin este

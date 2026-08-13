@@ -9,6 +9,7 @@ import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard,
   Users,
+  CheckSquare,
   MessageSquare,
   Zap,
   Settings,
@@ -62,6 +63,9 @@ const NAV_ITEMS = [
   { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
   { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ['SUPER_ADMIN'] },
   { href: '/equipos',          label: 'Equipos',            icon: Users,           roles: ['SUPER_ADMIN', 'OWNER'] },
+  // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
+  // personales con las reuniones haria inutiles a las dos.
+  { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP', 'JEFE_EQUIPO'] },
   { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN'] },

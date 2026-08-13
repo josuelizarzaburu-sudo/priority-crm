@@ -39,6 +39,7 @@ model Organization {
   renovaciones   Renovacion[]
   equipos        Equipo[]
   correosAutomaticos CorreoAutomatico[]
+  tareas         Tarea[]
 
   @@map("organizations")
 }
@@ -83,6 +84,8 @@ model User {
   // Equipos que lidera. Es una lista por como funciona Prisma, pero en la
   // practica un jefe lidera un solo equipo.
   equiposLiderados Equipo[]    @relation("EquipoJefe")
+  tareasAsignadas  Tarea[]    @relation("TareaAsignado")
+  tareasSolicitadas Tarea[]   @relation("TareaSolicitante")
   contacts       Contact[]     @relation("ContactCreatedBy")
   assignedContacts Contact[]   @relation("ContactAssignedTo")
   deals          Deal[]        @relation("DealCreatedBy")
@@ -382,6 +385,50 @@ model CorreoAutomatico {
   @@unique([clienteId, tipo, fecha])
   @@index([organizationId, tipo, fecha])
   @@map("correos_automaticos")
+}
+
+/// Tarea del equipo de operaciones.
+///
+/// Reemplaza la libreta de papel donde las ejecutivas anotan sus pendientes. Va
+/// aparte del calendario de la empresa a proposito: mezclar tareas personales
+/// con las reuniones haria inutiles a las dos.
+model Tarea {
+  id             String         @id @default(cuid())
+  titulo         String
+  detalle        String?
+  prioridad      PrioridadTarea @default(MEDIA)
+  /// Dia en que hay que hacerla. Sin hora: es una tarea, no una cita.
+  fechaLimite    DateTime?      @db.Date
+  /// Null = pendiente. Con fecha = hecha, y se sabe cuando.
+  completadaEn   DateTime?
+  completadaPor  String?
+
+  /// Quien la hace. Es el unico campo que cambia al reasignar.
+  asignadoId     String
+  /// Quien la pidio. NO cambia al reasignar, para que siga viendo su pedido
+  /// aunque lo ejecute otra persona.
+  solicitanteId  String
+  clienteId      String?
+  organizationId String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  asignado     User         @relation("TareaAsignado", fields: [asignadoId], references: [id], onDelete: Restrict)
+  solicitante  User         @relation("TareaSolicitante", fields: [solicitanteId], references: [id], onDelete: Restrict)
+  cliente      Cliente?     @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([asignadoId, completadaEn])
+  @@index([organizationId, fechaLimite])
+  @@index([solicitanteId])
+  @@index([clienteId])
+  @@map("tareas")
+}
+
+enum PrioridadTarea {
+  ALTA
+  MEDIA
+  BAJA
 }
 
 model PushSubscription {
@@ -890,6 +937,7 @@ model Cliente {
   reclamos        Reclamo[]
   requerimientos  Requerimiento[]
   correosAutomaticos CorreoAutomatico[]
+  tareas          Tarea[]
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])

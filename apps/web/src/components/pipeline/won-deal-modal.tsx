@@ -31,6 +31,12 @@ import { revisarIdentificacion } from '@/components/clientes/nuevo-cliente'
 export interface WonInsuranceData {
   netPremium: number
   plan: string
+  /**
+   * Deducible de la poliza. Sale en la carta de bienvenida al cliente.
+   * Opcional porque en auto y hogar no se maneja igual; en salud se exige antes
+   * de dejar cerrar el deal.
+   */
+  deducible?: string
   paymentFrequency: string
   issueDate?: string
   holderName?: string
@@ -59,6 +65,8 @@ interface EntryDraft {
   holderName: string
   identificacion: string
   plan: string
+  /** Deducible de la poliza. Sale en la carta de bienvenida al cliente. */
+  deducible: string
   paymentFrequency: string
   aseguradora: string
   issueDate: string
@@ -77,6 +85,7 @@ function emptyEntry(): EntryDraft {
     holderName: '',
     identificacion: '',
     plan: '',
+    deducible: '',
     paymentFrequency: 'debito-mensual',
     aseguradora: '',
     issueDate: '',
@@ -152,6 +161,10 @@ export function WonDealModal({
   const canConfirm = entries.length > 0 && entries.every(
     (e) =>
       e.plan.trim() !== '' &&
+      // El deducible se exige solo en SALUD: es el dato que sale en la carta de
+      // bienvenida y sin el la ejecutiva no puede enviarla. En auto y hogar no
+      // se maneja igual, asi que ahi no se bloquea el cierre.
+      (e.ramo !== 'SALUD' || e.deducible.trim() !== '') &&
       e.netPremium.trim() !== '' &&
       parseFloat(e.netPremium) > 0 &&
       e.identificacion.trim() !== '' &&
@@ -176,6 +189,7 @@ export function WonDealModal({
       entries.map((e) => ({
         netPremium: parseFloat(e.netPremium),
         plan: e.plan.trim(),
+        ...(e.deducible.trim() ? { deducible: e.deducible.trim() } : {}),
         paymentFrequency: e.paymentFrequency,
         ...(e.issueDate ? { issueDate: e.issueDate } : {}),
         ...(e.holderName.trim() ? { holderName: e.holderName.trim() } : {}),
@@ -350,6 +364,21 @@ export function WonDealModal({
                   placeholder="ej. Plan Premium Plus"
                   value={entry.plan}
                   onChange={(e) => updateEntry(idx, 'plan', e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+
+              {/* Obligatorio en salud: es el dato que sale en la carta de
+                  bienvenida. Si no se captura aqui, la ejecutiva no puede
+                  enviarla y termina persiguiendo al comercial para pedirselo. */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Deducible {entry.ramo === 'SALUD' && <span className="text-red-500">*</span>}
+                </Label>
+                <Input
+                  placeholder="ej. 500"
+                  value={entry.deducible}
+                  onChange={(e) => updateEntry(idx, 'deducible', e.target.value)}
                   className="h-8 text-sm"
                 />
               </div>

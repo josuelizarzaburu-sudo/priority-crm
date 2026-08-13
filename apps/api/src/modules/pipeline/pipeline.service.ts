@@ -723,6 +723,9 @@ export class PipelineService {
             organizationId,
             aseguradora: e?.aseguradora ?? null,
             plan: e?.plan ?? null,
+            // Lo captura el comercial al cerrar. Es el dato que sale en la carta
+            // de bienvenida: sin el, la ejecutiva no la puede enviar.
+            deducible: typeof e?.deducible === 'string' && e.deducible.trim() ? e.deducible.trim() : null,
             primaNeta: numero(e?.netPremium),
             sumaAsegurada: numero(e?.sumaAsegurada),
             formaPago: (this.FORMA_PAGO[e?.paymentFrequency] ?? null) as any,

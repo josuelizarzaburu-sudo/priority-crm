@@ -1687,7 +1687,14 @@ export function CotizadorPage() {
                   red: s.red,
                 }))
                 const encoded = encodeURIComponent(JSON.stringify(payload))
-                router.push(`/comparativos?cotizacion=${encoded}`)
+                // Las edades cotizadas viajan aparte: el comparativo las muestra
+                // para que quede constancia de sobre que grupo se calcularon esas
+                // primas. Sin eso, un comparativo guardado o impreso no dice a
+                // que edades corresponde.
+                const edades = personas.map((p) => p.edad).join(',')
+                router.push(
+                  `/comparativos?cotizacion=${encoded}${edades ? `&edades=${edades}` : ''}`,
+                )
               }}
             >
               Generar comparativo

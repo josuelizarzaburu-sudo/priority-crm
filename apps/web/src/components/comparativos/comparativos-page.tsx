@@ -234,6 +234,22 @@ export function ComparativosPage() {
   const searchParams = useSearchParams()
   const preload = useMemo(() => parseCotizacion(searchParams.get('cotizacion')), [searchParams])
 
+  /**
+   * Edades sobre las que se calcularon estas primas.
+   *
+   * Llegan del cotizador y se muestran en el documento para que quede constancia:
+   * un comparativo impreso o guardado sin las edades no dice a que grupo
+   * corresponden esos valores, y las primas de salud dependen justamente de eso.
+   */
+  const edadesCotizadas = useMemo(() => {
+    const raw = searchParams.get('edades')
+    if (!raw) return [] as number[]
+    return raw
+      .split(',')
+      .map((x) => parseInt(x.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n >= 0 && n <= 105)
+  }, [searchParams])
+
   const [tab, setTab] = useState<CatalogKey>(preload?.tabInicial ?? 'salud')
   const [clientName, setClientName] = useState('')
 
@@ -799,6 +815,17 @@ export function ComparativosPage() {
               <p className="mb-3 text-xs text-muted-foreground">
                 {SUBTITLES[tab]} · Los {documentPlans.length} planes que mejor se ajustan a tu perfil
               </p>
+
+              {/* Edades cotizadas. Solo en salud e internacional: en autos la prima
+                  no depende de la edad del grupo. */}
+              {edadesCotizadas.length > 0 && tab !== 'vehiculos' && (
+                <p className="mb-3 text-[12px]" style={{ color: NAVY }}>
+                  <strong>
+                    {edadesCotizadas.length === 1 ? 'Edad cotizada:' : 'Edades cotizadas:'}
+                  </strong>{' '}
+                  {edadesCotizadas.map((e) => `${e} años`).join(' · ')}
+                </p>
+              )}
 
               {/* Ficha del vehiculo: solo si es comparativo de autos y hay algun dato */}
               {tab === 'vehiculos' &&

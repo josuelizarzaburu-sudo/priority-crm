@@ -324,7 +324,16 @@ export class RequerimientosService {
 
     return this.prisma.requerimiento.update({
       where: { id },
-      data: { correoBienvenidaEnviado: new Date() },
+      data: {
+        correoBienvenidaEnviado: new Date(),
+        // Enviada la carta, el requerimiento queda cerrado: era exactamente lo
+        // que pedia. Dejarlo EN_TRAMITE lo mantendria en la bandeja de
+        // pendientes de la ejecutiva sin nada que hacer.
+        estado: 'SOLUCIONADO' as any,
+        // Se registra tambien como fecha de envio al cliente, que es el campo
+        // que ya usa el resto del modulo para saber cuando salio algo.
+        fechaEnvioCliente: new Date(),
+      },
     })
   }
 

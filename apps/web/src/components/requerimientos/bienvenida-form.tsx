@@ -112,9 +112,16 @@ export function BienvenidaForm({
       </div>
 
       {enviada && (
-        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-          <Check className="h-4 w-4 shrink-0" />
-          Enviada el {new Date(data.yaEnviada!).toLocaleDateString('es-EC')}
+        <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
+          <Check className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">
+              Enviada el {new Date(data.yaEnviada!).toLocaleDateString('es-EC')}
+            </p>
+            <p className="mt-0.5 text-xs">
+              El requerimiento quedó como solucionado y sale de la bandeja de pendientes.
+            </p>
+          </div>
         </div>
       )}
 

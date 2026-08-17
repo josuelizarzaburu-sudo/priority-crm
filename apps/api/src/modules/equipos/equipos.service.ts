@@ -40,6 +40,26 @@ export class EquiposService {
   }
 
   /**
+   * Estado del equipo de un jefe, para poder avisarle cuando algo falta.
+   *
+   * Si no tiene equipo, o lo tiene vacío, el pipeline le muestra solo sus
+   * propios negocios — que es correcto, pero indistinguible de "mi equipo no ha
+   * vendido nada". Sin este dato, la pantalla no puede explicar la diferencia.
+   */
+  async estadoDelEquipo(jefeId: string, organizationId: string) {
+    const equipo = await this.prisma.equipo.findFirst({
+      where: { jefeId, organizationId, activo: true },
+      select: { id: true, nombre: true },
+    })
+    if (!equipo) return { tieneEquipo: false, nombre: null, miembros: 0 }
+
+    const miembros = await this.prisma.user.count({
+      where: { equipoId: equipo.id, organizationId },
+    })
+    return { tieneEquipo: true, nombre: equipo.nombre, miembros }
+  }
+
+  /**
    * Elige a qué equipo le toca el siguiente lead que entra solo.
    *
    * Reparto por carga: gana el equipo que MENOS leads tenga acumulados. Se

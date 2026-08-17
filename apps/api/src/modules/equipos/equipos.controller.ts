@@ -48,6 +48,13 @@ export class AsignarMiembroDto {
 export class EquiposController {
   constructor(private readonly service: EquiposService) {}
 
+  @Get('mi-equipo/estado')
+  @ApiOperation({ summary: 'Si el jefe tiene equipo armado y cuántos miembros' })
+  // Va antes de las rutas con :id para que Nest no lea 'mi-equipo' como un id.
+  estadoDelEquipo(@Req() req: any) {
+    return this.service.estadoDelEquipo(req.user.id, req.user.organizationId)
+  }
+
   @Get('mi-equipo')
   @ApiOperation({ summary: 'El equipo que lidera el usuario actual, con sus miembros' })
   // Sin restriccion de rol: cada quien consulta el suyo, y quien no lidera

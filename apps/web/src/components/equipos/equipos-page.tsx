@@ -202,8 +202,11 @@ export function EquiposPage() {
               </div>
 
               {eq.miembros.length === 0 ? (
-                <p className="py-2 text-center text-xs text-muted-foreground">
-                  Sin integrantes todavía.
+                // Un equipo vacío no es un detalle estético: su jefe solo ve sus
+                // propios negocios y parece que el sistema está roto.
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+                  Sin integrantes. Mientras el equipo esté vacío, {eq.jefe.name} solo
+                  verá sus propios negocios y contactos en el CRM.
                 </p>
               ) : (
                 <ul className="space-y-1">

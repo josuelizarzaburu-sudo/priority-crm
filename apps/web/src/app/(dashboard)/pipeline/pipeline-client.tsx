@@ -43,8 +43,37 @@ export function PipelineClient() {
     enabled: isAdminOrManager,
   })
 
+  /**
+   * Estado del equipo del jefe. Sin equipo armado, el pipeline le muestra solo
+   * sus propios negocios — que es correcto, pero indistinguible de "mi equipo no
+   * ha vendido nada". El aviso convierte ese silencio en algo accionable.
+   */
+  const { data: estadoEquipo } = useQuery<{
+    tieneEquipo: boolean
+    nombre: string | null
+    miembros: number
+  }>({
+    queryKey: ['equipos', 'mi-equipo', 'estado'],
+    queryFn: () => api.get('/equipos/mi-equipo/estado').then((r) => r.data),
+    enabled: userRole === 'JEFE_EQUIPO',
+  })
+
+  const avisoEquipo =
+    userRole === 'JEFE_EQUIPO' && estadoEquipo
+      ? !estadoEquipo.tieneEquipo
+        ? 'Todavía no tienes un equipo asignado, así que aquí solo ves tus propios negocios. Pídele a administración que cree tu equipo en Equipos.'
+        : estadoEquipo.miembros === 0
+          ? `Tu equipo "${estadoEquipo.nombre}" aún no tiene integrantes, así que aquí solo ves tus propios negocios. Pídele a administración que los agregue en Equipos.`
+          : null
+      : null
+
   return (
     <div className="flex h-full flex-col gap-4">
+      {avisoEquipo && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          {avisoEquipo}
+        </div>
+      )}
       <PipelineHeader
         viewMode={viewMode}
         setViewMode={setViewModeOverride}

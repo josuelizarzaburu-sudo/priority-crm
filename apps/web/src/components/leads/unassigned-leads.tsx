@@ -79,7 +79,9 @@ export function UnassignedLeads() {
     ? miEquipo
       ? [miEquipo.jefe, ...miEquipo.miembros]
       : []
-    : todosLosUsuarios.filter((u) => u.role === 'SALES_REP')
+    // Se incluye JEFE_EQUIPO: tambien vende, asi que gerencia debe poder
+    // asignarle un lead directamente.
+    : todosLosUsuarios.filter((u) => ['SALES_REP', 'JEFE_EQUIPO'].includes(u.role))
 
   const moverDeEquipo = useMutation({
     mutationFn: ({ dealId, equipoId }: { dealId: string; equipoId: string | null }) =>

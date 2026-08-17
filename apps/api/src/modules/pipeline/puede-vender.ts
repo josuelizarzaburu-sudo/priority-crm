@@ -37,6 +37,24 @@ export function soloVeSusNegocios(role: string, puedeVender?: boolean): boolean 
 }
 
 /**
+ * ¿Los negocios que crea esta persona son SUYOS?
+ *
+ * Es una pregunta DISTINTA de soloVeSusNegocios, aunque se parezcan:
+ *   - soloVeSusNegocios responde "¿que alcance tiene al mirar?"
+ *   - esta responde "¿a quien se asigna lo que crea?"
+ *
+ * El jefe de equipo las separa: al MIRAR ve todo su equipo, pero lo que CREA es
+ * suyo, porque tambien vende. Con una sola funcion, darle lo segundo le quitaba
+ * lo primero.
+ */
+export function creaNegociosPropios(role: string, puedeVender?: boolean): boolean {
+  if (role === 'SALES_REP') return true
+  if (role === 'JEFE_EQUIPO') return true
+  if (puedeVender === true && ROLES_OPERACIONES.includes(role)) return true
+  return false
+}
+
+/**
  * ¿Puede entrar a "Mi Pipeline"?
  *
  * Hoy coincide con soloVeSusNegocios, pero se deja aparte porque responden
@@ -44,5 +62,5 @@ export function soloVeSusNegocios(role: string, puedeVender?: boolean): boolean 
  * un rol sin restriccion necesita la pantalla, solo cambia esta.
  */
 export function puedeGestionarNegociosPropios(role: string, puedeVender?: boolean): boolean {
-  return soloVeSusNegocios(role, puedeVender)
+  return creaNegociosPropios(role, puedeVender)
 }

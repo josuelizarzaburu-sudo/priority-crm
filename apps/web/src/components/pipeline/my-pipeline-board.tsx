@@ -98,6 +98,9 @@ export function MyPipelineBoard() {
   const puedeCrearNegocios =
     userRole === 'SALES_REP' ||
     userRole === 'SUPER_ADMIN' ||
+    // El jefe de equipo tambien vende y tiene su propio Mi Pipeline: al darle el
+    // rol se quedaba sin el boton de crear, que es lo que reporto Juan Fernando.
+    userRole === 'JEFE_EQUIPO' ||
     ((session?.user as any)?.puedeVender === true &&
       ['OPERACIONES', 'JEFE_OPERACIONES'].includes(userRole))
   const queryClient = useQueryClient()

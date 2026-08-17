@@ -88,7 +88,9 @@ export function RankingPage() {
 
     for (const a of agents) {
       let grupo: Grupo | null = null
-      if (a.role === 'SALES_REP') grupo = 'vendedores'
+      // El jefe de equipo tambien vende: si quedara fuera, sus ventas sumarian al
+      // Overview pero no apareceria en el ranking, y los numeros no cuadrarian.
+      if (a.role === 'SALES_REP' || a.role === 'JEFE_EQUIPO') grupo = 'vendedores'
       // Solo los operativos con el permiso activo. Sin esta condicion el ranking
       // se llenaria de nombres en cero de gente que ni siquiera puede vender.
       else if (a.puedeVender === true && ROLES_OPERACIONES.includes(a.role)) grupo = 'comercial'

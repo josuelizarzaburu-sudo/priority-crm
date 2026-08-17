@@ -68,7 +68,7 @@ const NAV_ITEMS = [
   { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP', 'JEFE_EQUIPO'] },
-  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN'] },
+  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN', 'JEFE_EQUIPO'] },
   { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: [...ELEVATED, 'JEFE_EQUIPO'] },
   { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES },
   { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES },

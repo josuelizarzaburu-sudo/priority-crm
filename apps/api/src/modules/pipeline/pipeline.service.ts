@@ -10,7 +10,7 @@ import { CloseDealDto } from './dto/close-deal.dto'
 import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
-import { soloVeSusNegocios } from './puede-vender'
+import { creaNegociosPropios, soloVeSusNegocios } from './puede-vender'
 import { EquiposService } from '../equipos/equipos.service'
 
 /** Mayúsculas con locale español, para que ñ y acentos salgan bien. */
@@ -413,8 +413,21 @@ export class PipelineService {
       },
     })
     if (!deal) throw new NotFoundException('Deal not found')
+
     if (soloVeSusNegocios(role ?? '', puedeVender) && userId && deal.assignedToId !== userId) {
       throw new ForbiddenException('No tienes acceso a este deal')
+    }
+
+    // El jefe de equipo no entra en la comprobacion de arriba porque su alcance
+    // es el equipo, no solo lo suyo. Sin esto podia abrir el deal de CUALQUIER
+    // equipo conociendo el id: la lista se lo ocultaba, pero el acceso directo
+    // no. Se limita a su gente y a si mismo.
+    if (veSoloSuEquipo(role ?? '') && userId) {
+      const miembros = await this.equipos.miembrosDelJefe(userId, organizationId)
+      const permitidos = new Set([userId, ...miembros])
+      if (!deal.assignedToId || !permitidos.has(deal.assignedToId)) {
+        throw new ForbiddenException('Este negocio no pertenece a tu equipo')
+      }
     }
     return deal
   }
@@ -972,8 +985,8 @@ export class PipelineService {
     const customFields: Record<string, unknown> = { ...(dto.customFields as any) }
     let assignedToId = dto.assignedToId
 
-    if (soloVeSusNegocios(role, puedeVender)) {
-      // Quien solo gestiona lo suyo —vendedor de planta, o perfil de Operaciones
+    if (creaNegociosPropios(role, puedeVender)) {
+      // Quien crea negocios propios —vendedor, jefe de equipo, o perfil de Operaciones
       // con el permiso— crea negocios unicamente para si mismo. El origen y la
       // asignacion se imponen en el servidor: no se confia en lo que mande el
       // cliente, porque si no bastaria con editar la peticion para colgarle un

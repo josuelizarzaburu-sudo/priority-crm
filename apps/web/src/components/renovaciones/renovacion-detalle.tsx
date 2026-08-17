@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { Mail, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { ESTADOS, ENVIOS } from './renovaciones-page'
+import { RenovacionCorreo } from './renovacion-correo'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -16,6 +17,9 @@ const txt = (v: any) => (v === null || v === undefined ? '' : String(v))
 const dia = (v: any) => (v ? String(v).slice(0, 10) : '')
 
 export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () => void }) {
+  // Pantalla del correo. Se abre encima del detalle en vez de reemplazarlo, para
+  // poder volver y corregir un valor si al revisar el texto se nota algo mal.
+  const [correoAbierto, setCorreoAbierto] = useState(false)
   const qc = useQueryClient()
   const [form, setForm] = useState<Record<string, string>>({})
   const [nota, setNota] = useState('')
@@ -93,6 +97,20 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {correoAbierto && (
+          <div
+            className="fixed inset-0 z-[60] flex justify-end bg-black/30"
+            onClick={() => setCorreoAbierto(false)}
+          >
+            <div
+              className="h-full w-full max-w-2xl overflow-y-auto bg-background p-5 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RenovacionCorreo renovacionId={id} onCerrar={() => setCorreoAbierto(false)} />
+            </div>
+          </div>
+        )}
 
         {/* Datos que vienen de la ficha del cliente y de la póliza. No se editan
             aquí: si algo está mal, se corrige en la ficha y se refleja solo. */}
@@ -221,9 +239,19 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
 
         {error && <p className="mt-3 rounded-md bg-red-50 p-2 text-xs text-red-600">{error}</p>}
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={onCerrar}>
             Cancelar
+          </Button>
+          {/* El correo va aparte del guardado: es una comunicación al cliente y
+              debe ser una acción explícita, no un efecto de guardar cambios. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setCorreoAbierto(true)}
+          >
+            <Mail className="mr-1.5 h-4 w-4" />
+            {r.envio === 'ENVIADO' ? 'Ver correo enviado' : 'Preparar correo'}
           </Button>
           <Button
             type="button"

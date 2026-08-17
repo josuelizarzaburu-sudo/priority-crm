@@ -287,6 +287,61 @@ export class NotificationsService {
     )
   }
 
+  /**
+   * Correo de renovación.
+   *
+   * A diferencia de bienvenida y cumpleaños, el TEXTO llega ya armado desde la
+   * pantalla: la ejecutiva lo revisó y corrigió, así que aquí solo se le pone el
+   * formato de marca. Lo que ella leyó es exactamente lo que sale.
+   */
+  async enviarCorreoRenovacion(data: {
+    email: string
+    asunto: string
+    texto: string
+    ejecutivaNombre?: string | null
+    copiaA?: string | null
+  }): Promise<void> {
+    // Los saltos de línea del cuadro de texto se vuelven párrafos: sin esto, el
+    // correo llegaría como un solo bloque ilegible.
+    const parrafos = data.texto
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map(
+        (p) =>
+          `<p style="margin:0 0 15px;">${this.escape(p).replace(/\n/g, '<br/>')}</p>`,
+      )
+      .join('')
+
+    const html = `
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <div style="background:#0C2057;padding:22px 24px;text-align:center;">
+      <p style="margin:0;color:#DBAA59;font-size:19px;font-weight:bold;">Renovación de su póliza</p>
+    </div>
+    <div style="padding:28px 26px;color:#25324b;font-size:15px;line-height:1.7;">
+      ${parrafos}
+      ${
+        data.ejecutivaNombre
+          ? `<p style="margin:22px 0 0;color:#6b7585;font-size:14px;">
+               <strong style="color:#0C2057;">${this.escape(data.ejecutivaNombre)}</strong><br/>
+               Priority Asesores de Seguros
+             </p>`
+          : ''
+      }
+    </div>
+  </div>
+</body>`
+
+    await this.sendEmail(
+      data.email,
+      data.asunto,
+      html,
+      FROM_CLIENTES,
+      data.copiaA ? [data.copiaA] : undefined,
+    )
+  }
+
   async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {
     const nombre = this.escape(data.saludo)
     // La imagen vive en priority.ec y no incrustada: los correos no pueden

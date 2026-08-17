@@ -32,6 +32,22 @@ export class RenovacionesController {
     return this.service.generar(req.user.organizationId, req.user.role)
   }
 
+  @Get(':id/correo')
+  @ApiOperation({ summary: 'Correo de renovación ya armado, para revisarlo antes de enviar' })
+  prepararCorreo(@Param('id') id: string, @Req() req: any) {
+    return this.service.prepararCorreo(id, req.user.organizationId)
+  }
+
+  @Post(':id/enviar-correo')
+  @ApiOperation({ summary: 'Envía el correo de renovación tal como quedó en pantalla' })
+  enviarCorreo(
+    @Param('id') id: string,
+    @Body() dto: { texto: string; destinatario: string; plantilla?: string },
+    @Req() req: any,
+  ) {
+    return this.service.enviarCorreo(id, dto, req.user.organizationId, req.user.id)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Ficha de la renovación' })
   findOne(@Param('id') id: string, @Req() req: any) {

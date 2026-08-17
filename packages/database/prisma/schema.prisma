@@ -279,6 +279,14 @@ model Renovacion {
   envio          EstadoEnvio      @default(NO_ENVIADO)
   fechaPrimerEnvio DateTime?
 
+  /// Texto del correo, ya armado y con los ajustes de la ejecutiva.
+  /// Se guarda para que no pierda sus correcciones al cerrar la pantalla.
+  correoTexto        String?
+  /// Plantilla elegida (clave de PLANTILLAS). Se detecta sola y queda editable.
+  correoPlantilla    String?
+  /// A quién se le envía. Se precarga del cliente y se puede corregir.
+  correoDestinatario String?
+
   comentarios    String?
   notas          NotaRenovacion[]
 

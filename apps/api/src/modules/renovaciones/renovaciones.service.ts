@@ -2,6 +2,13 @@ import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nest
 import { PrismaService } from '../../prisma/prisma.service'
 import { RenovacionesQueryDto } from './dto/renovaciones-query.dto'
 import { UpdateRenovacionDto } from './dto/update-renovacion.dto'
+import { NotificationsService } from '../notifications/notifications.service'
+import {
+  PLANTILLAS,
+  elegirPlantilla,
+  ofreceDescuento,
+  type DatosRenovacion,
+} from './plantillas-renovacion'
 
 /**
  * Quién puede ver el módulo de Renovaciones.
@@ -18,7 +25,10 @@ const fecha = (v?: string | null) => (v ? new Date(v) : null)
 export class RenovacionesService {
   private readonly logger = new Logger(RenovacionesService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private verificarAcceso(role: string) {
     if (!VE_RENOVACIONES.includes(role)) {
@@ -281,4 +291,187 @@ export class RenovacionesService {
       },
     })
   }
+  /**
+   * Prepara el correo de renovación con los datos ya puestos.
+   *
+   * La ejecutiva no escribe nada de cero: abre, lee, corrige lo que haga falta y
+   * envía. Si ya guardó una versión editada, se devuelve esa en vez de volver a
+   * generarla, o perdería sus ajustes cada vez que abriera la pantalla.
+   */
+  async prepararCorreo(id: string, organizationId: string) {
+    const r: any = await this.prisma.renovacion.findFirst({
+      where: { id, organizationId },
+      include: {
+        poliza: { include: { cliente: true } },
+      },
+    })
+    if (!r) throw new NotFoundException('Renovación no encontrada')
+
+    const cliente = r.poliza?.cliente
+    const plantillaId =
+      r.correoPlantilla ??
+      elegirPlantilla(r.poliza?.aseguradora, r.poliza?.plan, r.poliza?.tipo)
+
+    const datos = this.armarDatos(r, cliente)
+    const textoGenerado = plantillaId && PLANTILLAS[plantillaId]
+      ? PLANTILLAS[plantillaId].armar(datos)
+      : null
+
+    const faltantes: string[] = []
+    if (!cliente) faltantes.push('La póliza no está enlazada a un cliente')
+    else if (!r.correoDestinatario && !cliente.email) {
+      faltantes.push('El cliente no tiene correo — complétalo en su ficha o escríbelo abajo')
+    }
+    if (!plantillaId) {
+      faltantes.push('No se reconoció la plantilla: elígela manualmente')
+    }
+    if (!r.valorRenovacion) {
+      faltantes.push('Falta el valor de renovación')
+    }
+
+    return {
+      yaEnviado: r.envio === 'ENVIADO' ? r.fechaPrimerEnvio : null,
+      destinatario: r.correoDestinatario ?? cliente?.email ?? '',
+      plantilla: plantillaId,
+      // El texto guardado gana sobre el generado: son las correcciones de la
+      // ejecutiva y no deben perderse al recargar.
+      texto: r.correoTexto ?? textoGenerado ?? '',
+      // Se devuelve aparte para poder ofrecer "regenerar desde la plantilla" si
+      // cambian los valores y quiere partir de cero otra vez.
+      textoGenerado,
+      datos,
+      plantillasDisponibles: Object.entries(PLANTILLAS).map(([id, p]) => ({
+        id,
+        etiqueta: p.etiqueta,
+      })),
+      faltantes,
+    }
+  }
+
+  /** Reúne los datos que rellenan la plantilla. */
+  private armarDatos(r: any, cliente: any): DatosRenovacion {
+    const money = (v: any) =>
+      v === null || v === undefined ? '' : Number(v).toFixed(2)
+
+    const fecha = (d: Date | null) => {
+      if (!d) return ''
+      // Se lee en UTC porque la fecha se guarda sin hora: en Ecuador, leerla en
+      // hora local daría el día anterior.
+      return new Date(d).toLocaleDateString('es-EC', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      })
+    }
+
+    // Fecha límite para confirmar cambios: una semana antes de la renovación,
+    // que es el margen que deja la aseguradora para procesar un ajuste.
+    const limite = r.fechaRenovacion ? new Date(r.fechaRenovacion) : null
+    if (limite) limite.setUTCDate(limite.getUTCDate() - 7)
+
+    const prima = money(r.valorRenovacion)
+    // El 5% solo lo ofrece BMI. Incluirlo en otra aseguradora sería prometerle
+    // al cliente algo que no existe.
+    const conDescuento =
+      ofreceDescuento(r.poliza?.aseguradora) && r.valorRenovacion
+        ? (Number(r.valorRenovacion) * 0.95).toFixed(2)
+        : null
+
+    return {
+      saludo: cliente
+        ? `Estimad${cliente.genero === 'FEMENINO' ? 'a' : 'o'} ${cliente.nombres?.trim().split(/\s+/)[0] ?? ''},`
+        : 'Estimado cliente,',
+      plan: r.poliza?.plan ?? '',
+      deducible: r.poliza?.deducible ? `USD ${r.poliza.deducible}` : '',
+      aseguradora: r.poliza?.aseguradora ?? '',
+      fechaRenovacion: fecha(r.fechaRenovacion),
+      formaPago: (r.poliza?.formaPago ?? '').toString().toLowerCase().replace(/_/g, ' '),
+      prima,
+      fechaLimite: fecha(limite),
+      primaConDescuento: conDescuento,
+      marca: r.poliza?.marca ?? '',
+      modelo: r.poliza?.modelo ?? '',
+      anio: r.poliza?.anio ? String(r.poliza.anio) : '',
+      placa: r.poliza?.placa ?? '',
+      avaluo: money(r.poliza?.sumaAsegurada),
+    }
+  }
+
+  /**
+   * Envía el correo de renovación al cliente.
+   *
+   * Se manda el texto tal como quedó en pantalla: lo que la ejecutiva revisó es
+   * exactamente lo que sale.
+   */
+  async enviarCorreo(
+    id: string,
+    dto: { texto: string; destinatario: string; plantilla?: string },
+    organizationId: string,
+    userId: string,
+  ) {
+    const r: any = await this.prisma.renovacion.findFirst({
+      where: { id, organizationId },
+      include: { poliza: { include: { cliente: true } } },
+    })
+    if (!r) throw new NotFoundException('Renovación no encontrada')
+
+    if (r.envio === 'ENVIADO') {
+      throw new ForbiddenException(
+        'Esta renovación ya se envió el ' +
+          new Date(r.fechaPrimerEnvio).toLocaleDateString('es-EC'),
+      )
+    }
+
+    const destinatario = dto.destinatario?.trim()
+    if (!destinatario || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(destinatario)) {
+      throw new ForbiddenException('El correo del destinatario no es válido')
+    }
+    if (!dto.texto?.trim()) {
+      throw new ForbiddenException('El correo está vacío')
+    }
+
+    const ejecutiva = r.ejecutivoId
+      ? await this.prisma.user.findFirst({
+          where: { id: r.ejecutivoId, organizationId },
+          select: { name: true, email: true },
+        })
+      : null
+
+    await this.notifications.enviarCorreoRenovacion({
+      email: destinatario,
+      asunto: `Renovación de su póliza ${r.poliza?.plan ?? ''} — Priority`,
+      texto: dto.texto,
+      ejecutivaNombre: ejecutiva?.name ?? null,
+      // Copia a la ejecutiva, igual que en bienvenida: es su respaldo de que la
+      // renovación se comunicó y en qué términos.
+      copiaA: ejecutiva?.email ?? null,
+    })
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    await this.prisma.notaRenovacion.create({
+      data: {
+        contenido: `Correo de renovación enviado a ${destinatario}`,
+        renovacionId: id,
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+      },
+    })
+
+    return this.prisma.renovacion.update({
+      where: { id },
+      data: {
+        envio: 'ENVIADO' as any,
+        fechaPrimerEnvio: new Date(),
+        correoTexto: dto.texto,
+        correoDestinatario: destinatario,
+        ...(dto.plantilla ? { correoPlantilla: dto.plantilla } : {}),
+      },
+    })
+  }
+
 }

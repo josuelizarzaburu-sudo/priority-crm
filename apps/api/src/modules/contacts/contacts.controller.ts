@@ -64,7 +64,7 @@ export class ContactsController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.contactsService.remove(id, req.user.organizationId)
+    return this.contactsService.remove(id, req.user.organizationId, req.user.role)
   }
 
   @Get(':id/timeline')

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { RenovacionesQueryDto } from './dto/renovaciones-query.dto'
 import { UpdateRenovacionDto } from './dto/update-renovacion.dto'
 import { NotificationsService } from '../notifications/notifications.service'
+import { paraMostrarAlCliente } from '../../common/texto'
 import {
   PLANTILLAS,
   elegirPlantilla,
@@ -399,11 +400,15 @@ export class RenovacionesService {
         : null
 
     return {
+      // Se suaviza el nombre: la ficha guarda "PABLO" para los reportes, pero el
+      // correo debe decir "Estimado Pablo," y no "Estimado PABLO,".
       saludo: cliente
-        ? `Estimad${cliente.genero === 'FEMENINO' ? 'a' : 'o'} ${cliente.nombres?.trim().split(/\s+/)[0] ?? ''},`
+        ? `Estimad${cliente.genero === 'FEMENINO' ? 'a' : 'o'} ${paraMostrarAlCliente(cliente.nombres?.trim().split(/\s+/)[0] ?? '')},`
         : 'Estimado cliente,',
-      plan: r.poliza?.plan ?? '',
+      plan: paraMostrarAlCliente(r.poliza?.plan) || '',
       deducible: r.poliza?.deducible ? `USD ${r.poliza.deducible}` : '',
+      // BMI, AIG y similares son siglas: se dejan como están si no tienen
+      // vocales en minúscula, para no convertirlas en "Bmi".
       aseguradora: r.poliza?.aseguradora ?? '',
       fechaRenovacion: fecha(r.fechaRenovacion),
       formaPago: (r.poliza?.formaPago ?? '').toString().toLowerCase().replace(/_/g, ' '),

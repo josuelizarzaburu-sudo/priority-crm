@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { aMayusculas } from '../../common/texto'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
 import { UpdateClienteDto } from './dto/update-cliente.dto'
@@ -140,6 +141,10 @@ export class ClientesService {
   }
 
   async create(dto: CreateClienteDto, organizationId: string, userId: string, role: string) {
+    // Los datos se guardan en MAYUSCULAS para que busquedas y reportes sean
+    // consistentes. No toca correos ni textos largos; ver common/texto.ts.
+    dto = aMayusculas(dto)
+
     // Evitar duplicados: la cédula es única por organización.
     const yaExiste = await this.prisma.cliente.findUnique({
       where: {
@@ -198,7 +203,9 @@ export class ClientesService {
     // findOne ya valida existencia + permiso de acceso.
     const actual = await this.findOne(id, organizationId, userId, role)
 
-    const data: any = { ...dto }
+    // Misma normalización que al crear, para que un cliente editado no quede
+    // con formato distinto al resto.
+    const data: any = aMayusculas({ ...dto } as any)
     delete data.dependientes // los dependientes se manejan en endpoints aparte
 
     const esJefe = VE_TODO.includes(role)
@@ -336,8 +343,10 @@ export class ClientesService {
     const idsValidos = new Set(cliente.dependientes.map((d: any) => d.id))
     const cubre = (dependienteIds ?? []).filter((id) => idsValidos.has(id))
 
+    // Aseguradora, plan y datos del vehículo también en mayúsculas: son los que
+    // se agrupan en los reportes, y "BMI" y "bmi" contarían como dos.
     const data: any = {
-      ...resto,
+      ...aMayusculas(resto as any),
       fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
       clienteId,
       organizationId,
@@ -575,6 +584,10 @@ export class ClientesService {
     role: string,
   ) {
     await this.findOne(clienteId, organizationId, userId, role)
+
+    // Misma normalización que el titular: un dependiente en minúsculas se vería
+    // fuera de sitio en la ficha, junto al resto de datos en mayúsculas.
+    dto = aMayusculas(dto)
 
     return this.prisma.dependiente.create({
       data: {

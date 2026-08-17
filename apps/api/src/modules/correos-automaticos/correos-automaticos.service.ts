@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
+import { paraMostrarAlCliente } from '../../common/texto'
 
 /** Zona horaria de la empresa. Todo el calculo de "hoy" se hace contra esta. */
 const ZONA = 'America/Guayaquil'
@@ -78,8 +79,12 @@ export function correoUtilizable(email: string | null | undefined): email is str
 export function saludoPara(cliente: { nombres: string; nombrePreferido: string | null }): string {
   const preferido = cliente.nombrePreferido?.trim()
   if (preferido) return preferido
-  // Solo el primer nombre: "Maria Jose Andrade" -> "Maria".
-  return cliente.nombres.trim().split(/\s+/)[0] ?? cliente.nombres
+  // Solo el primer nombre: "MARIA JOSE ANDRADE" -> "Maria".
+  //
+  // Se suaviza porque los datos se guardan en mayúsculas para los reportes, pero
+  // un correo que diga "Feliz cumpleaños, MARIA" se lee como un grito.
+  const primero = cliente.nombres.trim().split(/\s+/)[0] ?? cliente.nombres
+  return paraMostrarAlCliente(primero)
 }
 
 @Injectable()

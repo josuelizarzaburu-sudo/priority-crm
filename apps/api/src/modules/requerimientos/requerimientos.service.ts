@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
+import { paraMostrarAlCliente } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
@@ -297,7 +298,9 @@ export class RequerimientosService {
     await this.notifications.enviarCorreoBienvenida({
       email: cliente.email,
       tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
-      nombreCompleto: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+      // Se suaviza: la ficha guarda "PABLO CARRILLO" para los reportes, pero la
+      // carta debe decir "Pablo Carrillo".
+      nombreCompleto: paraMostrarAlCliente(`${cliente.nombres} ${cliente.apellidos}`),
       plan: [poliza.aseguradora, poliza.plan].filter(Boolean).join(' — '),
       deducible: formatearDeducible(poliza.deducible),
       ejecutivaNombre: ejecutiva.name,
@@ -391,7 +394,9 @@ export class RequerimientosService {
       preexistencias: req.preexistencias,
       cliente: cliente
         ? {
-            nombreCompleto: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+            // Se suaviza: la ficha guarda "PABLO CARRILLO" para los reportes, pero la
+      // carta debe decir "Pablo Carrillo".
+      nombreCompleto: paraMostrarAlCliente(`${cliente.nombres} ${cliente.apellidos}`),
             email: cliente.email,
             tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
           }

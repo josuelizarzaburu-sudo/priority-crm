@@ -12,6 +12,9 @@ import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { soloVeSusNegocios } from './puede-vender'
 import { EquiposService } from '../equipos/equipos.service'
+
+/** Mayúsculas con locale español, para que ñ y acentos salgan bien. */
+const mayus = (v: string) => v.trim().toLocaleUpperCase('es-EC')
 import { ClientesService } from '../clientes/clientes.service'
 import {
   filtroDeEquipo,
@@ -571,12 +574,14 @@ export class PipelineService {
 
       const creado = await this.prisma.cliente.create({
         data: {
-          nombres: deal.contact.firstName,
-          apellidos: deal.contact.lastName ?? '',
+          // Mayúsculas como en el resto del CRM: un cliente que nace de un deal
+          // debe verse igual que uno cargado a mano. El correo NO se convierte.
+          nombres: mayus(deal.contact.firstName),
+          apellidos: mayus(deal.contact.lastName ?? ''),
           identificacion,
           email: deal.contact.email,
           celular: deal.contact.phone,
-          ...(direccion ? { direccion } : {}),
+          ...(direccion ? { direccion: mayus(direccion) } : {}),
           ...(vieneDeOtroSeguro ? { vieneDeOtroSeguro } : {}),
           // De donde vino el cliente. Se copia del deal porque despues no hay
           // forma de recuperarlo: la ficha nace sin ese contexto.
@@ -670,10 +675,11 @@ export class PipelineService {
         await this.prisma.dependiente.create({
           data: {
             clienteId,
-            nombres,
-            apellidos: typeof d?.lastName === 'string' ? d.lastName.trim() || null : null,
+            nombres: mayus(nombres),
+            apellidos:
+              typeof d?.lastName === 'string' ? mayus(d.lastName) || null : null,
             identificacion:
-              typeof d?.identificacion === 'string' ? d.identificacion.trim() || null : null,
+              typeof d?.identificacion === 'string' ? mayus(d.identificacion) || null : null,
             ...(nac && !Number.isNaN(nac.getTime()) ? { fechaNacimiento: nac } : {}),
             parentesco: (PARENTESCO[String(d?.relationship ?? '').toLowerCase()] ?? 'OTRO') as any,
           },
@@ -721,8 +727,8 @@ export class PipelineService {
             tipo: tipo as any,
             clienteId,
             organizationId,
-            aseguradora: e?.aseguradora ?? null,
-            plan: e?.plan ?? null,
+            aseguradora: e?.aseguradora ? mayus(e.aseguradora) : null,
+            plan: e?.plan ? mayus(e.plan) : null,
             // Lo captura el comercial al cerrar. Es el dato que sale en la carta
             // de bienvenida: sin el, la ejecutiva no la puede enviar.
             deducible: typeof e?.deducible === 'string' && e.deducible.trim() ? e.deducible.trim() : null,
@@ -732,10 +738,10 @@ export class PipelineService {
             fechaEmision: e?.issueDate ? new Date(e.issueDate) : null,
             estado: 'NUEVO' as any,
             // Solo tienen sentido en AUTO, pero si vienen se guardan igual.
-            marca: e?.marca ?? null,
-            modelo: e?.modelo ?? null,
+            marca: e?.marca ? mayus(e.marca) : null,
+            modelo: e?.modelo ? mayus(e.modelo) : null,
             anio: Number.isFinite(anio) ? anio : null,
-            placa: e?.placa ?? null,
+            placa: e?.placa ? mayus(e.placa) : null,
             agenteId: userId,
             agenteNombre: autor?.name ?? null,
             revisar: true,

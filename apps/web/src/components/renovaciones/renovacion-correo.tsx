@@ -116,6 +116,13 @@ export function RenovacionCorreo({
       onCerrar()
     },
     onError: (e: any) => {
+      // 413 es 'request entity too large': lo devuelve el servidor web antes de
+      // llegar al código, así que trae un mensaje en inglés que no le dice nada
+      // a quien lo lee. Se traduce a algo accionable.
+      if (e?.response?.status === 413) {
+        setError('Los archivos adjuntos son demasiado pesados. Prueba con archivos más livianos.')
+        return
+      }
       const m = e?.response?.data?.message
       setError(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo enviar el correo'))
     },

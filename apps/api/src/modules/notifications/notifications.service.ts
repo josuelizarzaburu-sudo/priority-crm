@@ -120,6 +120,7 @@ export class NotificationsService {
     html: string,
     from: string = FROM,
     cc?: string[],
+    attachments?: { filename: string; content: string }[],
   ): Promise<void> {
     if (!this.resend) {
       this.logger.log(`[EMAIL] To: ${to} | Subject: ${subject}\n--- (set RESEND_API_KEY to send real emails)`)
@@ -130,6 +131,7 @@ export class NotificationsService {
         from,
         to: [to],
         ...(cc?.length ? { cc } : {}),
+        ...(attachments?.length ? { attachments } : {}),
         subject,
         html,
       })
@@ -300,6 +302,12 @@ export class NotificationsService {
     texto: string
     ejecutivaNombre?: string | null
     copiaA?: string | null
+    /**
+     * Adjuntos en base64. NO se guardan en ningún lado: viajan con este envío y
+     * se descartan. Son documentos que la aseguradora manda para reenviar al
+     * cliente, no información que el CRM deba conservar.
+     */
+    adjuntos?: { filename: string; content: string }[]
   }): Promise<void> {
     // Los saltos de línea del cuadro de texto se vuelven párrafos: sin esto, el
     // correo llegaría como un solo bloque ilegible.
@@ -339,6 +347,7 @@ export class NotificationsService {
       html,
       FROM_CLIENTES,
       data.copiaA ? [data.copiaA] : undefined,
+      data.adjuntos,
     )
   }
 

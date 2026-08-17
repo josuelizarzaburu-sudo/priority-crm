@@ -426,7 +426,12 @@ export class RenovacionesService {
    */
   async enviarCorreo(
     id: string,
-    dto: { texto: string; destinatario: string; plantilla?: string },
+    dto: {
+      texto: string
+      destinatario: string
+      plantilla?: string
+      adjuntos?: { filename: string; content: string }[]
+    },
     organizationId: string,
     userId: string,
   ) {
@@ -451,6 +456,8 @@ export class RenovacionesService {
       throw new ForbiddenException('El correo está vacío')
     }
 
+    const adjuntos = this.validarAdjuntos(dto.adjuntos)
+
     const ejecutiva = r.ejecutivoId
       ? await this.prisma.user.findFirst({
           where: { id: r.ejecutivoId, organizationId },
@@ -466,6 +473,7 @@ export class RenovacionesService {
       // Copia a la ejecutiva, igual que en bienvenida: es su respaldo de que la
       // renovación se comunicó y en qué términos.
       copiaA: ejecutiva?.email ?? null,
+      adjuntos,
     })
 
     const autor = await this.prisma.user.findUnique({
@@ -475,7 +483,13 @@ export class RenovacionesService {
 
     await this.prisma.notaRenovacion.create({
       data: {
-        contenido: `Correo de renovación enviado a ${destinatario}`,
+        // Se anotan los nombres de los archivos aunque no se guarden: si el
+        // cliente dice que no recibió el PDF, queda constancia de qué se mandó.
+        contenido:
+          `Correo de renovación enviado a ${destinatario}` +
+          (adjuntos?.length
+            ? ` con ${adjuntos.length} adjunto(s): ${adjuntos.map((a) => a.filename).join(', ')}`
+            : ''),
         renovacionId: id,
         autorId: userId,
         autorNombre: autor?.name ?? null,
@@ -492,6 +506,55 @@ export class RenovacionesService {
         ...(dto.plantilla ? { correoPlantilla: dto.plantilla } : {}),
       },
     })
+  }
+
+  /**
+   * Revisa los adjuntos antes de enviarlos.
+   *
+   * Los archivos NO se guardan en ningún lado: viajan con este envío y se
+   * descartan. Son documentos que la aseguradora manda para reenviar al cliente,
+   * no información que el CRM deba conservar.
+   */
+  private validarAdjuntos(
+    adjuntos?: { filename: string; content: string }[],
+  ): { filename: string; content: string }[] | undefined {
+    if (!adjuntos?.length) return undefined
+
+    if (adjuntos.length > 5) {
+      throw new ForbiddenException('Máximo 5 archivos adjuntos por correo')
+    }
+
+    // 8 MB de tope. Los archivos se codifican en base64 para viajar por correo,
+    // lo que los engorda cerca de un 33%: 8 MB reales llegan como ~11 MB, que
+    // pasa holgado el límite de 20-25 MB de cualquier proveedor. Poner el tope
+    // más alto haría que algunos correos reboten sin explicación.
+    const LIMITE = 8 * 1024 * 1024
+    let total = 0
+
+    for (const a of adjuntos) {
+      if (!a?.filename?.trim() || !a?.content) {
+        throw new ForbiddenException('Un archivo adjunto llegó incompleto')
+      }
+      // Solo documentos e imágenes. Sin esta lista se podría mandar un
+      // ejecutable desde el CRM, y además muchos servidores rechazan el correo
+      // entero si detectan un adjunto peligroso.
+      if (!/\.(pdf|jpe?g|png|docx?|xlsx?)$/i.test(a.filename.trim())) {
+        throw new ForbiddenException(
+          `"${a.filename}" no es un tipo de archivo permitido. Solo PDF, imágenes, Word o Excel.`,
+        )
+      }
+      // El contenido llega en base64; su tamaño real es aproximadamente 3/4 del
+      // texto codificado.
+      total += Math.floor((a.content.length * 3) / 4)
+    }
+
+    if (total > LIMITE) {
+      throw new ForbiddenException(
+        `Los adjuntos pesan ${(total / 1024 / 1024).toFixed(1)} MB. El máximo es 8 MB en total.`,
+      )
+    }
+
+    return adjuntos.map((a) => ({ filename: a.filename.trim(), content: a.content }))
   }
 
 }

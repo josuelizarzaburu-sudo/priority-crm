@@ -42,7 +42,13 @@ export class RenovacionesController {
   @ApiOperation({ summary: 'Envía el correo de renovación tal como quedó en pantalla' })
   enviarCorreo(
     @Param('id') id: string,
-    @Body() dto: { texto: string; destinatario: string; plantilla?: string },
+    @Body()
+    dto: {
+      texto: string
+      destinatario: string
+      plantilla?: string
+      adjuntos?: { filename: string; content: string }[]
+    },
     @Req() req: any,
   ) {
     return this.service.enviarCorreo(id, dto, req.user.organizationId, req.user.id)

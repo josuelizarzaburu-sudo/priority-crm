@@ -11,12 +11,23 @@ const ESTADOS = [
   'RENOVADO',
 ]
 const ENVIOS = ['NO_ENVIADO', 'PRIMER_ENVIO', 'SEGUNDO_ENVIO']
+const FORMAS_PAGO = ['CONTADO', 'MENSUAL', 'DIFERIDO', 'DIFERIDO_ESPECIAL']
 
 export class UpdateRenovacionDto {
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   fechaRenovacion?: string
+
+  /**
+   * Forma de pago. Vive en la póliza, no en la renovación, pero se puede
+   * corregir desde aquí: cambia justo al renovar y es un dato que sale en el
+   * correo al cliente.
+   */
+  @ApiProperty({ required: false, enum: FORMAS_PAGO })
+  @IsIn(FORMAS_PAGO)
+  @IsOptional()
+  formaPago?: string
 
   @ApiProperty({ required: false })
   @IsNumber()

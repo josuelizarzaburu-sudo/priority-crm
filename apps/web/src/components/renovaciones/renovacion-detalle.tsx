@@ -40,6 +40,7 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
       estado: txt(r.estado) || 'POR_RENOVAR',
       envio: txt(r.envio) || 'NO_ENVIADO',
       comentarios: txt(r.comentarios),
+      formaPago: txt(r.poliza?.formaPago),
     })
   }, [r])
 
@@ -112,11 +113,28 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
           </div>
         )}
 
-        {/* Datos que vienen de la ficha del cliente y de la póliza. No se editan
-            aquí: si algo está mal, se corrige en la ficha y se refleja solo. */}
+        {/* Datos que vienen de la ficha del cliente y de la póliza. Se muestran
+            de solo lectura: si algo está mal, se corrige en la ficha.
+            La excepción es la forma de pago, que cambia justo al renovar y sale
+            en el correo al cliente; obligar a salir y buscar la póliza para
+            corregirla sería dar un rodeo innecesario. */}
         <div className="mb-4 grid gap-2 rounded-md bg-muted/40 p-3 text-xs md:grid-cols-2">
           <Dato label="Cédula" valor={c?.identificacion} />
-          <Dato label="Forma de pago" valor={r.poliza?.formaPago} />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Forma de pago</span>
+            <select
+              value={form.formaPago ?? ''}
+              onChange={(e) => set('formaPago', e.target.value)}
+              className="h-7 max-w-[170px] rounded border bg-background px-1.5 text-xs font-medium"
+              style={{ color: NAVY }}
+            >
+              <option value="">— Sin definir —</option>
+              <option value="CONTADO">Contado</option>
+              <option value="MENSUAL">Débito mensual</option>
+              <option value="DIFERIDO">Diferido</option>
+              <option value="DIFERIDO_ESPECIAL">Diferido especial</option>
+            </select>
+          </div>
           <Dato label="Correo" valor={c?.email} />
           <Dato label="Celular" valor={c?.celular} />
           <Dato label="Agente" valor={r.ejecutivoNombre ?? r.ejecutivo?.name} />

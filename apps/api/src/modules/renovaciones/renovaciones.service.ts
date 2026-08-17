@@ -245,6 +245,13 @@ export class RenovacionesService {
     const data: any = { ...dto }
     if ('fechaRenovacion' in data) data.fechaRenovacion = fecha(data.fechaRenovacion)
 
+    // La forma de pago vive en la POLIZA, no en la renovacion, asi que se saca
+    // de aqui y se guarda alla. Se corrige desde esta pantalla porque cambia
+    // justo al renovar y es un dato que sale en el correo al cliente; dejarla
+    // solo en la ficha obligaria a salir, buscar la poliza y volver.
+    const formaPago = data.formaPago
+    delete data.formaPago
+
     // Al marcar el primer envío se guarda cuándo, para el seguimiento posterior.
     if (dto.envio === 'PRIMER_ENVIO') {
       const actual = await this.prisma.renovacion.findUnique({
@@ -260,6 +267,19 @@ export class RenovacionesService {
         select: { name: true },
       })
       data.ejecutivoNombre = u?.name ?? null
+    }
+
+    if (formaPago) {
+      const r = await this.prisma.renovacion.findUnique({
+        where: { id },
+        select: { polizaId: true },
+      })
+      if (r?.polizaId) {
+        await this.prisma.poliza.update({
+          where: { id: r.polizaId },
+          data: { formaPago: formaPago as any },
+        })
+      }
     }
 
     return this.prisma.renovacion.update({ where: { id }, data })

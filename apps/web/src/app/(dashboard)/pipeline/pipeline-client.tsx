@@ -20,14 +20,30 @@ export function PipelineClient() {
   const userRole = session?.user?.role?.toUpperCase() ?? ''
   const currentUserId = session?.user?.id ?? ''
   const isAdminOrManager = ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole)
-
-  console.log('Current user role (raw):', session?.user?.role)
-  console.log('Current user role (normalized):', userRole)
-  console.log('Is sales rep:', userRole === 'SALES_REP')
+  const esJefeEquipo = userRole === 'JEFE_EQUIPO'
+  /**
+   * Quien puede usar los filtros del encabezado (persona, origen, mes).
+   *
+   * Al jefe de equipo le sirven —sobre todo el de persona, para ver que tiene
+   * cada vendedor suyo— y no le abren nada: la API ya le mando solo los negocios
+   * de su equipo, asi que filtrar sobre eso no puede sacar nada de fuera.
+   */
+  const puedeFiltrar = isAdminOrManager || esJefeEquipo
 
   // null means "not yet overridden by user" — computed default reacts to session load
   const [viewModeOverride, setViewModeOverride] = useState<'mine' | 'all' | null>(null)
-  const viewMode = viewModeOverride ?? (isAdminOrManager ? 'all' : 'mine')
+  /**
+   * El jefe de equipo arranca en 'all', igual que gerencia.
+   *
+   * 'all' NO significa "toda la empresa": la API ya le manda solo los negocios de
+   * su equipo. Significa "no recortar mas en el navegador".
+   *
+   * Antes solo se preguntaba por gerencia, asi que el jefe caia en 'mine' y el
+   * frontend le volvia a filtrar a sus propios negocios ENCIMA del filtro del
+   * backend — por eso veia solo los suyos aunque su equipo estuviera bien
+   * armado.
+   */
+  const viewMode = viewModeOverride ?? (isAdminOrManager || esJefeEquipo ? 'all' : 'mine')
 
   const [filterUserId, setFilterUserId] = useState<string | null>(null)
   const [originFilter, setOriginFilter] = useState<OriginFilter>('ALL')
@@ -37,10 +53,17 @@ export function PipelineClient() {
   const [mesFilter, setMesFilter] = useState<MesFilter>('ALL')
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
 
-  const { data: users = [] } = useQuery<TeamMember[]>({
+  const { data: miEquipo } = useQuery<{ jefe: TeamMember; miembros: TeamMember[] } | null>({
+    queryKey: ['equipos', 'mi-equipo'],
+    queryFn: () => api.get('/equipos/mi-equipo').then((r) => r.data),
+    enabled: esJefeEquipo,
+  })
+
+  const { data: todosLosUsuarios = [] } = useQuery<TeamMember[]>({
     queryKey: ['users'],
     queryFn: () => api.get('/users').then((r) => r.data),
-    enabled: isAdminOrManager,
+    // El jefe necesita la lista para poder filtrar por sus vendedores.
+    enabled: puedeFiltrar,
   })
 
   /**
@@ -67,6 +90,20 @@ export function PipelineClient() {
           : null
       : null
 
+  /**
+   * A quién puede filtrar en el desplegable de persona.
+   *
+   * Al jefe se le muestra solo su equipo. No es por seguridad —la API ya le
+   * mandó solo sus negocios, así que filtrar por alguien de fuera no sacaría
+   * nada— sino para que la lista no ofrezca nombres que siempre darían vacío,
+   * lo que parecería un error.
+   */
+  const users = esJefeEquipo
+    ? miEquipo
+      ? [miEquipo.jefe, ...miEquipo.miembros]
+      : []
+    : todosLosUsuarios
+
   return (
     <div className="flex h-full flex-col gap-4">
       {avisoEquipo && (
@@ -86,7 +123,7 @@ export function PipelineClient() {
         mesFilter={mesFilter}
         setMesFilter={setMesFilter}
         users={users}
-        isAdminOrManager={isAdminOrManager}
+        isAdminOrManager={puedeFiltrar}
         userRole={userRole}
       />
       <KanbanBoard

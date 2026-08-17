@@ -11,6 +11,7 @@ import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { creaNegociosPropios, soloVeSusNegocios } from './puede-vender'
+import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 
 /** Mayúsculas con locale español, para que ñ y acentos salgan bien. */
@@ -1091,6 +1092,41 @@ export class PipelineService {
 
     const isMovingToWon = dto.stageId === this.WON_STAGE_ID
     const extraFields: Record<string, unknown> = {}
+
+    // Ganar un deal EXIGE los datos del seguro con cedula valida.
+    //
+    // Hasta ahora esto se validaba solo en el navegador, y si la peticion llegaba
+    // sin insuranceData el bloque de abajo se saltaba entero: el deal pasaba a
+    // Ganado sin nada y el cliente nacia con cedula "PENDIENTE-xxxx". Sin cedula
+    // no hay forma de saber a quien pertenece la poliza, y ademas se pierde la
+    // deduplicacion, que es justamente lo que evita clientes repetidos.
+    //
+    // La comprobacion va en el SERVIDOR a proposito: el formulario puede tener
+    // huecos —de hecho los tuvo—, pero por aqui pasan todos los caminos.
+    if (isMovingToWon) {
+      const entradas = Array.isArray(dto.insuranceData) ? dto.insuranceData : []
+      if (entradas.length === 0) {
+        throw new ForbiddenException(
+          'Para marcar el deal como ganado hay que completar los datos del seguro, incluida la cédula del titular.',
+        )
+      }
+      const sinCedula = entradas.filter(
+        (e: any) => !(typeof e?.identificacion === 'string' && e.identificacion.trim()),
+      )
+      if (sinCedula.length > 0) {
+        throw new ForbiddenException(
+          'Falta la cédula o RUC del titular. Sin ese dato no se puede identificar al cliente ni evitar fichas duplicadas.',
+        )
+      }
+      const invalidas = entradas.filter(
+        (e: any) => !cedulaORucValido(String(e.identificacion).trim()),
+      )
+      if (invalidas.length > 0) {
+        throw new ForbiddenException(
+          `Cédula o RUC no válido: ${invalidas.map((e: any) => e.identificacion).join(', ')}`,
+        )
+      }
+    }
 
     if (isMovingToWon && dto.insuranceData && dto.insuranceData.length > 0) {
       const entries = dto.insuranceData.map((e, i) => ({ id: `${Date.now()}-${i}`, ...e }))

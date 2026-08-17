@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertTriangle, Check, Mail, Phone, Send, X } from 'lucide-react'
+import { AlertTriangle, Check, Eye, Mail, Phone, Send, X } from 'lucide-react'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -52,6 +52,12 @@ export function BienvenidaForm({
   const qc = useQueryClient()
   const [preexistencias, setPreexistencias] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Vista previa. No es un paso obligatorio antes de enviar: si lo fuera, se
+   * aprendería a saltar y dejaría de proteger. Está para mirar cuando se quiera,
+   * sobre todo las primeras veces.
+   */
+  const [previa, setPrevia] = useState(false)
 
   const { data, isLoading } = useQuery<DatosBienvenida>({
     queryKey: ['requerimiento', requerimientoId, 'bienvenida'],
@@ -69,6 +75,14 @@ export function BienvenidaForm({
       qc.invalidateQueries({ queryKey: ['requerimientos'] })
     },
     onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo guardar'),
+  })
+
+  const vistaPrevia = useQuery<{ para: string; copiaA: string; asunto: string; html: string }>({
+    queryKey: ['requerimiento', requerimientoId, 'vista-previa'],
+    queryFn: () =>
+      api.get(`/requerimientos/${requerimientoId}/vista-previa-bienvenida`).then((r) => r.data),
+    // Solo se pide cuando se abre: no tiene sentido cargarla si nadie la mira.
+    enabled: previa,
   })
 
   const enviar = useMutation({
@@ -209,6 +223,9 @@ export function BienvenidaForm({
         <Button variant="ghost" onClick={onCerrar}>
           Cancelar
         </Button>
+        <Button variant="outline" onClick={() => setPrevia(true)} disabled={!listo}>
+          <Eye className="mr-1.5 h-4 w-4" /> Ver cómo queda
+        </Button>
         {!enviada && (
           <>
             <Button
@@ -232,6 +249,61 @@ export function BienvenidaForm({
           </>
         )}
       </div>
+
+      {previa && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setPrevia(false)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                  Así lo recibe el cliente
+                </p>
+                {vistaPrevia.data && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    Para {vistaPrevia.data.para} · copia a {vistaPrevia.data.copiaA}
+                  </p>
+                )}
+              </div>
+              <button type="button" onClick={() => setPrevia(false)} aria-label="Cerrar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {vistaPrevia.isLoading ? (
+              <p className="p-10 text-center text-sm text-muted-foreground">Cargando…</p>
+            ) : vistaPrevia.data ? (
+              <>
+                <div className="border-b bg-muted/40 px-4 py-2">
+                  <p className="text-xs text-muted-foreground">Asunto</p>
+                  <p className="text-sm font-medium" style={{ color: NAVY }}>
+                    {vistaPrevia.data.asunto}
+                  </p>
+                </div>
+                {/* Se muestra en un iframe aislado a propósito: el HTML del
+                    correo trae sus propios estilos y, puesto directamente en la
+                    página, se mezclarían con los del CRM y la previa mostraría
+                    algo distinto a lo que llega. */}
+                <iframe
+                  title="Vista previa del correo"
+                  srcDoc={vistaPrevia.data.html}
+                  sandbox=""
+                  className="min-h-[420px] w-full flex-1 border-0"
+                />
+              </>
+            ) : (
+              <p className="p-10 text-center text-sm text-muted-foreground">
+                No se pudo cargar la vista previa.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

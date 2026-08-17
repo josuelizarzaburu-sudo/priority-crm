@@ -84,6 +84,17 @@ export class RequerimientosController {
     )
   }
 
+  @Get(':id/vista-previa-bienvenida')
+  @ApiOperation({ summary: 'La carta tal como la va a recibir el cliente' })
+  vistaPreviaBienvenida(@Param('id') id: string, @Req() req: any) {
+    return this.service.vistaPreviaBienvenida(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Post(':id/enviar-bienvenida')
   @ApiOperation({ summary: 'Envía el correo de bienvenida al cliente' })
   enviarBienvenida(@Param('id') id: string, @Req() req: any) {

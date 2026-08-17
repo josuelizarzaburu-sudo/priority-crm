@@ -27,6 +27,19 @@ const FROM = 'Priority CRM <comercial@priority.ec>'
  */
 const FROM_CLIENTES = 'Priority <comercial@priority.ec>'
 
+/** Datos que rellenan la carta de bienvenida. */
+export interface DatosBienvenidaCorreo {
+  email: string
+  tratamiento: string
+  nombreCompleto: string
+  plan: string
+  deducible: string | null
+  ejecutivaNombre: string
+  ejecutivaEmail: string
+  ejecutivaCelular: string | null
+  preexistencias?: string | null
+}
+
 const PROFILE_INFO: Record<string, { label: string; pitch: string }> = {
   A: {
     label: 'Deportista con seguro',
@@ -200,17 +213,16 @@ export class NotificationsService {
    * lo unico que se escribe a mano son las preexistencias, que vienen de la
    * poliza emitida por la aseguradora.
    */
-  async enviarCorreoBienvenida(data: {
-    email: string
-    tratamiento: string
-    nombreCompleto: string
-    plan: string
-    deducible: string | null
-    ejecutivaNombre: string
-    ejecutivaEmail: string
-    ejecutivaCelular: string | null
-    preexistencias?: string | null
-  }): Promise<void> {
+  /**
+   * Arma el HTML de la carta de bienvenida.
+   *
+   * Se separa del envío a proposito: la vista previa usa ESTE mismo metodo, asi
+   * que lo que la ejecutiva ve en pantalla es exactamente lo que le llega al
+   * cliente. Con dos plantillas separadas, tarde o temprano se desincronizarian
+   * y la previa mostraria algo que no es — el peor fallo posible en algo cuyo
+   * proposito es dar confianza.
+   */
+  armarHtmlBienvenida(data: DatosBienvenidaCorreo): string {
     const e = (v: string) => this.escape(v)
     const correoEjec = e(data.ejecutivaEmail)
 
@@ -279,10 +291,19 @@ export class NotificationsService {
   </div>
 </body>`
 
+    return html
+  }
+
+  /** Asunto de la carta. Aparte para que la vista previa lo muestre igual. */
+  asuntoBienvenida(plan: string): string {
+    return `Bienvenido a Priority — ${plan}`
+  }
+
+  async enviarCorreoBienvenida(data: DatosBienvenidaCorreo): Promise<void> {
     await this.sendEmail(
       data.email,
-      `Bienvenido a Priority — ${data.plan}`,
-      html,
+      this.asuntoBienvenida(data.plan),
+      this.armarHtmlBienvenida(data),
       FROM_CLIENTES,
       // Copia a la ejecutiva: su respaldo de que la carta se envio.
       [data.ejecutivaEmail],

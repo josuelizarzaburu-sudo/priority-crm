@@ -230,31 +230,14 @@ export class RequerimientosService {
   }
 
   /**
-   * Envia la carta de bienvenida al cliente de este requerimiento.
+   * Reúne los datos que rellenan la carta.
    *
-   * Lo dispara la ejecutiva a mano, no una tarea automatica: asi sale recien
-   * cuando ya verifico que los datos estan correctos, que es justo para lo que
-   * se abre el requerimiento.
-   *
-   * Se guarda la fecha de envio y se comprueba antes de mandar, para que el
-   * cliente no reciba la carta dos veces si alguien pulsa el boton de nuevo.
+   * Lo usan TANTO el envío como la vista previa, a propósito: así lo que la
+   * ejecutiva ve en pantalla es exactamente lo que le llega al cliente. Si cada
+   * uno armara sus datos por separado, tarde o temprano mostrarían cosas
+   * distintas y la previa dejaría de servir para lo que existe.
    */
-  async enviarBienvenida(id: string, organizationId: string, userId: string, role: string) {
-    const req: any = await this.findOne(id, organizationId, userId, role)
-
-    if (req.tipo !== 'BIENVENIDA') {
-      throw new ForbiddenException('Este requerimiento no es de bienvenida')
-    }
-    if (req.correoBienvenidaEnviado) {
-      throw new ForbiddenException(
-        'La bienvenida ya se envió el ' +
-          new Date(req.correoBienvenidaEnviado).toLocaleDateString('es-EC'),
-      )
-    }
-    if (!req.clienteId) {
-      throw new ForbiddenException('El requerimiento no está enlazado a un cliente')
-    }
-
+  private async datosParaCarta(req: any, organizationId: string) {
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: req.clienteId, organizationId },
       select: { nombres: true, apellidos: true, email: true, genero: true },
@@ -295,7 +278,7 @@ export class RequerimientosService {
       )
     }
 
-    await this.notifications.enviarCorreoBienvenida({
+    return {
       email: cliente.email,
       tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
       // Se suaviza: la ficha guarda "PABLO CARRILLO" para los reportes, pero la
@@ -307,7 +290,62 @@ export class RequerimientosService {
       ejecutivaEmail: ejecutiva.email,
       ejecutivaCelular: formatearCelular(ejecutiva.phone),
       preexistencias: req.preexistencias,
-    })
+    }
+  }
+
+  /**
+   * Vista previa de la carta, tal como la va a recibir el cliente.
+   *
+   * No es un paso obligatorio: el envio no la exige. Esta para que la ejecutiva
+   * mire si quiere —sobre todo las primeras veces— sin imponerle un clic extra
+   * en cada envio, que a la larga se aprende a saltar y deja de proteger.
+   */
+  async vistaPreviaBienvenida(id: string, organizationId: string, userId: string, role: string) {
+    const req: any = await this.findOne(id, organizationId, userId, role)
+    if (req.tipo !== 'BIENVENIDA') {
+      throw new ForbiddenException('Este requerimiento no es de bienvenida')
+    }
+    if (!req.clienteId) {
+      throw new ForbiddenException('El requerimiento no está enlazado a un cliente')
+    }
+
+    const datos = await this.datosParaCarta(req, organizationId)
+    return {
+      para: datos.email,
+      copiaA: datos.ejecutivaEmail,
+      asunto: this.notifications.asuntoBienvenida(datos.plan),
+      html: this.notifications.armarHtmlBienvenida(datos),
+    }
+  }
+
+  /**
+   * Envia la carta de bienvenida al cliente de este requerimiento.
+   *
+   * Lo dispara la ejecutiva a mano, no una tarea automatica: asi sale recien
+   * cuando ya verifico que los datos estan correctos, que es justo para lo que
+   * se abre el requerimiento.
+   *
+   * Se guarda la fecha de envio y se comprueba antes de mandar, para que el
+   * cliente no reciba la carta dos veces si alguien pulsa el boton de nuevo.
+   */
+  async enviarBienvenida(id: string, organizationId: string, userId: string, role: string) {
+    const req: any = await this.findOne(id, organizationId, userId, role)
+
+    if (req.tipo !== 'BIENVENIDA') {
+      throw new ForbiddenException('Este requerimiento no es de bienvenida')
+    }
+    if (req.correoBienvenidaEnviado) {
+      throw new ForbiddenException(
+        'La bienvenida ya se envió el ' +
+          new Date(req.correoBienvenidaEnviado).toLocaleDateString('es-EC'),
+      )
+    }
+    if (!req.clienteId) {
+      throw new ForbiddenException('El requerimiento no está enlazado a un cliente')
+    }
+
+    const datos = await this.datosParaCarta(req, organizationId)
+    await this.notifications.enviarCorreoBienvenida(datos)
 
     const autor = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -318,7 +356,7 @@ export class RequerimientosService {
     // rastreable quien la mando y cuando.
     await this.prisma.notaRequerimiento.create({
       data: {
-        contenido: `Bienvenida enviada a ${cliente.email} (copia a ${ejecutiva.email})`,
+        contenido: `Bienvenida enviada a ${datos.email} (copia a ${datos.ejecutivaEmail})`,
         requerimientoId: id,
         autorId: userId,
         autorNombre: autor?.name ?? null,

@@ -34,8 +34,12 @@ export class RenovacionesController {
 
   @Get(':id/correo')
   @ApiOperation({ summary: 'Correo de renovación ya armado, para revisarlo antes de enviar' })
-  prepararCorreo(@Param('id') id: string, @Req() req: any) {
-    return this.service.prepararCorreo(id, req.user.organizationId)
+  prepararCorreo(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Query('plantilla') plantilla?: string,
+  ) {
+    return this.service.prepararCorreo(id, req.user.organizationId, plantilla)
   }
 
   @Post(':id/enviar-correo')

@@ -319,7 +319,7 @@ export class RenovacionesService {
    * envía. Si ya guardó una versión editada, se devuelve esa en vez de volver a
    * generarla, o perdería sus ajustes cada vez que abriera la pantalla.
    */
-  async prepararCorreo(id: string, organizationId: string) {
+  async prepararCorreo(id: string, organizationId: string, plantillaPedida?: string) {
     const r: any = await this.prisma.renovacion.findFirst({
       where: { id, organizationId },
       include: {
@@ -329,7 +329,10 @@ export class RenovacionesService {
     if (!r) throw new NotFoundException('Renovación no encontrada')
 
     const cliente = r.poliza?.cliente
+    // Orden: la que pide la pantalla (cuando la ejecutiva la elige a mano) gana
+    // sobre la guardada, y esa sobre la deteccion automatica.
     const plantillaId =
+      (plantillaPedida && PLANTILLAS[plantillaPedida] ? plantillaPedida : null) ??
       r.correoPlantilla ??
       elegirPlantilla(r.poliza?.aseguradora, r.poliza?.plan, r.poliza?.tipo)
 
@@ -356,7 +359,11 @@ export class RenovacionesService {
       plantilla: plantillaId,
       // El texto guardado gana sobre el generado: son las correcciones de la
       // ejecutiva y no deben perderse al recargar.
-      texto: r.correoTexto ?? textoGenerado ?? '',
+      //
+      // Salvo cuando pide una plantilla concreta: ahi quiere justamente el texto
+      // de esa plantilla. Sin esta excepcion, elegir una plantilla no cambiaba
+      // nada y el cuadro se quedaba en blanco para siempre.
+      texto: plantillaPedida ? (textoGenerado ?? '') : (r.correoTexto ?? textoGenerado ?? ''),
       // Se devuelve aparte para poder ofrecer "regenerar desde la plantilla" si
       // cambian los valores y quiere partir de cero otra vez.
       textoGenerado,

@@ -50,9 +50,23 @@ export function RenovacionCorreo({
     { filename: string; content: string; peso: number }[]
   >([])
 
+  /**
+   * Plantilla pedida a mano. Cuando la ejecutiva elige una del desplegable, se
+   * vuelve a pedir el correo con esa plantilla para que el texto se rearme.
+   *
+   * Antes elegir una plantilla no hacia nada: si la aseguradora no se reconocia,
+   * el cuadro salia vacio y seguia vacio eligiera lo que eligiera.
+   */
+  const [plantillaPedida, setPlantillaPedida] = useState<string | null>(null)
+
   const { data, isLoading } = useQuery<CorreoRenovacion>({
-    queryKey: ['renovacion', renovacionId, 'correo'],
-    queryFn: () => api.get(`/renovaciones/${renovacionId}/correo`).then((r) => r.data),
+    queryKey: ['renovacion', renovacionId, 'correo', plantillaPedida],
+    queryFn: () =>
+      api
+        .get(
+          `/renovaciones/${renovacionId}/correo${plantillaPedida ? `?plantilla=${plantillaPedida}` : ''}`,
+        )
+        .then((r) => r.data),
   })
 
   useEffect(() => {
@@ -241,8 +255,19 @@ export function RenovacionCorreo({
             onChange={(e) => {
               const nueva = e.target.value
               setPlantilla(nueva)
-              // Cambiar de plantilla no regenera el texto solo: si ya lo editó,
-              // perdería su trabajo sin avisar. Para eso está "Regenerar".
+              // Se rearma el texto con la plantilla elegida. Si ya habia escrito
+              // algo, se avisa antes: perder su trabajo en silencio seria peor
+              // que pedirle una confirmacion.
+              if (!nueva) return
+              const hayCambios = texto.trim() && texto !== data.textoGenerado
+              if (
+                hayCambios &&
+                !confirm('Se va a rearmar el texto con la plantilla elegida y se perderán los cambios que hiciste. ¿Continuar?')
+              ) {
+                setPlantilla(data.plantilla ?? '')
+                return
+              }
+              setPlantillaPedida(nueva)
             }}
             disabled={enviado}
             className="h-10 w-full rounded-md border bg-background px-2 text-sm"
@@ -270,6 +295,17 @@ export function RenovacionCorreo({
             </button>
           )}
         </div>
+        {/* Sin plantilla el cuadro sale vacio y no es evidente por que. Se
+            explica y se dice que hacer, en vez de dejar a la ejecutiva
+            adivinando. */}
+        {!texto.trim() && !plantilla && !enviado && (
+          <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            No se reconoció una plantilla para{' '}
+            <strong>{data.datos.aseguradora || 'esta aseguradora'}</strong>
+            {data.datos.plan ? ` — ${data.datos.plan}` : ''}. Elige una arriba y el texto se
+            arma solo.
+          </div>
+        )}
         <Textarea
           rows={16}
           value={texto}

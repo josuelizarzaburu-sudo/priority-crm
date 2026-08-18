@@ -20,6 +20,8 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
   // Pantalla del correo. Se abre encima del detalle en vez de reemplazarlo, para
   // poder volver y corregir un valor si al revisar el texto se nota algo mal.
   const [correoAbierto, setCorreoAbierto] = useState(false)
+  /** Confirmacion breve de guardado, ya que el panel no se cierra. */
+  const [guardado, setGuardado] = useState(false)
   const qc = useQueryClient()
   const [form, setForm] = useState<Record<string, string>>({})
   const [nota, setNota] = useState('')
@@ -44,7 +46,19 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
     })
   }, [r])
 
-  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }))
+  const set = (k: string, v: string) => {
+    setForm((p) => ({ ...p, [k]: v }))
+    // Al volver a editar se quita el "Guardado", o quedaria diciendo que esta
+    // guardado algo que ya se cambio.
+    setGuardado(false)
+  }
+
+  // El aviso se va solo: es una confirmacion, no algo que haya que cerrar.
+  useEffect(() => {
+    if (!guardado) return
+    const t = setTimeout(() => setGuardado(false), 2500)
+    return () => clearTimeout(t)
+  }, [guardado])
 
   const guardar = useMutation({
     mutationFn: async () => {
@@ -67,7 +81,10 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
       qc.invalidateQueries({ queryKey: ['renovaciones'] })
       qc.invalidateQueries({ queryKey: ['renovacion', id] })
       qc.invalidateQueries({ queryKey: ['renovaciones-por-mes'] })
-      onCerrar()
+      // El panel se queda ABIERTO. Antes se cerraba al guardar, asi que para
+      // corregir un segundo dato habia que buscar de nuevo al cliente en la
+      // lista — y en una renovacion se ajustan varios valores seguidos.
+      setGuardado(true)
     },
     onError: (e: any) =>
       setError(e?.response?.data?.message ?? 'No se pudo guardar.'),
@@ -258,8 +275,10 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
         {error && <p className="mt-3 rounded-md bg-red-50 p-2 text-xs text-red-600">{error}</p>}
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
+          {/* Ya no dice "Cancelar": con el guardado que no cierra, lo guardado
+              queda guardado, y "Cancelar" haria pensar que se deshace. */}
           <Button type="button" variant="outline" onClick={onCerrar}>
-            Cancelar
+            Cerrar
           </Button>
           {/* El correo va aparte del guardado: es una comunicación al cliente y
               debe ser una acción explícita, no un efecto de guardar cambios. */}
@@ -280,7 +299,7 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
             }}
             style={{ backgroundColor: GOLD, color: '#fff' }}
           >
-            {guardar.isPending ? 'Guardando…' : 'Guardar'}
+            {guardar.isPending ? 'Guardando…' : guardado ? '✓ Guardado' : 'Guardar'}
           </Button>
         </div>
       </div>

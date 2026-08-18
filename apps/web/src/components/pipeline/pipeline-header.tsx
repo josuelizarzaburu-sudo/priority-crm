@@ -165,16 +165,19 @@ export function PipelineHeader({
                 con el tiempo se vuelve ilegible. Filtra por el mes en que ENTRO
                 el lead, no por cuando se cerro: en un tablero de gestion importa
                 de que camada viene cada negocio. */}
+            {/* Se aclara que agrupa por ENTRADA del lead, no por cierre: las
+                ventas del mes se cuentan por closedAt en el resto del sistema, y
+                sin la etiqueta este filtro parecia contradecirlas. */}
             {isAdminOrManager && (
               <Select value={mesFilter} onValueChange={setMesFilter}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Mes" />
+                <SelectTrigger className="w-52" title="Filtra por el mes en que entró el lead, no por el de cierre">
+                  <SelectValue placeholder="Mes de entrada" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Todos los meses</SelectItem>
                   {ultimosMeses().map((m) => (
                     <SelectItem key={m.valor} value={m.valor}>
-                      {m.etiqueta}
+                      Entró en {m.etiqueta}
                     </SelectItem>
                   ))}
                 </SelectContent>

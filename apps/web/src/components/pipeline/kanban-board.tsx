@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { GripVertical, DollarSign, Bell, Lock } from 'lucide-react'
+import { GripVertical, DollarSign, Bell, Lock, XCircle } from 'lucide-react'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
 import { LeadOriginBadge } from './lead-origin-badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -55,6 +55,13 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
   const [mobileStageIndex, setMobileStageIndex] = useState(0)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
   const [showWonModal, setShowWonModal] = useState(false)
+  /**
+   * Los perdidos van en una seccion aparte y plegada.
+   *
+   * Antes desaparecian del tablero sin dejar rastro: no habia forma de repasar
+   * que se perdio ni por que, aunque el motivo si se guarda al cerrarlos.
+   */
+  const [verPerdidos, setVerPerdidos] = useState(false)
   const queryClient = useQueryClient()
 
   const moveDealMutation = useMutation({
@@ -169,6 +176,19 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
     )
   }
 
+  // Mismos filtros que las columnas, para que la seccion sea coherente con lo
+  // que se esta viendo arriba.
+  const perdidos = (() => {
+    let r = searchFiltered.filter((d) => d.status === DealStatus.LOST)
+    if (filterUserId) r = r.filter((d) => d.assignedToId === filterUserId)
+    else if (viewMode === 'mine') r = r.filter((d) => d.assignedToId === currentUserId)
+    return r.sort((a, b) => {
+      const fa = new Date(a.closedAt ?? a.updatedAt ?? 0).getTime()
+      const fb = new Date(b.closedAt ?? b.updatedAt ?? 0).getTime()
+      return fb - fa
+    })
+  })()
+
   const sortedStages = [...stages].sort((a, b) => a.position - b.position)
   const activeMobileStage = sortedStages[Math.min(mobileStageIndex, sortedStages.length - 1)]
   const activeMobileDeals = activeMobileStage ? getStageDeals(activeMobileStage.id) : []
@@ -243,6 +263,56 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
           />
         ))}
       </div>
+
+      {perdidos.length > 0 && (
+        <div className="mt-3 shrink-0 border-t pt-3">
+          <button
+            type="button"
+            onClick={() => setVerPerdidos((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-[#25324b]/70 hover:text-[#25324b]"
+          >
+            <XCircle className="h-4 w-4" />
+            Perdidos
+            <span className="rounded-full bg-[#25324b]/8 px-2 py-0.5 text-xs">
+              {perdidos.length}
+            </span>
+            <span className="text-xs text-[#25324b]/45">
+              {verPerdidos ? 'ocultar' : 'ver'}
+            </span>
+          </button>
+
+          {verPerdidos && (
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-2">
+              {perdidos.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => allowClick && onSelectDeal(d.id)}
+                  className="w-56 shrink-0 rounded-lg border bg-white p-2.5 text-left opacity-70 transition-opacity hover:opacity-100"
+                >
+                  <p className="truncate text-sm font-medium text-[#25324b]">{d.title}</p>
+                  {/* El motivo es lo mas util de un deal perdido: es lo que
+                      permite aprender algo de la venta que no salio. */}
+                  {(d as any).closingReason && (
+                    <p className="mt-1 line-clamp-2 text-[11px] text-[#25324b]/60">
+                      {(d as any).closingReason}
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-[11px] text-[#25324b]/45">
+                    {d.closedAt
+                      ? new Date(d.closedAt).toLocaleDateString('es-EC', {
+                          day: 'numeric',
+                          month: 'short',
+                        })
+                      : ''}
+                    {d.assignedTo ? ` · ${d.assignedTo.name}` : ''}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <WonDealModal
         open={showWonModal}

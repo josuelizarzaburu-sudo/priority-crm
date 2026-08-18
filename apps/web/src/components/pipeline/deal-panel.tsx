@@ -1048,8 +1048,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {c.identificacion}
                             {c.identificacion && c.birthDate && ' · '}
+                            {/* Se lee a MEDIODIA UTC a proposito. La fecha se
+                                guarda sin hora, y new Date('2015-01-01') la
+                                interpreta como medianoche UTC: al mostrarla en
+                                hora de Ecuador (UTC-5) retrocedia al 31 de
+                                diciembre de 2014 y se bajaba el año. */}
                             {c.birthDate &&
-                              `Nac. ${format(new Date(c.birthDate), 'd MMM yyyy', { locale: es })}`}
+                              `Nac. ${format(new Date(`${c.birthDate.slice(0, 10)}T12:00:00`), 'd MMM yyyy', { locale: es })}`}
                           </p>
                         )}
                       </div>

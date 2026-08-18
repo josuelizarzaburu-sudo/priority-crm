@@ -193,6 +193,21 @@ export function TareasPage() {
     onError: fallo,
   })
 
+  /**
+   * Reasignar una tarea a otra persona.
+   *
+   * Es el flujo en cascada que describio Josue: Roxana le pide algo a Yessenia,
+   * y Yessenia se lo pasa a una ejecutiva. Solo cambia QUIEN la hace; el
+   * solicitante no se toca, para que Roxana siga viendo su pedido y sepa cuando
+   * se cumple.
+   */
+  const reasignar = useMutation({
+    mutationFn: ({ id, asignadoId }: { id: string; asignadoId: string }) =>
+      api.patch(`/tareas/${id}`, { asignadoId }),
+    onSuccess: refrescar,
+    onError: fallo,
+  })
+
   const borrar = useMutation({
     mutationFn: (id: string) => api.delete(`/tareas/${id}`),
     onSuccess: refrescar,
@@ -320,7 +335,29 @@ export function TareasPage() {
                 {t.cliente.nombres} {t.cliente.apellidos}
               </Link>
             )}
-            {asignadaAOtro && <span>Para {t.asignado.name}</span>}
+            {/* Quien coordina puede reasignar desde aqui mismo. Para el resto es
+                solo informativo: una ejecutiva no le pasa trabajo a una
+                companera, eso lo decide quien reparte. */}
+            {puedeAsignar && !hecha ? (
+              <span className="inline-flex items-center gap-1">
+                Para
+                <select
+                  value={t.asignado.id}
+                  onChange={(e) => reasignar.mutate({ id: t.id, asignadoId: e.target.value })}
+                  className="rounded border bg-background px-1 py-0.5 text-[11px]"
+                  style={{ color: NAVY }}
+                  aria-label="Reasignar tarea"
+                >
+                  {equipo.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            ) : (
+              asignadaAOtro && <span>Para {t.asignado.name}</span>
+            )}
             {pedidaPorOtro && (
               <span className="rounded bg-slate-100 px-1.5 py-0.5">
                 Pedido de {t.solicitante.name}

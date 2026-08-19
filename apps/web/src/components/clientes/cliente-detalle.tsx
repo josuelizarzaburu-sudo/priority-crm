@@ -408,7 +408,7 @@ export function ClienteDetalle({ id }: { id: string }) {
                 {/* Campos comunes a todos los ramos */}
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <Dato label="Contrato" valor={p.numeroContrato} />
-                  <Dato label="Prima neta" valor={fmtMonto(p.primaNeta)} />
+                  <Dato label="Prima anual" valor={fmtMonto(p.primaNeta)} />
                   <Dato label="Forma de pago" valor={bonito(p.formaPago)} />
                   <Dato label="Vigencia" valor={fmtFecha(p.fechaEmision)} />
                   {p.tipo !== 'SALUD' && (

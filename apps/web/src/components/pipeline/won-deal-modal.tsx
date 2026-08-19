@@ -410,7 +410,7 @@ export function WonDealModal({
 
               <div className="space-y-1.5">
                 <Label className="text-xs">
-                  Prima neta (USD) <span className="text-red-500">*</span>
+                  Prima anual (USD) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="number"

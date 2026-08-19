@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
-import { paraMostrarAlCliente } from '../../common/texto'
+import { nombreCorto } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
@@ -281,9 +281,10 @@ export class RequerimientosService {
     return {
       email: cliente.email,
       tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
-      // Se suaviza: la ficha guarda "PABLO CARRILLO" para los reportes, pero la
-      // carta debe decir "Pablo Carrillo".
-      nombreCompleto: paraMostrarAlCliente(`${cliente.nombres} ${cliente.apellidos}`),
+      // Primer nombre y primer apellido, no la cadena completa de la cedula:
+      // "Maria Andrade" en vez de "MARIA JOSE ANDRADE LOPEZ", que suena a
+      // tramite. Ademas se suaviza, porque la ficha guarda todo en mayusculas.
+      nombreCompleto: nombreCorto(cliente.nombres, cliente.apellidos),
       plan: [poliza.aseguradora, poliza.plan].filter(Boolean).join(' — '),
       deducible: formatearDeducible(poliza.deducible),
       ejecutivaNombre: ejecutiva.name,
@@ -432,9 +433,10 @@ export class RequerimientosService {
       preexistencias: req.preexistencias,
       cliente: cliente
         ? {
-            // Se suaviza: la ficha guarda "PABLO CARRILLO" para los reportes, pero la
-      // carta debe decir "Pablo Carrillo".
-      nombreCompleto: paraMostrarAlCliente(`${cliente.nombres} ${cliente.apellidos}`),
+            // Primer nombre y primer apellido, no la cadena completa de la cedula:
+      // "Maria Andrade" en vez de "MARIA JOSE ANDRADE LOPEZ", que suena a
+      // tramite. Ademas se suaviza, porque la ficha guarda todo en mayusculas.
+      nombreCompleto: nombreCorto(cliente.nombres, cliente.apellidos),
             email: cliente.email,
             tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
           }

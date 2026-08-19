@@ -14,8 +14,16 @@ import { creaNegociosPropios, soloVeSusNegocios } from './puede-vender'
 import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 
-/** Mayúsculas con locale español, para que ñ y acentos salgan bien. */
-const mayus = (v: string) => v.trim().toLocaleUpperCase('es-EC')
+/**
+ * Mayusculas con locale español, para que ñ y acentos salgan bien.
+ *
+ * Tolera null y undefined a proposito: se llama con datos que vienen del
+ * contacto y de customFields, y si alguno faltaba lanzaba TypeError. Ese error
+ * caia en el catch de moveDeal, que solo lo registraba: el deal se cerraba y el
+ * cliente NO se creaba, sin que nadie se enterara.
+ */
+const mayus = (v: unknown): string =>
+  typeof v === 'string' ? v.trim().toLocaleUpperCase('es-EC') : ''
 import { ClientesService } from '../clientes/clientes.service'
 import {
   filtroDeEquipo,
@@ -962,7 +970,22 @@ export class PipelineService {
       try {
         await this.crearClienteDesdeDeal(id, organizationId, userId)
       } catch (e) {
+        // Igual que en moveDeal: el fallo se anota EN EL DEAL, no solo en el
+        // log. Un error que solo vive en los registros del servidor es
+        // invisible desde el CRM, y asi es como paso desapercibido que algunos
+        // clientes nunca llegaron a operaciones.
         this.logger.error(`[closeDeal] fallo la entrega a operaciones del deal ${id}: ${e}`)
+        await this.prisma.deal
+          .update({
+            where: { id },
+            data: {
+              customFields: {
+                ...((deal.customFields as Record<string, unknown>) ?? {}),
+                errorEntregaOperaciones: `${new Date().toISOString()} — ${e instanceof Error ? e.message : String(e)}`,
+              } as any,
+            },
+          })
+          .catch(() => undefined)
       }
     }
 
@@ -1171,7 +1194,23 @@ export class PipelineService {
       try {
         await this.crearClienteDesdeDeal(id, organizationId, userId)
       } catch (e) {
+        // El deal ya se movio a Ganado, asi que no se deshace: seria peor perder
+        // la venta registrada. Pero el fallo se anota EN EL DEAL, no solo en el
+        // log: un error que solo vive en los registros del servidor es
+        // invisible para quien usa el CRM, y asi fue como paso desapercibido
+        // que varios clientes nunca llegaron a operaciones.
         this.logger.error(`[moveDeal] fallo la entrega a operaciones del deal ${id}: ${e}`)
+        await this.prisma.deal
+          .update({
+            where: { id },
+            data: {
+              customFields: {
+                ...((updated.customFields as Record<string, unknown>) ?? {}),
+                errorEntregaOperaciones: `${new Date().toISOString()} — ${e instanceof Error ? e.message : String(e)}`,
+              } as any,
+            },
+          })
+          .catch(() => undefined)
       }
 
       const c = updated.contact as any

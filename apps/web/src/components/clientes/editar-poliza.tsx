@@ -230,7 +230,7 @@ export function EditarPoliza({
           />
         </Campo>
 
-        <Campo label="Prima neta (USD)">
+        <Campo label="Prima anual (USD)">
           <Input
             inputMode="decimal"
             value={form.primaNeta ?? ''}

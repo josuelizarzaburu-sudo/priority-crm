@@ -104,3 +104,28 @@ export function paraMostrarAlCliente(texto: string | null | undefined): string {
     })
     .join(' ')
 }
+
+/**
+ * Primer nombre y primer apellido, para dirigirse al cliente.
+ *
+ * "MARIA JOSE ANDRADE LOPEZ" -> "Maria Andrade"
+ *
+ * En Ecuador se registran dos nombres y dos apellidos, asi que el nombre
+ * completo de la cedula queda largo y suena a tramite. Para una carta, el primer
+ * nombre y el primer apellido es lo natural.
+ */
+export function nombreCorto(nombres: string, apellidos: string): string {
+  const primerNombre = (nombres ?? '').trim().split(/\s+/)[0] ?? ''
+
+  // El primer apellido puede empezar con particula: "DE LA TORRE PEREZ" tiene
+  // como primer apellido "DE LA TORRE", no "DE". Se arrastran las particulas
+  // hasta llegar a la primera palabra con contenido.
+  const partes = (apellidos ?? '').trim().split(/\s+/).filter(Boolean)
+  const apellido: string[] = []
+  for (const parte of partes) {
+    apellido.push(parte)
+    if (!PARTICULAS.has(parte.toLocaleLowerCase('es-EC'))) break
+  }
+
+  return paraMostrarAlCliente([primerNombre, ...apellido].filter(Boolean).join(' '))
+}

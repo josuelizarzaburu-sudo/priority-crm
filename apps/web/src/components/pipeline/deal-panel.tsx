@@ -1486,7 +1486,7 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                             ['Fecha de emisión', entry.issueDate
                               ? format(new Date(entry.issueDate), "d MMM yyyy", { locale: es })
                               : undefined],
-                            ['Prima neta', entry.netPremium != null
+                            ['Prima anual', entry.netPremium != null
                               ? formatCurrency(entry.netPremium)
                               : undefined],
                           ] as [string, string | undefined][]).map(([label, value]) => (

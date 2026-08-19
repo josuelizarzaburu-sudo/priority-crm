@@ -231,9 +231,9 @@ export class NotificationsService {
     const bloquePreexistencias = data.preexistencias?.trim()
       ? `
       <p style="margin:0 0 16px;">
-        Su póliza registra los siguientes diagnósticos preexistentes, mismos que ya
-        superaron el tiempo de carencia para cobertura. La cobertura para todas las
-        preexistencias declaradas es de 20 SBU, monto renovable anualmente.
+        Su póliza registra los siguientes diagnósticos preexistentes. La cobertura
+        para todas las preexistencias declaradas es de 20 SBU, monto renovable
+        anualmente.
       </p>
       <div style="margin:0 0 16px;padding:14px 16px;background:#f8f9fb;border-left:3px solid #DBAA59;">
         <p style="margin:0;white-space:pre-line;">${e(data.preexistencias.trim())}</p>
@@ -294,15 +294,23 @@ export class NotificationsService {
     return html
   }
 
-  /** Asunto de la carta. Aparte para que la vista previa lo muestre igual. */
-  asuntoBienvenida(plan: string): string {
-    return `Bienvenido a Priority — ${plan}`
+  /**
+   * Asunto de la carta.
+   *
+   * Lleva el nombre del cliente para poder identificar el correo en la bandeja
+   * sin abrirlo: la ejecutiva recibe copia de todas las bienvenidas, y con un
+   * asunto igual para todas no distinguiria una de otra.
+   */
+  asuntoBienvenida(plan: string, nombreCliente?: string): string {
+    return nombreCliente
+      ? `Bienvenido a Priority, ${nombreCliente} — ${plan}`
+      : `Bienvenido a Priority — ${plan}`
   }
 
   async enviarCorreoBienvenida(data: DatosBienvenidaCorreo): Promise<void> {
     await this.sendEmail(
       data.email,
-      this.asuntoBienvenida(data.plan),
+      this.asuntoBienvenida(data.plan, data.nombreCompleto),
       this.armarHtmlBienvenida(data),
       FROM_CLIENTES,
       // Copia a la ejecutiva: su respaldo de que la carta se envio.

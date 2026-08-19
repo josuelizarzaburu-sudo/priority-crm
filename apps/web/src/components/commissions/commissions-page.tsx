@@ -224,12 +224,12 @@ export function CommissionsPage() {
       'Vendedor': d.assignedTo?.name ?? 'Sin asignar',
       'Origen': dealOrigin(d) === 'PROPIO' ? 'Propio' : 'Priority Health',
       'Aseguradora': dealInsurers(d),
-      'Prima neta (USD)': dealPremium(d),
+      'Prima anual (USD)': dealPremium(d),
       'Forma de pago': dealPaymentMethod(d),
       'Fecha de cierre': d.closedAt ? format(new Date(d.closedAt), 'dd/MM/yyyy') : '',
     }))
 
-    const header = ['Cliente', 'Vendedor', 'Origen', 'Aseguradora', 'Prima neta (USD)', 'Forma de pago', 'Fecha de cierre']
+    const header = ['Cliente', 'Vendedor', 'Origen', 'Aseguradora', 'Prima anual (USD)', 'Forma de pago', 'Fecha de cierre']
     const aoa: (string | number)[][] = [header, ...rows.map((r) => header.map((h) => (r as any)[h]))]
     aoa.push([])
     aoa.push(['Total ganado Priority Health', totals.priorityHealth])
@@ -357,7 +357,7 @@ export function CommissionsPage() {
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr style={{ borderBottom: `2px solid ${NAVY15}` }}>
-                  {['Cliente', 'Vendedor', 'Origen', 'Aseguradora', 'Prima neta', 'Forma de pago', 'Fecha de cierre'].map((h) => (
+                  {['Cliente', 'Vendedor', 'Origen', 'Aseguradora', 'Prima anual', 'Forma de pago', 'Fecha de cierre'].map((h) => (
                     <th
                       key={h}
                       className="pb-3 pr-5 text-left text-[10px] font-bold uppercase tracking-[0.12em] last:pr-0"

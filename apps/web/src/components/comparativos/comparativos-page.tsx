@@ -220,13 +220,22 @@ export function ComparativosPage() {
   const puedeElegirAsesor =
     ['SUPER_ADMIN', 'OWNER'].includes(sessionRole) || permisoEnPerfil
 
-  // +593979321722 -> 097 932 1722. Si el asesor no tiene celular cargado, se deja
-  // el de la oficina para no publicar un pie vacio.
+  /**
+   * Celular del asesor que emite el comparativo, tal como esta en SU FICHA de
+   * usuario: +593984802996 -> 098 480 2996.
+   *
+   * Si el numero sale equivocado, el dato malo esta en la ficha, no aqui.
+   *
+   * Sin celular cargado NO se inventa uno: antes caia a un numero fijo escrito
+   * en el codigo, y publicar en un documento al cliente un numero que quiza ya
+   * no es de nadie es peor que no poner ninguno. Se devuelve null y el pie omite
+   * la linea de WhatsApp.
+   */
   const advisorPhone = useMemo(() => {
     const crudo = (equipo ?? []).find((u) => u.id === advisorId)?.phone ?? ''
     const soloDigitos = crudo.replace(/\D/g, '')
     const local = soloDigitos.startsWith('593') ? `0${soloDigitos.slice(3)}` : soloDigitos
-    if (local.length !== 10) return '099 591 5761'
+    if (local.length !== 10) return null
     return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`
   }, [equipo, advisorId])
 
@@ -431,6 +440,16 @@ export function ComparativosPage() {
             <p className="text-sm text-muted-foreground">
               Selecciona los planes, ingresa las primas y genera la cotización en PDF
             </p>
+            {/* Se avisa aqui y no al imprimir: el comparativo sale sin WhatsApp
+                y sin este aviso nadie lo notaria hasta que el cliente no supiera
+                a quien escribir. */}
+            {equipo && !advisorPhone && (
+              <p className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+                {advisorId === sessionId
+                  ? 'No tienes celular registrado, así que el comparativo saldrá sin WhatsApp. Pídele a administración que lo cargue en tu perfil.'
+                  : 'Ese asesor no tiene celular registrado: el comparativo saldrá sin WhatsApp.'}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button
@@ -988,7 +1007,10 @@ export function ComparativosPage() {
               </div>
 
               <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
-                <span className="font-semibold" style={{ color: NAVY }}>Priority Asesores de Seguros · www.priority.ec · WhatsApp {advisorPhone}</span>
+                <span className="font-semibold" style={{ color: NAVY }}>
+                  Priority Asesores de Seguros · www.priority.ec
+                  {advisorPhone ? ` · WhatsApp ${advisorPhone}` : ''}
+                </span>
                 <span>Información detallada de coberturas y beneficios, revisar en la ilustración adjunta de cada Plan Médico</span>
               </div>
               {/* Ya no es temporal: el dominio priority.ec se migro a Cloudflare y apunta

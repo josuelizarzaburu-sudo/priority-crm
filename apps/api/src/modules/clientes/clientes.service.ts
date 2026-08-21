@@ -211,11 +211,23 @@ export class ClientesService {
     const esJefe = VE_TODO.includes(role)
 
     if (!esJefe) {
-      // Campos que la ejecutiva no puede tocar. Se descartan en silencio en vez
-      // de fallar: la UI ya los muestra bloqueados, esto es la red de seguridad.
-      delete data.nombres
-      delete data.apellidos
-      delete data.fechaNacimiento
+      // La ejecutiva no puede CAMBIAR los datos de identidad... pero si
+      // COMPLETARLOS cuando llegan vacios.
+      //
+      // Son cosas distintas: cambiar "JUAN PEREZ" por otro nombre altera de
+      // quien es la ficha, y eso lo decide el jefe. Pero un cliente creado desde
+      // un deal ganado suele llegar sin fecha de nacimiento y a veces sin
+      // apellidos, y si no puede llenarlos queda atrapada: no puede completar la
+      // ficha que le asignaron justamente para completar.
+      const vacio = (v: unknown) =>
+        v === null || v === undefined || (typeof v === 'string' && !v.trim())
+
+      for (const campo of ['nombres', 'apellidos', 'fechaNacimiento'] as const) {
+        if (data[campo] === undefined) continue
+        if (!vacio((actual as any)[campo])) delete data[campo]
+      }
+
+      // La ejecutiva nunca se reasigna clientes a si misma ni a otra.
       delete data.ejecutivoId
 
       // Cédula: una sola corrección.

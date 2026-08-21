@@ -69,6 +69,19 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
   // La ejecutiva tiene UNA corrección de cédula; después queda congelada.
   const puedeEditarCedula = esJefe || !cliente.cedulaEditada
 
+  /**
+   * Un dato de identidad se puede COMPLETAR si llego vacio, aunque no se pueda
+   * cambiar si ya tiene valor.
+   *
+   * Un cliente creado desde un deal ganado suele llegar sin fecha de nacimiento
+   * y a veces sin apellidos. Si la ejecutiva no puede llenarlos, queda atrapada:
+   * no puede completar la ficha que le asignaron justamente para eso.
+   */
+  const vacio = (v: unknown) =>
+    v === null || v === undefined || (typeof v === 'string' && !v.trim())
+  const puedeCompletar = (campo: 'nombres' | 'apellidos' | 'fechaNacimiento') =>
+    esJefe || vacio((cliente as any)[campo])
+
   const abrir = () => {
     setForm({
       nombres: cliente.nombres ?? '',
@@ -81,6 +94,7 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
       telefono: cliente.telefono ?? '',
       celular: cliente.celular ?? '',
       ciudad: cliente.ciudad ?? '',
+      genero: cliente.genero ?? '',
       direccion: cliente.direccion ?? '',
       notas: cliente.notas ?? '',
       fechaNacimiento: cliente.fechaNacimiento ? cliente.fechaNacimiento.slice(0, 10) : '',
@@ -105,8 +119,11 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         'ciudad',
         'direccion',
         'notas',
+        'genero',
       ]
-      if (esJefe) editables.push('nombres', 'apellidos', 'fechaNacimiento')
+      for (const c of ['nombres', 'apellidos', 'fechaNacimiento'] as const) {
+        if (puedeCompletar(c)) editables.push(c)
+      }
       if (puedeEditarCedula) editables.push('identificacion')
 
       for (const k of editables) {
@@ -141,42 +158,62 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
       </h3>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        {/* Identidad: bloqueada para la ejecutiva */}
-        {esJefe ? (
-          <>
-            <Campo label="Nombres">
-              <Input value={form.nombres ?? ''} onChange={enMayusculas((v) => set('nombres', v))} />
-            </Campo>
-            <Campo label="Apellidos">
-              <Input value={form.apellidos ?? ''} onChange={enMayusculas((v) => set('apellidos', v))} />
-            </Campo>
-            <Campo label="Fecha de nacimiento">
-              <Input
-                type="date"
-                value={form.fechaNacimiento ?? ''}
-                onChange={(e) => set('fechaNacimiento', e.target.value)}
-              />
-            </Campo>
-          </>
+        {/* Identidad: se evalua campo por campo. Cambiar un dato que ya existe
+            es del jefe; completar uno vacio lo puede hacer la ejecutiva. */}
+        {puedeCompletar('nombres') ? (
+          <Campo label={esJefe ? 'Nombres' : 'Nombres (completar)'}>
+            <Input value={form.nombres ?? ''} onChange={enMayusculas((v) => set('nombres', v))} />
+          </Campo>
         ) : (
-          <>
-            <Bloqueado
-              label="Nombres"
-              valor={cliente.nombres}
-              motivo="Solo el jefe de operaciones puede cambiarlo"
-            />
-            <Bloqueado
-              label="Apellidos"
-              valor={cliente.apellidos}
-              motivo="Solo el jefe de operaciones puede cambiarlo"
-            />
-            <Bloqueado
-              label="Fecha de nacimiento"
-              valor={cliente.fechaNacimiento ? cliente.fechaNacimiento.slice(0, 10) : '—'}
-              motivo="Solo el jefe de operaciones puede cambiarla"
-            />
-          </>
+          <Bloqueado
+            label="Nombres"
+            valor={cliente.nombres}
+            motivo="Solo el jefe de operaciones puede cambiarlo"
+          />
         )}
+
+        {puedeCompletar('apellidos') ? (
+          <Campo label={esJefe ? 'Apellidos' : 'Apellidos (completar)'}>
+            <Input value={form.apellidos ?? ''} onChange={enMayusculas((v) => set('apellidos', v))} />
+          </Campo>
+        ) : (
+          <Bloqueado
+            label="Apellidos"
+            valor={cliente.apellidos}
+            motivo="Solo el jefe de operaciones puede cambiarlo"
+          />
+        )}
+
+        {puedeCompletar('fechaNacimiento') ? (
+          <Campo label={esJefe ? 'Fecha de nacimiento' : 'Fecha de nacimiento (completar)'}>
+            <Input
+              type="date"
+              value={form.fechaNacimiento ?? ''}
+              onChange={(e) => set('fechaNacimiento', e.target.value)}
+            />
+          </Campo>
+        ) : (
+          <Bloqueado
+            label="Fecha de nacimiento"
+            valor={cliente.fechaNacimiento ? cliente.fechaNacimiento.slice(0, 10) : '—'}
+            motivo="Solo el jefe de operaciones puede cambiarla"
+          />
+        )}
+
+        {/* Genero: no estaba en el formulario, asi que si llegaba vacio no habia
+            forma de completarlo. Decide si la carta de bienvenida dice
+            "Estimada Sra." o "Estimado Sr.". */}
+        <Campo label="Género">
+          <select
+            value={form.genero ?? ''}
+            onChange={(e) => set('genero', e.target.value)}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">— Sin especificar —</option>
+            <option value="FEMENINO">Femenino</option>
+            <option value="MASCULINO">Masculino</option>
+          </select>
+        </Campo>
 
         {/* Cédula: una sola corrección para la ejecutiva */}
         {puedeEditarCedula ? (

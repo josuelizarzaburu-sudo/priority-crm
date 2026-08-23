@@ -49,6 +49,16 @@ export class CreateClienteDto {
   @IsOptional()
   genero?: string
 
+  /**
+   * Si traia un seguro anterior, y de cual. Lo captura el comercial en el lead,
+   * pero se puede corregir desde la ficha: a veces llega vacio o el cliente lo
+   * aclara despues.
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  vieneDeOtroSeguro?: string
+
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()

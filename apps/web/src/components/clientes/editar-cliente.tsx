@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
-import { Pencil, Lock } from 'lucide-react'
+import { Pencil, Lock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -95,6 +95,7 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
       celular: cliente.celular ?? '',
       ciudad: cliente.ciudad ?? '',
       genero: cliente.genero ?? '',
+      vieneDeOtroSeguro: (cliente as any).vieneDeOtroSeguro ?? '',
       direccion: cliente.direccion ?? '',
       notas: cliente.notas ?? '',
       fechaNacimiento: cliente.fechaNacimiento ? cliente.fechaNacimiento.slice(0, 10) : '',
@@ -120,6 +121,7 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         'direccion',
         'notas',
         'genero',
+        'vieneDeOtroSeguro',
       ]
       for (const c of ['nombres', 'apellidos', 'fechaNacimiento'] as const) {
         if (puedeCompletar(c)) editables.push(c)
@@ -142,22 +144,41 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
     },
   })
 
-  if (!abierto) {
-    return (
+  // El boton vive en el encabezado de la seccion, que es un contenedor flex
+  // estrecho. Por eso el formulario NO se renderiza ahi dentro —quedaba
+  // comprimido en esa franja y los campos no se veian, mientras abajo seguian
+  // los datos de solo lectura— sino en un panel lateral, como el resto del CRM.
+  return (
+    <>
       <Button type="button" variant="outline" size="sm" onClick={abrir}>
         <Pencil className="mr-2 h-3.5 w-3.5" />
         Editar datos
       </Button>
-    )
-  }
 
-  return (
-    <div className="rounded-lg border-2 border-dashed p-4">
-      <h3 className="mb-3 text-sm font-bold" style={{ color: NAVY }}>
-        Editar datos del cliente
-      </h3>
+      {abierto && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/30"
+          onClick={() => setAbierto(false)}
+        >
+          <div
+            className="h-full w-full max-w-2xl overflow-y-auto bg-background p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold" style={{ color: NAVY }}>
+                Editar datos del cliente
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAbierto(false)}
+                aria-label="Cerrar"
+                className="p-1 text-muted-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* Identidad: se evalua campo por campo. Cambiar un dato que ya existe
             es del jefe; completar uno vacio lo puede hacer la ejecutiva. */}
         {puedeCompletar('nombres') ? (
@@ -274,6 +295,17 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         </div>
 
         <div className="md:col-span-3">
+          {/* Viene del CRM comercial al ganarse el deal, pero a veces llega
+              vacio o el cliente lo aclara despues. Faltaba en el formulario, asi
+              que no habia forma de corregirlo desde la ficha. */}
+          <Campo label="Viene de otro seguro">
+            <Input
+              value={form.vieneDeOtroSeguro ?? ''}
+              onChange={enMayusculas((v) => set('vieneDeOtroSeguro', v))}
+              placeholder="Ej: Sí — BMI"
+            />
+          </Campo>
+
           <Campo label="Notas">
             <Input value={form.notas ?? ''} onChange={enMayusculas((v) => set('notas', v))} />
           </Campo>
@@ -298,6 +330,9 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
           {guardar.isPending ? 'Guardando…' : 'Guardar cambios'}
         </Button>
       </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

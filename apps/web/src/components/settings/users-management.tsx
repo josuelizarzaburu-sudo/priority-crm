@@ -65,6 +65,9 @@ interface TeamMember {
   role: SystemRole
   avatar: string | null
   createdAt: string
+  /** Cuenta activa. false = no puede entrar, pero su historial se conserva. */
+  activo?: boolean
+  desactivadoEn?: string | null
 }
 
 // ─── Role metadata ────────────────────────────────────────────────────────────
@@ -365,6 +368,34 @@ function EditMemberDialog({
   const [nuevaPassword, setNuevaPassword] = useState('')
   const esPerfilOperativo = ['OPERACIONES', 'JEFE_OPERACIONES'].includes(rol)
 
+  /**
+   * Activar o desactivar la cuenta.
+   *
+   * El corte es inmediato: la sesion abierta en su telefono deja de funcionar al
+   * instante, sin esperar a que caduque el token. Cambiar la contrasena no hacia
+   * eso, que era el hueco real cuando alguien dejaba la empresa.
+   */
+  const estadoCuentaMutation = useMutation({
+    mutationFn: (activo: boolean) => api.patch(`/users/${member.id}/estado`, { activo }),
+    onSuccess: (_d, activo) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast({
+        title: activo ? 'Cuenta activada' : 'Cuenta desactivada',
+        description: activo
+          ? `${member.name} ya puede entrar de nuevo.`
+          : `${member.name} quedó fuera del CRM al instante. Su historial se conserva.`,
+      })
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'No se pudo cambiar el estado.'
+      toast({
+        title: 'Error',
+        description: Array.isArray(msg) ? msg.join(', ') : msg,
+        variant: 'destructive',
+      })
+    },
+  })
+
   const resetPasswordMutation = useMutation({
     mutationFn: () => api.patch(`/users/${member.id}/password`, { password: nuevaPassword }),
     onSuccess: () => {
@@ -524,6 +555,64 @@ function EditMemberDialog({
             </label>
           </div>
 
+          {/* Estado de la cuenta. Va con borde rojo cuando esta desactivada para
+              que se note de un vistazo al abrir la ficha. */}
+          <div
+            className="space-y-1.5 rounded-md border p-3"
+            style={
+              member.activo === false
+                ? { borderColor: '#fca5a5', backgroundColor: '#fef2f2' }
+                : undefined
+            }
+          >
+            <label className="text-sm font-medium">Estado de la cuenta</label>
+            {member.activo === false ? (
+              <>
+                <p className="text-[11px] text-red-800">
+                  Desactivada
+                  {member.desactivadoEn
+                    ? ` el ${new Date(member.desactivadoEn).toLocaleDateString('es-EC')}`
+                    : ''}
+                  . No puede entrar al CRM, pero su historial se conserva.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-1"
+                  disabled={estadoCuentaMutation.isPending}
+                  onClick={() => estadoCuentaMutation.mutate(true)}
+                >
+                  Reactivar cuenta
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] text-muted-foreground">
+                  Al desactivarla queda fuera del CRM <strong>al instante</strong>, incluso si
+                  tiene la sesión abierta en su teléfono. No se borra nada: sus ventas, notas y
+                  asignaciones se conservan.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-1 border-red-200 text-red-700 hover:bg-red-50"
+                  disabled={estadoCuentaMutation.isPending}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `¿Desactivar la cuenta de ${member.name}? Quedará fuera del CRM de inmediato. Podrás reactivarla cuando quieras.`,
+                      )
+                    ) {
+                      estadoCuentaMutation.mutate(false)
+                    }
+                  }}
+                >
+                  Desactivar cuenta
+                </Button>
+              </>
+            )}
+          </div>
+
           <div className="space-y-1.5 rounded-md border p-3">
             <label className="text-sm font-medium">Restablecer contraseña</label>
             <p className="text-[11px] text-muted-foreground">
@@ -612,6 +701,17 @@ function MemberRow({
         <div className="hidden sm:block text-xs text-muted-foreground shrink-0">
           Desde {formatDate(member.createdAt)}
         </div>
+
+        {/* Marca de cuenta desactivada. En la lista, para poder ver de un
+            vistazo quien ya no tiene acceso sin abrir ficha por ficha. */}
+        {member.activo === false && (
+          <Badge
+            variant="outline"
+            className="shrink-0 border-red-200 bg-red-50 text-xs text-red-700"
+          >
+            Desactivada
+          </Badge>
+        )}
 
         <Badge variant={variant} className="shrink-0 text-xs">
           {label}

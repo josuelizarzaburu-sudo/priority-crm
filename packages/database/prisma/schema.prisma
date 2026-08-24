@@ -64,6 +64,14 @@ model User {
   // y una ejecutiva nueva entra sin el hasta que se lo activen a mano.
   // Apagado por defecto, igual que puedeCotizarPorOtros.
   puedeVender          Boolean @default(false)
+  /// Cuenta activa. false = no puede entrar, pero su historial se conserva.
+  ///
+  /// Se desactiva en vez de borrar: borrar pierde quien asigno que, quien
+  /// escribio cada nota y sus ventas en el ranking. Y cambiar la contrasena no
+  /// sirve, porque no cierra la sesion que ya esta abierta.
+  activo               Boolean @default(true)
+  desactivadoEn        DateTime?
+  desactivadoPor       String?
   // Acceso a Priority Help (bot de consulta de coberturas). Cada consulta
   // tiene costo, asi que el acceso se abre asesor por asesor en vez de por
   // rol: Josue decide a quien conviene activarselo.

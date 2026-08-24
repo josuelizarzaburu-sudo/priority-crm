@@ -45,7 +45,7 @@ export class UsersService {
   findByOrganization(organizationId: string) {
     return this.prisma.user.findMany({
       where: { organizationId },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true, activo: true, desactivadoEn: true },
       orderBy: { createdAt: 'asc' },
     })
   }
@@ -111,6 +111,70 @@ export class UsersService {
     // Se devuelve solo una confirmacion: la contraseña no vuelve nunca en una
     // respuesta, ni siquiera hasheada.
     return { ok: true }
+  }
+
+  /**
+   * Activa o desactiva una cuenta.
+   *
+   * Se desactiva en vez de borrar porque borrar pierde el historial: quien
+   * asigno que, quien escribio cada nota, sus ventas en el ranking.
+   *
+   * El corte es INMEDIATO: jwt.strategy comprueba el estado en cada peticion,
+   * asi que la sesion abierta deja de funcionar al instante. Cambiar la
+   * contrasena no hacia eso —el token seguia valido 12 horas y se renovaba solo
+   * durante 7 dias—, que era el hueco real.
+   */
+  async cambiarEstadoCuenta(
+    targetId: string,
+    activo: boolean,
+    organizationId: string,
+    callerId: string,
+    callerRole: string,
+  ) {
+    if (callerRole !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede desactivar cuentas')
+    }
+    // Desactivarse a uno mismo dejaria el CRM sin quien lo administre, y sin
+    // forma de revertirlo desde la propia aplicacion.
+    if (targetId === callerId) {
+      throw new BadRequestException('No puedes desactivar tu propia cuenta')
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, organizationId },
+      select: { id: true, role: true, name: true },
+    })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+
+    if (!activo && user.role === 'SUPER_ADMIN') {
+      const otros = await this.prisma.user.count({
+        where: { organizationId, role: 'SUPER_ADMIN', activo: true, NOT: { id: targetId } },
+      })
+      if (otros === 0) throw new BadRequestException('Debe quedar al menos un super admin activo')
+    }
+
+    // Un jefe desactivado dejaria a su equipo sin quien reparta los leads.
+    if (!activo) {
+      const lidera = await this.prisma.equipo.findFirst({
+        where: { jefeId: targetId, organizationId, activo: true },
+        select: { nombre: true },
+      })
+      if (lidera) {
+        throw new BadRequestException(
+          `Sigue siendo jefe del equipo "${lidera.nombre}". Cambia primero el jefe de ese equipo.`,
+        )
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: {
+        activo,
+        desactivadoEn: activo ? null : new Date(),
+        desactivadoPor: activo ? null : callerId,
+      },
+      select: { id: true, name: true, activo: true, desactivadoEn: true },
+    })
   }
 
   async createTeamMember(dto: CreateTeamMemberDto, organizationId: string, callerRole: string) {
@@ -202,7 +266,7 @@ export class UsersService {
         ...(data.puedePriorityHelp !== undefined ? { puedePriorityHelp: data.puedePriorityHelp } : {}),
         ...(data.role ? { role: data.role as any } : {}),
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true, createdAt: true, puedeCotizarPorOtros: true, puedeVender: true, puedePriorityHelp: true, activo: true, desactivadoEn: true },
     })
   }
 

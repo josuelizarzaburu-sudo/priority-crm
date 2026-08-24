@@ -18,6 +18,18 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials')
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) throw new UnauthorizedException('Invalid credentials')
+
+    // Cuenta desactivada: no entra ni con la contrasena correcta.
+    //
+    // El mensaje SI distingue este caso de una contrasena mala, a proposito:
+    // quien fue dado de baja debe entender que su cuenta se cerro y no seguir
+    // probando contrasenas ni pidiendo que se la restablezcan.
+    if ((user as any).activo === false) {
+      throw new UnauthorizedException(
+        'Esta cuenta está desactivada. Contacta con administración.',
+      )
+    }
+
     const { password: _, ...result } = user
     return result
   }
@@ -42,6 +54,9 @@ export class AuthService {
       })
       const user = await this.usersService.findById(payload.sub)
       if (!user) throw new UnauthorizedException()
+      // Tambien aqui: si no, una sesion abierta se renovaria sola durante 7 dias
+      // despues de desactivar la cuenta.
+      if ((user as any).activo === false) throw new UnauthorizedException()
       const { password: _, ...result } = user
       return this.generateTokens(result)
     } catch {

@@ -29,6 +29,18 @@ export class UsersController {
     return this.usersService.updateMemberPhone(id, body.phone, req.user.organizationId, req.user.role)
   }
 
+  @Patch(':id/estado')
+  @ApiOperation({ summary: 'Activar o desactivar una cuenta — solo SUPER_ADMIN' })
+  cambiarEstado(@Param('id') id: string, @Body() body: { activo: boolean }, @Req() req: any) {
+    return this.usersService.cambiarEstadoCuenta(
+      id,
+      body.activo,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Patch(':id/password')
   @ApiOperation({ summary: 'Restablecer la contraseña de un usuario — solo SUPER_ADMIN' })
   // Va ANTES de @Patch(':id') para que Nest no interprete 'password' como parte

@@ -461,11 +461,18 @@ function EditMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      {/* Altura maxima y scroll: al agregar los bloques de estado de cuenta y
+          PIN, el formulario crecio y ya no cabe en pantalla. Sin esto el
+          contenido se desborda y no hay forma de llegar a los botones de abajo,
+          sobre todo en portatiles. */}
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-md">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Editar usuario</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit((d) => editMutation.mutate(d))} className="space-y-4 pt-2">
+        <form
+          onSubmit={handleSubmit((d) => editMutation.mutate(d))}
+          className="-mr-2 flex-1 space-y-4 overflow-y-auto pr-2 pt-2"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="edit-name">Nombre completo *</Label>
             <Input id="edit-name" {...register('name')} />

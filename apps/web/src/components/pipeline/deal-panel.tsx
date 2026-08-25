@@ -167,19 +167,21 @@ function toDatetimeLocal(iso: string): string {
 }
 
 /**
- * Estados de gestion del lead. Son ETIQUETAS de seguimiento, no cierres.
+ * Estados de gestion del lead.
  *
- * "Perdido" salio de aqui a proposito: era un rotulo que no cerraba nada, asi
- * que quien lo elegia creia haber archivado el lead y este seguia ocupando su
- * sitio en el tablero. Para perder un lead esta el boton "Perdido", que si lo
- * cierra y pide el motivo. Tener dos formas de decir lo mismo, y que solo una
- * funcionara, era la causa de la confusion.
+ * "Perdido" esta aqui porque es donde la gente lo busca —el boton de cerrar
+ * queda mas abajo y no se ve sin desplazarse—, pero NO es una etiqueta como las
+ * demas: elegirlo cierra el deal de verdad y pide el motivo.
+ *
+ * Antes era un rotulo que no cerraba nada, asi que quien lo elegia creia haber
+ * archivado el lead y este seguia ocupando su sitio en el tablero.
  */
 const LEAD_STATUS_OPTIONS = [
   { value: 'SIN_GESTION', label: 'Sin gestión' },
   { value: 'CONTACTADO', label: 'Contactado' },
   { value: 'EN_PROCESO', label: 'En proceso' },
   { value: 'CALIFICADO', label: 'Calificado' },
+  { value: 'PERDIDO', label: 'Perdido — cierra el lead' },
 ]
 
 const ACTIVITY_ICON: Record<string, React.ReactNode> = {
@@ -500,6 +502,13 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   }
 
   function handleLeadStatusChange(value: string) {
+    // "Perdido" no es una etiqueta mas: cierra el deal. Se abre el cuadro del
+    // motivo en vez de guardar el rotulo, que es lo que antes no hacia nada.
+    if (value === 'PERDIDO') {
+      if (!puedePerderEsteLead) return
+      setShowLostInput(true)
+      return
+    }
     updateDeal.mutate({ customFields: { ...deal?.customFields, leadStatus: value } })
   }
 
@@ -728,6 +737,54 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* El motivo se pide AQUI, junto al desplegable. El bloque de
+                    cierre vive mucho mas abajo, y quien elige "Perdido" desde
+                    arriba no lo veria sin desplazarse: parecia que no pasaba
+                    nada. */}
+                {showLostInput && (
+                  <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
+                    <p className="text-xs font-medium text-red-800">
+                      Vas a dar este lead por perdido
+                    </p>
+                    <Textarea
+                      autoFocus
+                      placeholder="¿Por qué se perdió? (opcional pero recomendable)"
+                      value={closingReason}
+                      onChange={(e) => setClosingReason(e.target.value)}
+                      className="min-h-[64px] bg-white text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={handleLost}
+                        disabled={closeDealMutation.isPending}
+                      >
+                        {closeDealMutation.isPending ? 'Cerrando…' : 'Confirmar pérdida'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setShowLostInput(false)
+                          setClosingReason('')
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Se explica por que no puede: un desplegable que no responde al
+                    elegir una opcion hace pensar que el sistema fallo. */}
+                {!puedePerderEsteLead && !isClosed && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Este lead lo repartió la empresa: solo gerencia puede darlo por perdido.
+                  </p>
+                )}
               </div>
 
               {/* Lead Profile + Origin Badges */}
@@ -1413,44 +1470,6 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     <XCircle className="h-3.5 w-3.5" /> Perdido
                   </Button>
                 </div>
-
-                {/* Se explica por que esta apagado: un boton deshabilitado sin
-                    motivo hace pensar que el sistema fallo. */}
-                {!puedePerderEsteLead && !isClosed && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Este lead lo repartió la empresa. Para darlo por perdido, pídelo a
-                    gerencia indicando el motivo.
-                  </p>
-                )}
-
-                {showLostInput && (
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Razón de cierre (opcional)"
-                      value={closingReason}
-                      onChange={(e) => setClosingReason(e.target.value)}
-                      className="min-h-[72px] text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={handleLost}
-                        disabled={closeDealMutation.isPending}
-                      >
-                        Confirmar pérdida
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => { setShowLostInput(false); setClosingReason('') }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                )}
 
                 {isClosed && (
                   <p className="text-xs text-muted-foreground">

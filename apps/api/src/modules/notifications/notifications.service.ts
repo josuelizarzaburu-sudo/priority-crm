@@ -31,7 +31,12 @@ const FROM_CLIENTES = 'Priority <comercial@priority.ec>'
 export interface DatosBienvenidaCorreo {
   email: string
   tratamiento: string
+  /** Solo el primer nombre: va en el saludo. */
   nombreCompleto: string
+  /** Apellidos y nombres completos: va en el asunto, para identificar el correo. */
+  nombreParaAsunto?: string
+  /** Desde cuándo rige el plan. Null si la póliza no tiene fecha de emisión. */
+  vigenciaDesde?: string | null
   plan: string
   deducible: string | null
   ejecutivaNombre: string
@@ -301,16 +306,16 @@ export class NotificationsService {
    * sin abrirlo: la ejecutiva recibe copia de todas las bienvenidas, y con un
    * asunto igual para todas no distinguiria una de otra.
    */
-  asuntoBienvenida(plan: string, nombreCliente?: string): string {
+  asuntoBienvenida(nombreCliente?: string): string {
     return nombreCliente
-      ? `Bienvenido a Priority, ${nombreCliente} — ${plan}`
-      : `Bienvenido a Priority — ${plan}`
+      ? `Bienvenido a Priority sus Asesores de Seguros - ${nombreCliente}`
+      : 'Bienvenido a Priority sus Asesores de Seguros'
   }
 
   async enviarCorreoBienvenida(data: DatosBienvenidaCorreo): Promise<void> {
     await this.sendEmail(
       data.email,
-      this.asuntoBienvenida(data.plan, data.nombreCompleto),
+      this.asuntoBienvenida(data.nombreParaAsunto ?? data.nombreCompleto),
       this.armarHtmlBienvenida(data),
       FROM_CLIENTES,
       // Copia a la ejecutiva: su respaldo de que la carta se envio.

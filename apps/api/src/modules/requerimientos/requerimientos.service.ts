@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
-import { nombreCorto } from '../../common/texto'
+import { nombreCompletoFormal, primerNombre } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
@@ -281,10 +281,24 @@ export class RequerimientosService {
     return {
       email: cliente.email,
       tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
-      // Primer nombre y primer apellido, no la cadena completa de la cedula:
-      // "Maria Andrade" en vez de "MARIA JOSE ANDRADE LOPEZ", que suena a
-      // tramite. Ademas se suaviza, porque la ficha guarda todo en mayusculas.
-      nombreCompleto: nombreCorto(cliente.nombres, cliente.apellidos),
+      // Saludo: solo el primer nombre, que es como se habla a una persona.
+      // "Estimada Sra. Antonieta,"
+      nombreCompleto: primerNombre(cliente.nombres),
+      // Asunto: apellidos y nombres completos, como en la cedula, para poder
+      // identificar el correo sin ambiguedad en la bandeja.
+      // "Bienvenido a Priority sus Asesores de Seguros - Cadena Huertas Hugo Eduardo"
+      nombreParaAsunto: nombreCompletoFormal(cliente.nombres, cliente.apellidos),
+      // Vigencia del plan, que es la fecha de emision de la poliza.
+      vigenciaDesde: poliza.fechaEmision
+        ? new Date(poliza.fechaEmision).toLocaleDateString('es-EC', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            // UTC porque la fecha se guarda sin hora: en Ecuador leerla en hora
+            // local daria el dia anterior.
+            timeZone: 'UTC',
+          })
+        : null,
       plan: [poliza.aseguradora, poliza.plan].filter(Boolean).join(' — '),
       deducible: formatearDeducible(poliza.deducible),
       ejecutivaNombre: ejecutiva.name,
@@ -314,7 +328,7 @@ export class RequerimientosService {
     return {
       para: datos.email,
       copiaA: datos.ejecutivaEmail,
-      asunto: this.notifications.asuntoBienvenida(datos.plan),
+      asunto: this.notifications.asuntoBienvenida(datos.nombreParaAsunto),
       html: this.notifications.armarHtmlBienvenida(datos),
     }
   }
@@ -433,10 +447,24 @@ export class RequerimientosService {
       preexistencias: req.preexistencias,
       cliente: cliente
         ? {
-            // Primer nombre y primer apellido, no la cadena completa de la cedula:
-      // "Maria Andrade" en vez de "MARIA JOSE ANDRADE LOPEZ", que suena a
-      // tramite. Ademas se suaviza, porque la ficha guarda todo en mayusculas.
-      nombreCompleto: nombreCorto(cliente.nombres, cliente.apellidos),
+            // Saludo: solo el primer nombre, que es como se habla a una persona.
+      // "Estimada Sra. Antonieta,"
+      nombreCompleto: primerNombre(cliente.nombres),
+      // Asunto: apellidos y nombres completos, como en la cedula, para poder
+      // identificar el correo sin ambiguedad en la bandeja.
+      // "Bienvenido a Priority sus Asesores de Seguros - Cadena Huertas Hugo Eduardo"
+      nombreParaAsunto: nombreCompletoFormal(cliente.nombres, cliente.apellidos),
+      // Vigencia del plan, que es la fecha de emision de la poliza.
+      vigenciaDesde: poliza.fechaEmision
+        ? new Date(poliza.fechaEmision).toLocaleDateString('es-EC', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            // UTC porque la fecha se guarda sin hora: en Ecuador leerla en hora
+            // local daria el dia anterior.
+            timeZone: 'UTC',
+          })
+        : null,
             email: cliente.email,
             tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
           }

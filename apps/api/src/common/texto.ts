@@ -129,3 +129,23 @@ export function nombreCorto(nombres: string, apellidos: string): string {
 
   return paraMostrarAlCliente([primerNombre, ...apellido].filter(Boolean).join(' '))
 }
+
+/**
+ * Nombre completo con el orden de la cedula: apellidos primero.
+ *
+ * "CADENA HUERTAS" + "HUGO EDUARDO" -> "Cadena Huertas Hugo Eduardo"
+ *
+ * Se usa en el ASUNTO del correo, donde hace falta identificar al cliente sin
+ * ambiguedad. Para el saludo se usa solo el primer nombre, que es como se habla
+ * a una persona.
+ */
+export function nombreCompletoFormal(nombres: string, apellidos: string): string {
+  return paraMostrarAlCliente(
+    [(apellidos ?? '').trim(), (nombres ?? '').trim()].filter(Boolean).join(' '),
+  )
+}
+
+/** Solo el primer nombre, para el saludo: "ANTONIETA MARIA" -> "Antonieta". */
+export function primerNombre(nombres: string): string {
+  return paraMostrarAlCliente((nombres ?? '').trim().split(/\s+/)[0] ?? '')
+}

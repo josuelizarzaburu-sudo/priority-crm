@@ -166,12 +166,20 @@ function toDatetimeLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/**
+ * Estados de gestion del lead. Son ETIQUETAS de seguimiento, no cierres.
+ *
+ * "Perdido" salio de aqui a proposito: era un rotulo que no cerraba nada, asi
+ * que quien lo elegia creia haber archivado el lead y este seguia ocupando su
+ * sitio en el tablero. Para perder un lead esta el boton "Perdido", que si lo
+ * cierra y pide el motivo. Tener dos formas de decir lo mismo, y que solo una
+ * funcionara, era la causa de la confusion.
+ */
 const LEAD_STATUS_OPTIONS = [
   { value: 'SIN_GESTION', label: 'Sin gestión' },
   { value: 'CONTACTADO', label: 'Contactado' },
   { value: 'EN_PROCESO', label: 'En proceso' },
   { value: 'CALIFICADO', label: 'Calificado' },
-  { value: 'PERDIDO', label: 'Perdido' },
 ]
 
 const ACTIVITY_ICON: Record<string, React.ReactNode> = {
@@ -555,6 +563,21 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   })
 
   const leadStatus = (deal?.customFields?.leadStatus as string) ?? 'SIN_GESTION'
+
+  /**
+   * Dar por perdido un lead que reparte la empresa queda reservado a gerencia.
+   *
+   * Un lead de Priority Health o Priority costo dinero en campana; si cualquiera
+   * puede descartarlo, se pierden leads buenos sin que nadie lo revise. Los
+   * PROPIOS los consiguio el asesor, asi que el decide.
+   *
+   * Se comprueba tambien en el servidor: esto solo evita que alguien pulse un
+   * boton para toparse con un error.
+   */
+  const origenLead = (deal?.customFields?.leadOrigin as string) ?? 'PROPIO'
+  const esLeadRepartido = origenLead === 'PRIORITY_HEALTH' || origenLead === 'PRIORITY'
+  const puedePerderEsteLead =
+    !esLeadRepartido || ['SUPER_ADMIN', 'OWNER'].includes(userRole ?? '')
   const isClosed = deal?.status !== 'OPEN'
   const isLocked = !!(deal?.customFields?.locked)
   const isGanadoLocked = (deal?.stageId === WON_STAGE_ID || isLocked) && userRole !== 'SUPER_ADMIN'
@@ -1375,11 +1398,30 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     size="sm"
                     className="justify-start gap-2 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
                     onClick={handleLost}
-                    disabled={closeDealMutation.isPending || isClosed || isGanadoLocked}
+                    disabled={
+                      closeDealMutation.isPending ||
+                      isClosed ||
+                      isGanadoLocked ||
+                      !puedePerderEsteLead
+                    }
+                    title={
+                      puedePerderEsteLead
+                        ? undefined
+                        : 'Este lead lo repartió la empresa: solo gerencia puede darlo por perdido'
+                    }
                   >
                     <XCircle className="h-3.5 w-3.5" /> Perdido
                   </Button>
                 </div>
+
+                {/* Se explica por que esta apagado: un boton deshabilitado sin
+                    motivo hace pensar que el sistema fallo. */}
+                {!puedePerderEsteLead && !isClosed && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Este lead lo repartió la empresa. Para darlo por perdido, pídelo a
+                    gerencia indicando el motivo.
+                  </p>
+                )}
 
                 {showLostInput && (
                   <div className="space-y-2">

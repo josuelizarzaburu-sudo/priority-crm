@@ -11,6 +11,15 @@ import { AddFutureOpportunityDto } from './dto/add-future-opportunity.dto'
 import { PipelineGateway } from './pipeline.gateway'
 import { NotificationsService } from '../notifications/notifications.service'
 import { creaNegociosPropios, soloVeSusNegocios } from './puede-vender'
+
+/**
+ * Quien puede dar por perdido un lead que reparte la empresa.
+ *
+ * Lista blanca a proposito: un rol nuevo NO hereda el permiso hasta que se lo
+ * agregue aqui de forma explicita. Con lista negra, cada rol que se creara
+ * pasaria a poder descartar leads de campana sin que nadie lo decidiera.
+ */
+const PUEDEN_PERDER_LEADS_REPARTIDOS = ['SUPER_ADMIN', 'OWNER']
 import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 
@@ -31,6 +40,7 @@ import {
   sePuedeReasignar,
   veSoloSuEquipo,
   ORIGENES_VALIDOS,
+  ORIGENES_REPARTIBLES,
   type LeadOrigin,
 } from '../equipos/equipos-scope'
 
@@ -913,6 +923,23 @@ export class PipelineService {
     puedeVender?: boolean,
   ) {
     const deal = await this.getDeal(id, organizationId, userId, role, puedeVender)
+
+    // Dar por PERDIDO un lead que reparte la empresa queda reservado a gerencia.
+    //
+    // Un lead de Priority Health o Priority costo dinero en campana, o vino de la
+    // carga del jefe de equipo. Si cualquiera puede descartarlo, se pierden leads
+    // buenos sin que nadie lo revise —y sin forma de saber si de verdad no habia
+    // interes o si simplemente no se insistio lo suficiente.
+    //
+    // Los PROPIOS los consiguio el asesor por su cuenta, asi que el decide.
+    if (dto.status === 'LOST') {
+      const origen = origenDeLead(deal.customFields)
+      if (ORIGENES_REPARTIBLES.includes(origen) && !PUEDEN_PERDER_LEADS_REPARTIDOS.includes(role ?? '')) {
+        throw new ForbiddenException(
+          'Este lead lo repartió la empresa. Solo gerencia puede darlo por perdido: pídelo por interno indicando el motivo.',
+        )
+      }
+    }
 
     // Belt-and-suspenders: if value is missing, sync from insuranceData (array or object) or prima
     const cfPrima     = (deal.customFields as any)?.prima

@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { PushNotificationBanner } from '@/components/layout/push-notification-banner'
+import { GuardianPin } from '@/components/auth/guardian-pin'
 
 // build marker: forzar reconstruccion tras fix de sidebar.tsx
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect('/login')
 
   return (
+    <GuardianPin>
     <div className="flex h-screen overflow-hidden bg-[#f0f2f7]">
       {/* Sidebar: visible on desktop, drawer on mobile */}
       <Sidebar />
@@ -30,5 +32,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Bottom navigation — mobile only (md:hidden inside component) */}
       <BottomNav />
     </div>
+    </GuardianPin>
   )
 }

@@ -380,6 +380,31 @@ export class NotificationsService {
     )
   }
 
+  /**
+   * Aviso de seguridad a los administradores.
+   *
+   * Va con el remitente INTERNO, no el de clientes: es correo entre el sistema y
+   * el equipo, y mezclarlo con la marca que ven los clientes confundiria.
+   */
+  async enviarAvisoSeguridad(data: {
+    email: string
+    asunto: string
+    mensaje: string
+  }): Promise<void> {
+    const html = `
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <div style="background:#0C2057;padding:18px 22px;">
+      <p style="margin:0;color:#DBAA59;font-size:15px;font-weight:bold;">Aviso de seguridad</p>
+    </div>
+    <div style="padding:22px;color:#25324b;font-size:14.5px;line-height:1.7;white-space:pre-line;">${this.escape(
+      data.mensaje,
+    )}</div>
+  </div>
+</body>`
+    await this.sendEmail(data.email, data.asunto, html)
+  }
+
   async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {
     const nombre = this.escape(data.saludo)
     // La imagen vive en priority.ec y no incrustada: los correos no pueden

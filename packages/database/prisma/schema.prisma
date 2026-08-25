@@ -72,6 +72,13 @@ model User {
   activo               Boolean @default(true)
   desactivadoEn        DateTime?
   desactivadoPor       String?
+
+  /// PIN de 6 digitos para entrar desde el movil, cifrado como una contrasena.
+  /// Nunca se guarda en el telefono: se verifica contra el servidor.
+  pinHash              String?
+  pinCreadoEn          DateTime?
+  /// Intentos fallidos seguidos. A los 5 se cierra la sesion.
+  pinIntentos          Int     @default(0)
   // Acceso a Priority Help (bot de consulta de coberturas). Cada consulta
   // tiene costo, asi que el acceso se abre asesor por asesor en vez de por
   // rol: Josue decide a quien conviene activarselo.

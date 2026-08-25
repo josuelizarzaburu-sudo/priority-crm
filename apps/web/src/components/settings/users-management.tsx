@@ -396,6 +396,29 @@ function EditMemberDialog({
     },
   })
 
+  /**
+   * Borrar el PIN de alguien. Para cuando pierde el telefono o lo olvida sin
+   * acordarse tampoco de la contrasena: la proxima vez que entre configura uno
+   * nuevo, sin quedarse fuera esperando.
+   */
+  const borrarPinMutation = useMutation({
+    mutationFn: () => api.delete(`/auth/pin/${member.id}`),
+    onSuccess: () => {
+      toast({
+        title: 'PIN borrado',
+        description: `${member.name} configurará uno nuevo la próxima vez que entre desde el celular.`,
+      })
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'No se pudo borrar el PIN.'
+      toast({
+        title: 'Error',
+        description: Array.isArray(msg) ? msg.join(', ') : msg,
+        variant: 'destructive',
+      })
+    },
+  })
+
   const resetPasswordMutation = useMutation({
     mutationFn: () => api.patch(`/users/${member.id}/password`, { password: nuevaPassword }),
     onSuccess: () => {
@@ -611,6 +634,25 @@ function EditMemberDialog({
                 </Button>
               </>
             )}
+          </div>
+
+          <div className="space-y-1.5 rounded-md border p-3">
+            <label className="text-sm font-medium">PIN del celular</label>
+            <p className="text-[11px] text-muted-foreground">
+              Bórralo si pierde el teléfono o si lo olvidó y tampoco recuerda su contraseña.
+              Configurará uno nuevo la próxima vez que entre.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-1"
+              disabled={borrarPinMutation.isPending}
+              onClick={() => {
+                if (confirm(`¿Borrar el PIN de ${member.name}?`)) borrarPinMutation.mutate()
+              }}
+            >
+              Borrar PIN
+            </Button>
           </div>
 
           <div className="space-y-1.5 rounded-md border p-3">

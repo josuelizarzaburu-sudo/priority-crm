@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PantallaPin } from './pantalla-pin'
 
@@ -25,6 +25,7 @@ const MINUTOS_INACTIVIDAD = 15
 export function GuardianPin({ children }: { children: React.ReactNode }) {
   const { status } = useSession()
   const pathname = usePathname()
+  const queryClient = useQueryClient()
 
   const [desbloqueado, setDesbloqueado] = useState(false)
   const [esMovil, setEsMovil] = useState<boolean | null>(null)
@@ -96,8 +97,12 @@ export function GuardianPin({ children }: { children: React.ReactNode }) {
     return (
       <PantallaPin
         modo="configurar"
-        onListo={() => {
+        onListo={async () => {
           marcar()
+          // Hay que refrescar el estado ANTES de dar por hecho el desbloqueo: la
+          // consulta esta cacheada y seguiria diciendo que no hay PIN, asi que
+          // esta misma pantalla se volveria a mostrar y quedaria pegada.
+          await queryClient.invalidateQueries({ queryKey: ['pin', 'estado'] })
           setDesbloqueado(true)
         }}
       />

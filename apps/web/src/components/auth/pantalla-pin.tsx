@@ -5,7 +5,7 @@ import { signOut } from 'next-auth/react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Lock, ShieldCheck } from 'lucide-react'
+import { Check, Lock, ShieldCheck } from 'lucide-react'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -34,8 +34,10 @@ function Teclado({
             type="button"
             disabled={deshabilitado}
             onClick={() => (t === '←' ? onBorrar() : onDigito(t))}
-            className="h-14 rounded-xl border text-xl font-medium transition-colors active:bg-muted disabled:opacity-40"
-            style={{ color: NAVY }}
+            /* Numeros en BLANCO: el navy de la marca sobre el fondo navy de
+               esta pantalla los dejaba practicamente invisibles. */
+            className="h-14 rounded-xl border text-xl font-medium text-white transition-colors active:bg-white/20 disabled:opacity-40"
+            style={{ borderColor: 'rgba(255,255,255,.28)' }}
           >
             {t}
           </button>
@@ -81,6 +83,8 @@ export function PantallaPin({
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
+  /** Confirmacion breve tras crear el PIN, antes de entrar al CRM. */
+  const [listo, setListo] = useState(false)
 
   const actual = paso === 'repetir' ? confirmacion : pin
   const set = paso === 'repetir' ? setConfirmacion : setPin
@@ -135,7 +139,10 @@ export function PantallaPin({
     setError(null)
     try {
       await api.post('/auth/pin/configurar', { pin, password })
-      onListo()
+      // Se muestra la confirmacion un momento y despues se entra: sin ella, la
+      // pantalla desaparecia de golpe y no quedaba claro si se habia guardado.
+      setListo(true)
+      setTimeout(() => onListo(), 900)
     } catch (e: any) {
       const m = e?.response?.data?.message
       setError(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo guardar el PIN'))
@@ -155,6 +162,24 @@ export function PantallaPin({
         : paso === 'repetir'
           ? 'Repite tu PIN'
           : 'Confirma con tu contraseña'
+
+  if (listo) {
+    return (
+      <div
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 text-center text-white"
+        style={{ background: `linear-gradient(160deg, ${NAVY} 0%, #081334 100%)` }}
+      >
+        <div
+          className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'rgba(95,211,141,.15)' }}
+        >
+          <Check className="h-8 w-8" style={{ color: '#5FD38D' }} strokeWidth={3} />
+        </div>
+        <p className="text-lg font-bold">PIN configurado</p>
+        <p className="mt-1 text-sm text-slate-300">Entrando al CRM…</p>
+      </div>
+    )
+  }
 
   return (
     <div

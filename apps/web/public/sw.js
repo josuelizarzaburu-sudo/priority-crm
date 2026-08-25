@@ -1,11 +1,14 @@
 // Priority CRM Service Worker
-const CACHE = 'priority-crm-v1'
+// v2: cambio el icono al isotipo de Priority. Al subir la version el service
+// worker descarta el cache anterior; si no, los telefonos que ya tienen la PWA
+// instalada seguirian mostrando el icono viejo indefinidamente.
+const CACHE = 'priority-crm-v2'
 
 // Assets to pre-cache on install (minimal shell)
 const PRECACHE = [
   '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ]
 
 // ── Install ────────────────────────────────────────────────────────────────────
@@ -38,8 +41,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/icons/icon-192.svg',
-      badge: '/icons/icon-192.svg',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       data: { url: data.url },
       requireInteraction: false,
     })

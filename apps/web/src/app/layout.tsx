@@ -31,14 +31,15 @@ export const metadata: Metadata = {
     statusBarStyle:  'black-translucent',
   },
   icons: {
-    icon:  [
-      { url: '/icons/icon-192.svg', type: 'image/svg+xml', sizes: '192x192' },
-      { url: '/icons/icon-512.svg', type: 'image/svg+xml', sizes: '512x512' },
+    icon: [
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
     ],
-    apple: [
-      { url: '/icons/icon-192.svg', sizes: '192x192' },
-    ],
-    shortcut: '/icons/icon-192.svg',
+    // iOS no lee el manifiesto para el icono de la pantalla de inicio: usa
+    // apple-touch-icon. Sin esta linea saldria una captura de la pagina en vez
+    // del isotipo.
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+    shortcut: '/icons/icon-192.png',
   },
   other: {
     'mobile-web-app-capable': 'yes',

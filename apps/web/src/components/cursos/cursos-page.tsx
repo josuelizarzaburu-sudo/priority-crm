@@ -117,16 +117,16 @@ function VistaModulo({
   // ── Resultado ──
   if (resultado) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4">
         <div
-          className="rounded-2xl p-6 text-center text-white"
+          className="rounded-2xl p-7 text-center text-white md:p-9"
           style={{
             background: resultado.aprobado
               ? `linear-gradient(135deg, ${NAVY}, #1a3a6b)`
               : 'linear-gradient(135deg, #7f1d1d, #991b1b)',
           }}
         >
-          <p className="text-4xl font-bold">{resultado.nota}</p>
+          <p className="text-5xl font-bold md:text-6xl">{resultado.nota}</p>
           <p className="mt-1 text-sm opacity-80">
             {resultado.aciertos} de {resultado.total} correctas
           </p>
@@ -149,7 +149,7 @@ function VistaModulo({
 
         {/* Las respuestas se repasan una a una con su explicacion: es donde de
             verdad se aprende, sobre todo cuando no se aprobo. */}
-        <div className="space-y-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           {resultado.detalle.map((d, i) => (
             <div
               key={d.preguntaId}
@@ -194,7 +194,7 @@ function VistaModulo({
 
   // ── Video + preguntas ──
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="w-full space-y-4">
       <button
         type="button"
         onClick={onSalir}
@@ -204,85 +204,92 @@ function VistaModulo({
       </button>
 
       <div>
-        <h1 className="text-xl font-bold" style={{ color: NAVY }}>
+        <h1 className="text-2xl font-bold md:text-3xl" style={{ color: NAVY }}>
           {modulo.titulo}
         </h1>
         {modulo.descripcion && (
-          <p className="mt-1 text-sm text-muted-foreground">{modulo.descripcion}</p>
+          <p className="mt-1 text-sm text-muted-foreground md:text-base">{modulo.descripcion}</p>
         )}
       </div>
 
-      <div className="aspect-video overflow-hidden rounded-xl bg-black">
-        <iframe
-          src={modulo.youtubeUrl}
-          title={modulo.titulo}
-          className="h-full w-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-
-      <div className="rounded-xl border p-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: GOLD }}>
-          {modulo.preguntas.length === 1
-            ? '1 pregunta'
-            : `${modulo.preguntas.length} preguntas`}
-        </p>
-
-        <div className="space-y-5">
-          {modulo.preguntas.map((p, i) => (
-            <div key={p.id}>
-              <p className="mb-2.5 text-sm font-medium md:text-base" style={{ color: NAVY }}>
-                {i + 1}. {p.enunciado}
-              </p>
-              <div className="space-y-1.5">
-                {p.opciones.map((op, j) => {
-                  const elegida = respuestas[p.id] === j
-                  return (
-                    <button
-                      key={j}
-                      type="button"
-                      onClick={() => setRespuestas((r) => ({ ...r, [p.id]: j }))}
-                      className="flex w-full items-center gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors md:text-[15px]"
-                      style={{
-                        borderColor: elegida ? NAVY : undefined,
-                        borderWidth: elegida ? 1.5 : 1,
-                        backgroundColor: elegida ? '#eef2f8' : undefined,
-                      }}
-                    >
-                      <span
-                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
-                        style={{ borderColor: elegida ? NAVY : '#cbd5e1' }}
-                      >
-                        {elegida && (
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: NAVY }}
-                          />
-                        )}
-                      </span>
-                      {op}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+      {/* Dos columnas en pantallas anchas: el video a la izquierda y las
+          preguntas a la derecha, ambos a la vista.
+          Ademas de aprovechar el ancho, deja consultar el video mientras se
+          responde sin tener que desplazarse arriba y abajo.
+          En movil se apila, con el video primero. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(380px,1fr)] lg:items-start">
+        <div className="aspect-video overflow-hidden rounded-xl bg-black lg:sticky lg:top-4">
+          <iframe
+            src={modulo.youtubeUrl}
+            title={modulo.titulo}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
         </div>
 
-        <Button
-          className="mt-5 w-full"
-          disabled={!todasRespondidas || enviar.isPending}
-          onClick={() => enviar.mutate()}
-          style={{ backgroundColor: NAVY, color: '#fff' }}
-        >
-          {enviar.isPending
-            ? 'Corrigiendo…'
-            : todasRespondidas
-              ? 'Enviar respuestas'
-              : 'Responde todas las preguntas'}
-        </Button>
-      </div>
+        <div className="rounded-xl border p-4 md:p-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: GOLD }}>
+            {modulo.preguntas.length === 1
+              ? '1 pregunta'
+              : `${modulo.preguntas.length} preguntas`}
+          </p>
+
+          <div className="space-y-5">
+            {modulo.preguntas.map((p, i) => (
+              <div key={p.id}>
+                <p className="mb-2.5 text-sm font-medium md:text-base" style={{ color: NAVY }}>
+                  {i + 1}. {p.enunciado}
+                </p>
+                <div className="space-y-1.5">
+                  {p.opciones.map((op, j) => {
+                    const elegida = respuestas[p.id] === j
+                    return (
+                      <button
+                        key={j}
+                        type="button"
+                        onClick={() => setRespuestas((r) => ({ ...r, [p.id]: j }))}
+                        className="flex w-full items-center gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors md:text-[15px]"
+                        style={{
+                          borderColor: elegida ? NAVY : undefined,
+                          borderWidth: elegida ? 1.5 : 1,
+                          backgroundColor: elegida ? '#eef2f8' : undefined,
+                        }}
+                      >
+                        <span
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
+                          style={{ borderColor: elegida ? NAVY : '#cbd5e1' }}
+                        >
+                          {elegida && (
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: NAVY }}
+                            />
+                          )}
+                        </span>
+                        {op}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+            <Button
+              className="mt-5 w-full"
+              disabled={!todasRespondidas || enviar.isPending}
+              onClick={() => enviar.mutate()}
+              style={{ backgroundColor: NAVY, color: '#fff' }}
+            >
+              {enviar.isPending
+                ? 'Corrigiendo…'
+                : todasRespondidas
+                  ? 'Enviar respuestas'
+                  : 'Responde todas las preguntas'}
+            </Button>
+          </div>
+        </div>
     </div>
   )
 }

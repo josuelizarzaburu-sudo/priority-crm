@@ -9,9 +9,75 @@ import { PrismaService } from '../../prisma/prisma.service'
 /** Quién crea y edita cursos. Lista blanca: un rol nuevo no lo hereda. */
 const PUEDEN_ADMINISTRAR = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 
+/** Hoy en Ecuador como YYYY-MM-DD. */
+function hoyEnEcuador(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+/**
+ * Baraja una lista sin tocar la original.
+ *
+ * Se usa para que las preguntas y sus opciones cambien de orden en cada intento:
+ * si el orden fuera fijo, memorizar "la B, la A, la C" bastaria para aprobar sin
+ * haber visto el video.
+ */
+function barajar<T>(lista: readonly T[]): T[] {
+  const r = [...lista]
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[r[i], r[j]] = [r[j], r[i]]
+  }
+  return r
+}
+
 @Injectable()
 export class CursosService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Comprueba si puede intentar ahora, y devuelve por qué no si no puede.
+   *
+   * Los dos límites existen porque, sin ellos, el quiz se pasa a fuerza de
+   * probar: reintentar al instante y con las preguntas en el mismo orden permite
+   * ir cambiando de opción hasta acertar, sin ver el video.
+   *
+   * Quien ya aprobó no tiene límite: puede repasar cuando quiera.
+   */
+  private revisarLimites(
+    avance: { ultimoIntentoEn: Date | null; intentosHoy: number; diaDeIntentos: string | null; aprobado: boolean } | null,
+    curso: { esperaMinutos: number; intentosPorDia: number },
+  ): { puede: boolean; motivo?: string; segundosRestantes?: number } {
+    if (!avance || avance.aprobado) return { puede: true }
+
+    if (curso.esperaMinutos > 0 && avance.ultimoIntentoEn) {
+      const pasados = Date.now() - new Date(avance.ultimoIntentoEn).getTime()
+      const faltan = curso.esperaMinutos * 60_000 - pasados
+      if (faltan > 0) {
+        const min = Math.ceil(faltan / 60_000)
+        return {
+          puede: false,
+          motivo: `Espera ${min} minuto${min === 1 ? '' : 's'} antes de volver a intentar. Aprovecha para repasar el video.`,
+          segundosRestantes: Math.ceil(faltan / 1000),
+        }
+      }
+    }
+
+    if (curso.intentosPorDia > 0 && avance.diaDeIntentos === hoyEnEcuador()) {
+      if (avance.intentosHoy >= curso.intentosPorDia) {
+        return {
+          puede: false,
+          motivo: `Ya usaste tus ${curso.intentosPorDia} intentos de hoy en este módulo. Vuelve mañana con el video repasado.`,
+        }
+      }
+    }
+
+    return { puede: true }
+  }
 
   private exigirAdmin(role: string) {
     if (!PUEDEN_ADMINISTRAR.includes(role)) {
@@ -89,7 +155,15 @@ export class CursosService {
     const modulo = await this.prisma.cursoModulo.findFirst({
       where: { id: moduloId, curso: { organizationId } },
       include: {
-        curso: { select: { id: true, titulo: true, notaMinima: true } },
+        curso: {
+          select: {
+            id: true,
+            titulo: true,
+            notaMinima: true,
+            esperaMinutos: true,
+            intentosPorDia: true,
+          },
+        },
         preguntas: {
           orderBy: { orden: 'asc' },
           select: { id: true, enunciado: true, opciones: true, orden: true },
@@ -107,6 +181,31 @@ export class CursosService {
       throw new ForbiddenException(`Primero tienes que aprobar "${pendiente.titulo}"`)
     }
 
+    const avance = await this.prisma.cursoAvance.findUnique({
+      where: { moduloId_userId: { moduloId, userId } },
+      select: { ultimoIntentoEn: true, intentosHoy: true, diaDeIntentos: true, aprobado: true },
+    })
+    const limite = this.revisarLimites(avance, modulo.curso)
+
+    // Las preguntas y sus opciones se barajan EN CADA APERTURA. Con orden fijo,
+    // memorizar posiciones basta para aprobar sin haber visto el video.
+    //
+    // Cada opcion viaja con su POSICION ORIGINAL (`valor`), que es contra lo que
+    // corrige el servidor. Sin eso, al barajar el indice que elige la persona
+    // dejaria de corresponder al guardado y se marcarian errores donde no los
+    // hay. El indice correcto nunca sale de aqui: `valor` por si solo no dice
+    // cual es.
+    const preguntas = barajar<(typeof modulo.preguntas)[number]>(modulo.preguntas).map((p) => ({
+      id: p.id,
+      enunciado: p.enunciado,
+      opciones: barajar(
+        ((p.opciones as string[]) ?? []).map((texto, valor) => ({ texto, valor })),
+      ),
+    }))
+
+    const hoy = hoyEnEcuador()
+    const usadosHoy = avance?.diaDeIntentos === hoy ? avance.intentosHoy : 0
+
     return {
       id: modulo.id,
       titulo: modulo.titulo,
@@ -114,7 +213,17 @@ export class CursosService {
       youtubeUrl: modulo.youtubeUrl,
       duracionMin: modulo.duracionMin,
       curso: modulo.curso,
-      preguntas: modulo.preguntas,
+      preguntas,
+      // Estado de los limites, para que la pantalla lo muestre antes de que
+      // conteste y no despues de haber respondido todo.
+      puedeIntentar: limite.puede,
+      motivoBloqueo: limite.motivo ?? null,
+      segundosRestantes: limite.segundosRestantes ?? null,
+      intentosRestantesHoy:
+        modulo.curso.intentosPorDia > 0
+          ? Math.max(0, modulo.curso.intentosPorDia - usadosHoy)
+          : null,
+      yaAprobado: !!avance?.aprobado,
     }
   }
 
@@ -136,7 +245,16 @@ export class CursosService {
     const modulo = await this.prisma.cursoModulo.findFirst({
       where: { id: moduloId, curso: { organizationId } },
       include: {
-        curso: { select: { id: true, notaMinima: true, vigenciaMeses: true, titulo: true } },
+        curso: {
+          select: {
+            id: true,
+            notaMinima: true,
+            vigenciaMeses: true,
+            titulo: true,
+            esperaMinutos: true,
+            intentosPorDia: true,
+          },
+        },
         preguntas: { select: { id: true, correcta: true, explicacion: true, enunciado: true } },
       },
     })
@@ -144,6 +262,15 @@ export class CursosService {
     if (modulo.preguntas.length === 0) {
       throw new BadRequestException('Este módulo todavía no tiene preguntas')
     }
+
+    // Los limites se comprueban AQUI y no solo al abrir: si estuvieran solo en
+    // la apertura, bastaria con dejar la pantalla abierta y reenviar respuestas
+    // para saltarselos.
+    const avancePrevio = await this.prisma.cursoAvance.findUnique({
+      where: { moduloId_userId: { moduloId, userId } },
+    })
+    const limite = this.revisarLimites(avancePrevio, modulo.curso)
+    if (!limite.puede) throw new ForbiddenException(limite.motivo)
 
     const elegidas = new Map(respuestas?.map((r) => [r.preguntaId, r.opcion]) ?? [])
     const detalle = modulo.preguntas.map((p) => {
@@ -163,10 +290,12 @@ export class CursosService {
     const nota = Math.round((aciertos / total) * 100)
     const aprobado = nota >= modulo.curso.notaMinima
 
-    const previo = await this.prisma.cursoAvance.findUnique({
-      where: { moduloId_userId: { moduloId, userId } },
-    })
+    const previo = avancePrevio
     const mejora = !previo || aciertos > previo.aciertos
+    const hoy = hoyEnEcuador()
+    // El contador se reinicia al cambiar de dia: si no, los intentos de ayer
+    // seguirian contando hoy.
+    const intentosHoy = previo?.diaDeIntentos === hoy ? previo.intentosHoy + 1 : 1
 
     await this.prisma.cursoAvance.upsert({
       where: { moduloId_userId: { moduloId, userId } },
@@ -178,9 +307,15 @@ export class CursosService {
         aprobado,
         intentos: 1,
         completadoEn: aprobado ? new Date() : null,
+        ultimoIntentoEn: new Date(),
+        intentosHoy: 1,
+        diaDeIntentos: hoy,
       },
       update: {
         intentos: { increment: 1 },
+        ultimoIntentoEn: new Date(),
+        intentosHoy,
+        diaDeIntentos: hoy,
         // Solo se pisa el resultado si mejoró. Aprobado nunca se revierte: ya
         // demostró que lo sabe.
         ...(mejora ? { aciertos, total } : {}),
@@ -192,7 +327,38 @@ export class CursosService {
       ? await this.emitirSiCompleto(modulo.curso.id, userId, organizationId)
       : null
 
-    return { nota, aciertos, total, aprobado, notaMinima: modulo.curso.notaMinima, detalle, certificado }
+    // Al REPROBAR no se dice cual era la correcta ni se muestra la explicacion:
+    // eso seria el machete para el siguiente intento —solo habria que memorizar
+    // y pasar—. Se dice unicamente cuales fallo, para saber que repasar.
+    // Al aprobar si va el repaso completo: ahi ya demostro que lo sabe, y las
+    // explicaciones son donde de verdad se aprende.
+    const detalleVisible = aprobado
+      ? detalle
+      : detalle.map((d) => ({
+          preguntaId: d.preguntaId,
+          enunciado: d.enunciado,
+          acerto: d.acerto,
+          correcta: null,
+          elegida: null,
+          explicacion: null,
+        }))
+
+    const restantesHoy =
+      modulo.curso.intentosPorDia > 0
+        ? Math.max(0, modulo.curso.intentosPorDia - intentosHoy)
+        : null
+
+    return {
+      nota,
+      aciertos,
+      total,
+      aprobado,
+      notaMinima: modulo.curso.notaMinima,
+      detalle: detalleVisible,
+      certificado,
+      intentosRestantesHoy: restantesHoy,
+      esperaMinutos: modulo.curso.esperaMinutos,
+    }
   }
 
   /**

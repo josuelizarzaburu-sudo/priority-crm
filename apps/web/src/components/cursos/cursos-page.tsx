@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Award, Check, ChevronLeft, Lock, PlayCircle, RotateCcw, Settings } from 'lucide-react'
+import { Award, Check, ChevronLeft, Lock, PlayCircle, Settings } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { CursosAdmin } from './cursos-admin'
 
@@ -37,7 +37,8 @@ interface CursoResumen {
 interface Pregunta {
   id: string
   enunciado: string
-  opciones: string[]
+  /** `valor` es la posición original: es contra eso que corrige el servidor. */
+  opciones: { texto: string; valor: number }[]
 }
 
 interface ModuloAbierto {
@@ -47,6 +48,11 @@ interface ModuloAbierto {
   youtubeUrl: string
   curso: { id: string; titulo: string; notaMinima: number }
   preguntas: Pregunta[]
+  puedeIntentar: boolean
+  motivoBloqueo: string | null
+  segundosRestantes: number | null
+  intentosRestantesHoy: number | null
+  yaAprobado: boolean
 }
 
 interface Resultado {
@@ -58,12 +64,16 @@ interface Resultado {
   detalle: {
     preguntaId: string
     enunciado: string
-    correcta: number
+    // Al reprobar llegan en null: no se revela la respuesta para que el
+    // siguiente intento no sea copiar y pegar.
+    correcta: number | null
     elegida: number | null
     acerto: boolean
     explicacion: string | null
   }[]
   certificado: { nota: number; venceEn: string; codigo: string } | null
+  intentosRestantesHoy: number | null
+  esperaMinutos: number
 }
 
 function fecha(iso: string) {
@@ -133,6 +143,17 @@ function VistaModulo({
           <p className="mt-3 text-lg font-semibold" style={{ color: resultado.aprobado ? GOLD : '#fecaca' }}>
             {resultado.aprobado ? '¡Aprobado!' : `Necesitas ${resultado.notaMinima} para aprobar`}
           </p>
+          {!resultado.aprobado && (
+            <p className="mt-2 text-xs opacity-75">
+              {resultado.intentosRestantesHoy === 0
+                ? 'Se te acabaron los intentos de hoy. Vuelve mañana con el video repasado.'
+                : `Podrás reintentar en ${resultado.esperaMinutos} minutos${
+                    resultado.intentosRestantesHoy !== null
+                      ? ` · te ${resultado.intentosRestantesHoy === 1 ? 'queda 1 intento' : `quedan ${resultado.intentosRestantesHoy} intentos`} hoy`
+                      : ''
+                  }`}
+            </p>
+          )}
         </div>
 
         {resultado.certificado && (
@@ -147,8 +168,14 @@ function VistaModulo({
           </div>
         )}
 
-        {/* Las respuestas se repasan una a una con su explicacion: es donde de
-            verdad se aprende, sobre todo cuando no se aprobo. */}
+        {!resultado.aprobado && (
+          <p className="text-xs text-muted-foreground">
+            Estas fallaste. No se muestran las respuestas: vuelve al video y repásalas.
+          </p>
+        )}
+
+        {/* Al aprobar, el repaso completo con explicaciones: es donde de verdad
+            se aprende. Al reprobar solo se marca cual se fallo. */}
         <div className="grid gap-2 lg:grid-cols-2">
           {resultado.detalle.map((d, i) => (
             <div
@@ -173,17 +200,9 @@ function VistaModulo({
         </div>
 
         <div className="flex justify-end gap-2">
-          {!resultado.aprobado && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setResultado(null)
-                setRespuestas({})
-              }}
-            >
-              <RotateCcw className="mr-1.5 h-4 w-4" /> Reintentar
-            </Button>
-          )}
+          {/* No se ofrece "reintentar" al instante: hay que esperar, asi que el
+              boton mandaria a una pantalla que no deja enviar. Se vuelve al
+              curso, que es lo util —repasar el video. */}
           <Button onClick={onSalir} style={{ backgroundColor: NAVY, color: '#fff' }}>
             Volver al curso
           </Button>
@@ -229,6 +248,20 @@ function VistaModulo({
         </div>
 
         <div className="rounded-xl border p-4 md:p-5">
+          {/* Si no puede intentar, se dice ANTES de las preguntas: descubrirlo
+              despues de responder todo seria irritante. */}
+          {!modulo.puedeIntentar && modulo.motivoBloqueo && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              {modulo.motivoBloqueo}
+            </div>
+          )}
+          {modulo.puedeIntentar &&
+            modulo.intentosRestantesHoy !== null &&
+            !modulo.yaAprobado && (
+              <p className="mb-3 text-xs text-muted-foreground">
+                Te {modulo.intentosRestantesHoy === 1 ? 'queda 1 intento' : `quedan ${modulo.intentosRestantesHoy} intentos`} hoy en este módulo.
+              </p>
+            )}
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: GOLD }}>
             {modulo.preguntas.length === 1
               ? '1 pregunta'
@@ -267,7 +300,7 @@ function VistaModulo({
                             />
                           )}
                         </span>
-                        {op}
+                        {op.texto}
                       </button>
                     )
                   })}
@@ -278,7 +311,7 @@ function VistaModulo({
 
             <Button
               className="mt-5 w-full"
-              disabled={!todasRespondidas || enviar.isPending}
+              disabled={!todasRespondidas || enviar.isPending || !modulo.puedeIntentar}
               onClick={() => enviar.mutate()}
               style={{ backgroundColor: NAVY, color: '#fff' }}
             >

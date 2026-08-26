@@ -811,6 +811,11 @@ model Curso {
   /// Meses que dura el certificado. Las condiciones de las aseguradoras cambian
   /// cada ano y hay que repasar.
   vigenciaMeses  Int      @default(12)
+  /// Minutos de espera tras fallar. Sin espera se puede reintentar al instante
+  /// probando opciones hasta acertar, sin haber visto el video.
+  esperaMinutos  Int      @default(5)
+  /// Tope de intentos por dia y modulo. 0 = sin tope.
+  intentosPorDia Int      @default(3)
   organizationId String
   createdById    String
   createdAt      DateTime @default(now())
@@ -875,6 +880,14 @@ model CursoAvance {
   aprobado     Boolean   @default(false)
   intentos     Int       @default(0)
   completadoEn DateTime?
+  /// Cuando fue el ultimo intento, para exigir la espera.
+  ultimoIntentoEn DateTime?
+  /// Intentos gastados en `diaDeIntentos`.
+  intentosHoy     Int      @default(0)
+  /// Dia de esos intentos como YYYY-MM-DD en hora de Ecuador. Se guarda el dia
+  /// y no una marca de tiempo para que el corte sea el del calendario local: en
+  /// UTC, el dia cambiaria a las 19:00.
+  diaDeIntentos   String?
 
   modulo CursoModulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)

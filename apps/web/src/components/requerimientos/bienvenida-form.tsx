@@ -14,7 +14,12 @@ interface DatosBienvenida {
   yaEnviada: string | null
   preexistencias: string | null
   cliente: { nombreCompleto: string; email: string | null; tratamiento: string } | null
-  poliza: { aseguradora: string | null; plan: string | null; deducible: string | null } | null
+  poliza: {
+    aseguradora: string | null
+    plan: string | null
+    deducible: string | null
+    vigenciaDesde: string | null
+  } | null
   ejecutiva: { nombre: string; email: string; celular: string | null } | null
   faltantes: string[]
 }
@@ -175,6 +180,7 @@ export function BienvenidaForm({
           <Dato label="Compañía de seguros" valor={data.poliza?.aseguradora} />
           <Dato label="Plan médico" valor={data.poliza?.plan} />
           <Dato label="Deducible" valor={data.poliza?.deducible} />
+          <Dato label="Vigente desde" valor={data.poliza?.vigenciaDesde} />
         </div>
       </div>
 

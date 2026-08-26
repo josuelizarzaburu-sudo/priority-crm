@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
-import { nombreCompletoFormal, primerNombre } from '../../common/texto'
+import { nombreCompletoFormal, paraMostrarAlCliente, primerNombre } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
@@ -447,30 +447,29 @@ export class RequerimientosService {
       preexistencias: req.preexistencias,
       cliente: cliente
         ? {
-            // Saludo: solo el primer nombre, que es como se habla a una persona.
-      // "Estimada Sra. Antonieta,"
-      nombreCompleto: primerNombre(cliente.nombres),
-      // Asunto: apellidos y nombres completos, como en la cedula, para poder
-      // identificar el correo sin ambiguedad en la bandeja.
-      // "Bienvenido a Priority sus Asesores de Seguros - Cadena Huertas Hugo Eduardo"
-      nombreParaAsunto: nombreCompletoFormal(cliente.nombres, cliente.apellidos),
-      // Vigencia del plan, que es la fecha de emision de la poliza.
-      vigenciaDesde: poliza.fechaEmision
-        ? new Date(poliza.fechaEmision).toLocaleDateString('es-EC', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            // UTC porque la fecha se guarda sin hora: en Ecuador leerla en hora
-            // local daria el dia anterior.
-            timeZone: 'UTC',
-          })
-        : null,
+            // Aqui se muestran los datos para REVISARLOS en pantalla, asi que va
+            // el nombre completo. Los formatos del correo (saludo con el primer
+            // nombre, asunto con apellidos) los arma datosParaCarta.
+            nombreCompleto: paraMostrarAlCliente(
+              `${cliente.nombres} ${cliente.apellidos}`,
+            ),
             email: cliente.email,
             tratamiento: cliente.genero === 'FEMENINO' ? 'Sra.' : 'Sr.',
           }
         : null,
       poliza: poliza
         ? {
+            // La vigencia sale en la carta, asi que conviene poder revisarla
+            // aqui: si la poliza no tiene fecha de emision, se ve el hueco antes
+            // de enviar en vez de descubrirlo despues.
+            vigenciaDesde: poliza.fechaEmision
+              ? new Date(poliza.fechaEmision).toLocaleDateString('es-EC', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                  timeZone: 'UTC',
+                })
+              : null,
             aseguradora: poliza.aseguradora,
             plan: poliza.plan,
             deducible: formatearDeducible(poliza.deducible),

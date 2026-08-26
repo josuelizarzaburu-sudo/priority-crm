@@ -117,7 +117,7 @@ function VistaModulo({
   // ── Resultado ──
   if (resultado) {
     return (
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div
           className="rounded-2xl p-6 text-center text-white"
           style={{
@@ -194,7 +194,7 @@ function VistaModulo({
 
   // ── Video + preguntas ──
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <button
         type="button"
         onClick={onSalir}
@@ -232,7 +232,7 @@ function VistaModulo({
         <div className="space-y-5">
           {modulo.preguntas.map((p, i) => (
             <div key={p.id}>
-              <p className="mb-2 text-sm font-medium" style={{ color: NAVY }}>
+              <p className="mb-2.5 text-sm font-medium md:text-base" style={{ color: NAVY }}>
                 {i + 1}. {p.enunciado}
               </p>
               <div className="space-y-1.5">
@@ -243,7 +243,7 @@ function VistaModulo({
                       key={j}
                       type="button"
                       onClick={() => setRespuestas((r) => ({ ...r, [p.id]: j }))}
-                      className="flex w-full items-center gap-2.5 rounded-lg border p-2.5 text-left text-sm transition-colors"
+                      className="flex w-full items-center gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors md:text-[15px]"
                       style={{
                         borderColor: elegida ? NAVY : undefined,
                         borderWidth: elegida ? 1.5 : 1,
@@ -299,8 +299,11 @@ function VistaCurso({ curso, onSalir }: { curso: CursoResumen; onSalir: () => vo
     ? Math.round((curso.modulosAprobados / curso.totalModulos) * 100)
     : 0
 
+  // 4xl y no 2xl: la tarjeta del curso y la lista de modulos aprovechan el
+  // ancho. No se deja completo a proposito: una linea de texto de 2000px se lee
+  // peor que una de 900.
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <button
         type="button"
         onClick={onSalir}
@@ -318,9 +321,9 @@ function VistaCurso({ curso, onSalir }: { curso: CursoResumen; onSalir: () => vo
             {curso.aseguradora}
           </p>
         )}
-        <h1 className="mt-0.5 text-xl font-bold">{curso.titulo}</h1>
+        <h1 className="mt-0.5 text-2xl font-bold md:text-3xl">{curso.titulo}</h1>
         {curso.descripcion && (
-          <p className="mt-1 text-sm text-slate-300">{curso.descripcion}</p>
+          <p className="mt-1.5 text-sm text-slate-300 md:text-base">{curso.descripcion}</p>
         )}
         <div className="mt-4 flex items-center gap-2.5">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/20">
@@ -367,11 +370,11 @@ function VistaCurso({ curso, onSalir }: { curso: CursoResumen; onSalir: () => vo
               type="button"
               disabled={!desbloqueado || sinPreguntas}
               onClick={() => setModuloAbierto(m.id)}
-              className="flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-shadow disabled:cursor-not-allowed hover:enabled:shadow-sm"
+              className="flex w-full items-center gap-3.5 rounded-xl border p-4 text-left transition-shadow disabled:cursor-not-allowed hover:enabled:shadow-sm md:p-5"
               style={{ opacity: desbloqueado ? 1 : 0.5 }}
             >
               <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full md:h-9 md:w-9"
                 style={{
                   backgroundColor: m.aprobado ? VERDE : desbloqueado ? '#eef2f8' : '#f1f5f9',
                 }}
@@ -387,7 +390,7 @@ function VistaCurso({ curso, onSalir }: { curso: CursoResumen; onSalir: () => vo
 
               <div className="min-w-0 flex-1">
                 <p
-                  className="text-sm font-medium"
+                  className="text-sm font-medium md:text-base"
                   style={{ color: m.aprobado ? '#64748b' : NAVY }}
                 >
                   Módulo {i + 1} · {m.titulo}
@@ -459,11 +462,14 @@ export function CursosPage() {
     return acc
   }, {})
 
+  // Ancho completo: en el celular se veia bien, pero en monitor quedaba una
+  // columna estrecha en medio de mucho vacio. Es el mismo ajuste que ya hicimos
+  // en Tareas.
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-1">
+    <div className="w-full space-y-6 p-1 xl:p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: NAVY }}>
+          <h1 className="text-2xl font-bold md:text-3xl" style={{ color: NAVY }}>
             Capacitaciones
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -492,7 +498,7 @@ export function CursosPage() {
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {grupo}
             </h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {lista.map((c) => {
                 const pct = c.totalModulos
                   ? Math.round((c.modulosAprobados / c.totalModulos) * 100)
@@ -509,7 +515,7 @@ export function CursosPage() {
                     }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                      <p className="text-base font-semibold" style={{ color: NAVY }}>
                         {c.titulo}
                       </p>
                       {c.completado && (
@@ -549,7 +555,7 @@ export function CursosPage() {
           <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Award className="h-3.5 w-3.5" /> Mis certificados
           </h2>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {certificados.map((c) => (
               <div
                 key={c.id}

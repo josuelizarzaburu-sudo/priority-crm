@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
   CheckSquare,
+  GraduationCap,
   MessageSquare,
   Zap,
   Settings,
@@ -65,6 +66,7 @@ const NAV_ITEMS = [
   { href: '/equipos',          label: 'Equipos',            icon: Users,           roles: ['SUPER_ADMIN', 'OWNER'] },
   // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
   // personales con las reuniones haria inutiles a las dos.
+  { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES },
   { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP', 'JEFE_EQUIPO'] },
@@ -78,7 +80,9 @@ const NAV_ITEMS = [
   // Visible solo con el permiso individual puedePriorityHelp (o SUPER_ADMIN);
   // la lista de roles queda vacia a proposito para que no entre nadie por rol.
   { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: [] },
-  { href: '/training',         label: 'Capacitaciones',     icon: PlayCircle,      roles: COMUNES },
+  // Videoteca suelta, anterior a los cursos. Se renombra para que se distinga:
+  // con el mismo nombre en dos entradas, nadie sabria cual abrir.
+  { href: '/training',         label: 'Biblioteca de videos', icon: PlayCircle,    roles: COMUNES },
   { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
   { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },
 ]

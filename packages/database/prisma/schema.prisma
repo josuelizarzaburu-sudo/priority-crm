@@ -40,6 +40,7 @@ model Organization {
   equipos        Equipo[]
   correosAutomaticos CorreoAutomatico[]
   tareas         Tarea[]
+  cursos         Curso[]
 
   @@map("organizations")
 }
@@ -101,6 +102,9 @@ model User {
   equiposLiderados Equipo[]    @relation("EquipoJefe")
   tareasAsignadas  Tarea[]    @relation("TareaAsignado")
   tareasSolicitadas Tarea[]   @relation("TareaSolicitante")
+  cursosCreados     Curso[]   @relation("CursoCreadoPor")
+  cursoAvances      CursoAvance[]
+  cursoCertificados CursoCertificado[]
   contacts       Contact[]     @relation("ContactCreatedBy")
   assignedContacts Contact[]   @relation("ContactAssignedTo")
   deals          Deal[]        @relation("DealCreatedBy")
@@ -785,6 +789,119 @@ model TrainingVideo {
 
   @@index([organizationId, category])
   @@map("training_videos")
+}
+
+/// Curso de capacitacion: varios modulos en orden, cada uno con su video y sus
+/// preguntas. Al aprobar todos se emite un certificado con vigencia.
+///
+/// Se construye sobre los TrainingVideo que ya existian: aquellos son una
+/// videoteca suelta, esto es un recorrido con evaluacion y constancia.
+model Curso {
+  id             String   @id @default(cuid())
+  titulo         String
+  descripcion    String?
+  /// Aseguradora o tema: BMI, Humana, CRM Priority...
+  aseguradora    String?
+  orden          Int      @default(0)
+  /// Mientras no este publicado, solo lo ve quien lo administra.
+  publicado      Boolean  @default(false)
+  /// Nota minima sobre 100. Con menos de 80 se puede aprobar respondiendo al
+  /// azar sin haber visto el video.
+  notaMinima     Int      @default(80)
+  /// Meses que dura el certificado. Las condiciones de las aseguradoras cambian
+  /// cada ano y hay que repasar.
+  vigenciaMeses  Int      @default(12)
+  organizationId String
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy     User               @relation("CursoCreadoPor", fields: [createdById], references: [id])
+  modulos       CursoModulo[]
+  certificados  CursoCertificado[]
+
+  @@index([organizationId, orden])
+  @@map("cursos")
+}
+
+model CursoModulo {
+  id          String  @id @default(cuid())
+  cursoId     String
+  titulo      String
+  descripcion String?
+  youtubeUrl  String
+  duracionMin Int?
+  orden       Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  curso     Curso           @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  preguntas CursoPregunta[]
+  avances   CursoAvance[]
+
+  @@index([cursoId, orden])
+  @@map("curso_modulos")
+}
+
+model CursoPregunta {
+  id          String @id @default(cuid())
+  moduloId    String
+  enunciado   String
+  /// Opciones como JSON: son 2 a 4, se editan siempre juntas y nunca se
+  /// consultan por separado. Una tabla propia complicaria el guardado sin
+  /// aportar nada.
+  opciones    Json
+  /// Indice de la opcion correcta dentro de `opciones`.
+  correcta    Int
+  /// Se muestra despues de responder: es donde de verdad se aprende.
+  explicacion String?
+  orden       Int    @default(0)
+
+  modulo CursoModulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@index([moduloId, orden])
+  @@map("curso_preguntas")
+}
+
+/// Avance por modulo. Guarda el MEJOR intento, no el ultimo: si repasa y vuelve
+/// a responder peor, no deberia perder lo que ya habia logrado.
+model CursoAvance {
+  id           String    @id @default(cuid())
+  moduloId     String
+  userId       String
+  aciertos     Int       @default(0)
+  total        Int       @default(0)
+  aprobado     Boolean   @default(false)
+  intentos     Int       @default(0)
+  completadoEn DateTime?
+
+  modulo CursoModulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([moduloId, userId])
+  @@index([userId])
+  @@map("curso_avances")
+}
+
+model CursoCertificado {
+  id        String   @id @default(cuid())
+  cursoId   String
+  userId    String
+  nota      Int
+  emitidoEn DateTime @default(now())
+  /// Fecha calculada al emitir y GUARDADA, no derivada al consultarla: si
+  /// manana se cambia la vigencia del curso, los certificados ya entregados
+  /// conservan la fecha con la que se emitieron.
+  venceEn   DateTime
+  /// Codigo corto para verificar el certificado si se presenta impreso.
+  codigo    String   @unique
+
+  curso Curso @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cursoId, userId])
+  @@map("curso_certificados")
 }
 
 enum TrainingCategory {

@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
-import { ReportsPage } from '@/components/reports/reports-page'
+import { ReportesHub } from '@/components/reports/reportes-hub'
 
 export default async function Reports() {
   const session = await getServerSession(authOptions)
@@ -9,5 +9,5 @@ export default async function Reports() {
   const role = (session.user as any)?.role ?? 'SALES_REP'
   if (!['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(role)) redirect('/pipeline')
 
-  return <ReportsPage />
+  return <ReportesHub />
 }

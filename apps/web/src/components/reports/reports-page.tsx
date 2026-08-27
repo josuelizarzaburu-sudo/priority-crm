@@ -478,7 +478,11 @@ export function ReportsPage() {
 
   // ── Vendors ─────────────────────────────────────────────────────────────
   const vendorData = useMemo(() => {
-    const members = users.filter(u => u.role === 'MEMBER')
+    // El rol MEMBER no existe en este CRM: los vendedores son SALES_REP, y
+    // JEFE_EQUIPO tambien vende. Con el filtro anterior la tabla salia vacia o a
+    // medias, y por eso los totales por agente no cuadraban con el pipeline.
+    const VENDEN = ['SALES_REP', 'JEFE_EQUIPO']
+    const members = users.filter(u => VENDEN.includes(u.role) || (u as any).puedeVender === true)
     return members
       .map(u => {
         const mine    = deals.filter(d => d.assignedToId === u.id)

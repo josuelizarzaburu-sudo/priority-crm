@@ -280,14 +280,25 @@ export function CotizadorPage() {
   const personas = useMemo(
     () =>
       miembros
-        .map((m) => ({ edad: parseInt(m.edad, 10), sexo: m.sexo, maternidad: m.maternidad }))
+        .map((m) => ({
+          edad: parseInt(m.edad, 10),
+          sexo: m.sexo,
+          maternidad: m.maternidad,
+          parentesco: m.parentesco,
+        }))
         .filter((p) => Number.isFinite(p.edad) && p.edad >= 0 && p.edad <= 105),
     [miembros],
   )
 
   const bmi = useMemo(() => {
     if (personas.length === 0) return null
-    return cotizarBmiTodos(region, personas.map((p) => ({ edad: p.edad })))
+    // El parentesco viaja a proposito: en GMM un HIJO de 18 a 24 anos paga la
+    // tarifa de 17. Antes se mandaba solo la edad y un hijo de 19 se cobraba
+    // como adulto, dejando la prima un 12% sobre la oficial de BMI.
+    return cotizarBmiTodos(
+      region,
+      personas.map((p) => ({ edad: p.edad, parentesco: p.parentesco })),
+    )
   }, [region, personas])
 
   // BMI Internacional: a diferencia de los planes nacionales, aquí SÍ importa el

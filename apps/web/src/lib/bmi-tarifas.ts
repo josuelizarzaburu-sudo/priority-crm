@@ -62,6 +62,14 @@ const TARIFAS_GMM: Record<BmiRegion, Record<number, Record<string, number>>> = {
 // ── Motor de cotización BMI ──────────────────────────────────────────
 export interface BmiPersona {
   edad: number
+  /**
+   * Parentesco tal como lo elige el asesor: 'Titular', 'Cónyuge', 'Hijo/a' o
+   * 'Dependiente'.
+   *
+   * Hace falta porque en GMM un HIJO de 18 a 24 años paga la tarifa de 17, y sin
+   * saber quién es hijo no se puede aplicar esa regla.
+   */
+  parentesco?: string
 }
 
 export interface BmiResultadoDeducible {
@@ -74,12 +82,44 @@ export interface BmiResultadoDeducible {
 }
 
 // Precio base de una persona por plan/región/edad/deducible (edad clamp 0..max)
+/** ¿Es un hijo? Se acepta cualquier variante con que se escriba el parentesco. */
+function esHijo(parentesco?: string): boolean {
+  const p = (parentesco ?? '').toLowerCase()
+  return p.startsWith('hijo') || p.startsWith('hija')
+}
+
+/**
+ * Edad con la que se cobra a esta persona.
+ *
+ * En GMM, un HIJO de 18 a 24 años paga la tarifa de 17 —la de menor de edad—.
+ * Es la regla del cotizador oficial de BMI:
+ *
+ *     IF(edad>24, "", IF(AND(edad>17, edad<25), 17, edad))
+ *
+ * Sin esto, un hijo de 19 se cobraba como adulto y la prima salía un 12% por
+ * encima de la oficial.
+ *
+ * Solo aplica a GMM: en Sigma e Innova el cotizador oficial usa la edad real, y
+ * solo separa a los mayores de 24. Y solo a los HIJOS: el titular y el cónyuge
+ * pagan siempre por su edad.
+ *
+ * A partir de 25 el hijo deja de ser dependiente y vuelve a su edad real.
+ */
+function edadACobrar(plan: BmiPlanId, edad: number, parentesco?: string): number {
+  if (plan !== 'gmm') return edad
+  if (!esHijo(parentesco)) return edad
+  if (edad > 17 && edad < 25) return 17
+  return edad
+}
+
 function basePersona(
   plan: BmiPlanId,
   region: BmiRegion,
-  edad: number,
+  edadReal: number,
   deducible: string,
+  parentesco?: string,
 ): number {
+  const edad = edadACobrar(plan, edadReal, parentesco)
   const e = Math.max(0, Math.round(edad))
   if (plan === 'innova') {
     const tabla = TARIFAS_INNOVA[region]
@@ -103,7 +143,7 @@ export function cotizarBmiDeducible(
 ): BmiResultadoDeducible {
   const cargos = OTROS_CARGOS[plan]
   const baseFamilia = personas.reduce(
-    (sum, p) => sum + basePersona(plan, region, p.edad, deducible),
+    (sum, p) => sum + basePersona(plan, region, p.edad, deducible, p.parentesco),
     0,
   )
   const anualNormal = (baseFamilia + cargos) * (1 + IMPUESTO)

@@ -27,6 +27,40 @@ export class ReportsController {
     )
   }
 
+  @Get('embudo')
+  @ApiOperation({ summary: 'Leads por etapa, con conversión y motivos de pérdida' })
+  embudo(
+    @Req() req: any,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('agenteId') agenteId?: string,
+  ) {
+    return this.service.embudo(
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+      req.user.puedeVender,
+      { desde, hasta, agenteId },
+    )
+  }
+
+  @Get('tiempos')
+  @ApiOperation({ summary: 'Días desde que entra el lead hasta que se cierra' })
+  tiempos(
+    @Req() req: any,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('agenteId') agenteId?: string,
+  ) {
+    return this.service.tiemposDeCierre(
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+      req.user.puedeVender,
+      { desde, hasta, agenteId },
+    )
+  }
+
   @Get('agentes')
   @ApiOperation({ summary: 'Agentes con ventas, para el filtro' })
   agentes(@Req() req: any) {

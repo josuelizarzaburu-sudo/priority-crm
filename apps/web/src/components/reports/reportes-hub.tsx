@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { ReporteVentas } from './reporte-ventas'
+import { ReporteEmbudo, ReporteTiempos } from './reporte-embudo'
 import { ReportsPage } from './reports-page'
-import { BarChart3, TrendingUp } from 'lucide-react'
+import { BarChart3, Clock, Filter, TrendingUp } from 'lucide-react'
 
 const NAVY = '#0C2057'
 
@@ -16,6 +17,8 @@ const NAVY = '#0C2057'
  */
 const PESTANAS = [
   { id: 'ventas', label: 'Ventas ganadas', icono: TrendingUp },
+  { id: 'embudo', label: 'Embudo', icono: Filter },
+  { id: 'tiempos', label: 'Tiempo de cierre', icono: Clock },
   { id: 'general', label: 'Panel general', icono: BarChart3 },
 ] as const
 
@@ -56,7 +59,10 @@ export function ReportesHub() {
         })}
       </div>
 
-      {activa === 'ventas' ? <ReporteVentas /> : <ReportsPage />}
+      {activa === 'ventas' && <ReporteVentas />}
+      {activa === 'embudo' && <ReporteEmbudo />}
+      {activa === 'tiempos' && <ReporteTiempos />}
+      {activa === 'general' && <ReportsPage />}
     </div>
   )
 }

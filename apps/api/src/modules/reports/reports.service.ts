@@ -238,4 +238,249 @@ export class ReportsService {
       .map((d) => d.assignedTo!)
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
   }
+  /**
+   * Embudo: cuántos leads hay en cada etapa y cuánto valen.
+   *
+   * Responde una pregunta distinta a la del reporte de ventas: aquel mira lo que
+   * YA se cerró, este lo que está en juego ahora y dónde se atasca.
+   *
+   * Se filtra por cuándo ENTRÓ el lead, no por cierre: un embudo es una foto de
+   * la camada que entró en ese período y de hasta dónde llegó cada uno.
+   */
+  async embudo(
+    organizationId: string,
+    userId: string,
+    role: string,
+    puedeVender: boolean | undefined,
+    query: { desde?: string; hasta?: string; agenteId?: string },
+  ) {
+    const where: any = { organizationId }
+
+    if (soloVeSusNegocios(role, puedeVender)) {
+      where.assignedToId = userId
+    } else if (veSoloSuEquipo(role)) {
+      const miembros = await this.equipos.miembrosDelJefe(userId, organizationId)
+      where.assignedToId = { in: [userId, ...miembros] }
+    }
+    if (query.agenteId) {
+      const permitido =
+        !where.assignedToId ||
+        (typeof where.assignedToId === 'string' && where.assignedToId === query.agenteId) ||
+        (where.assignedToId?.in && where.assignedToId.in.includes(query.agenteId))
+      if (permitido) where.assignedToId = query.agenteId
+    }
+
+    if (query.desde || query.hasta) {
+      where.createdAt = {}
+      if (query.desde) where.createdAt.gte = new Date(`${query.desde}T00:00:00-05:00`)
+      if (query.hasta) where.createdAt.lte = new Date(`${query.hasta}T23:59:59.999-05:00`)
+    }
+
+    const [deals, etapas] = await Promise.all([
+      this.prisma.deal.findMany({
+        where,
+        include: {
+          stage: { select: { id: true, name: true, position: true } },
+          assignedTo: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.pipelineStage.findMany({
+        where: { organizationId },
+        orderBy: { position: 'asc' },
+        select: { id: true, name: true, position: true },
+      }),
+    ])
+
+    const valorDe = (d: any) => {
+      if (typeof d.value === 'number' && d.value > 0) return d.value
+      const ins = (d.customFields as any)?.insuranceData
+      if (Array.isArray(ins)) {
+        return ins.reduce(
+          (s: number, e: any) => s + (typeof e?.netPremium === 'number' ? e.netPremium : 0),
+          0,
+        )
+      }
+      return 0
+    }
+
+    // Ganados y perdidos van APARTE de las etapas: un deal ganado sigue teniendo
+    // su etapa guardada, y contarlo ahí inflaría "Negociación" con negocios que
+    // ya no se están negociando.
+    const abiertos = deals.filter((d) => d.status === 'OPEN')
+    const ganados = deals.filter((d) => d.status === 'WON')
+    const perdidos = deals.filter((d) => d.status === 'LOST')
+
+    const porEtapa = etapas.map((e) => {
+      const enEtapa = abiertos.filter((d) => d.stageId === e.id)
+      return {
+        etapa: e.name,
+        posicion: e.position,
+        leads: enEtapa.length,
+        valor: enEtapa.reduce((s, d) => s + valorDe(d), 0),
+      }
+    })
+
+    // Motivos de pérdida, para saber por qué se cae la gente. Es lo más útil de
+    // los perdidos y hoy no se veía en ningún reporte.
+    const motivos = new Map<string, number>()
+    for (const d of perdidos) {
+      const m = (d.closingReason ?? '').trim() || 'Sin motivo registrado'
+      motivos.set(m, (motivos.get(m) ?? 0) + 1)
+    }
+
+    const agentes = new Map<string, { nombre: string; abiertos: number; ganados: number; perdidos: number; valor: number }>()
+    for (const d of deals) {
+      const nombre = d.assignedTo?.name ?? 'Sin asignar'
+      const a = agentes.get(nombre) ?? { nombre, abiertos: 0, ganados: 0, perdidos: 0, valor: 0 }
+      if (d.status === 'OPEN') {
+        a.abiertos += 1
+        a.valor += valorDe(d)
+      } else if (d.status === 'WON') a.ganados += 1
+      else if (d.status === 'LOST') a.perdidos += 1
+      agentes.set(nombre, a)
+    }
+
+    const cerrados = ganados.length + perdidos.length
+
+    return {
+      porEtapa,
+      resumen: {
+        total: deals.length,
+        abiertos: abiertos.length,
+        ganados: ganados.length,
+        perdidos: perdidos.length,
+        valorEnJuego: abiertos.reduce((s, d) => s + valorDe(d), 0),
+        // La conversión se mide sobre los CERRADOS, no sobre el total: incluir
+        // los que siguen abiertos la hundiría sin que nadie haya perdido nada
+        // todavía.
+        conversion: cerrados > 0 ? Math.round((ganados.length / cerrados) * 100) : null,
+      },
+      porAgente: [...agentes.values()].sort((a, b) => b.abiertos - a.abiertos),
+      motivosPerdida: [...motivos.entries()]
+        .map(([motivo, cantidad]) => ({ motivo, cantidad }))
+        .sort((a, b) => b.cantidad - a.cantidad),
+    }
+  }
+
+  /**
+   * Tiempo de cierre: cuánto tarda un lead desde que entra hasta que se cierra.
+   *
+   * No importan las etapas por las que pasó, solo el total. Es una medida de
+   * efectividad: dos vendedores con la misma conversión pero uno cerrando en 8
+   * días y otro en 40 no rinden igual.
+   */
+  async tiemposDeCierre(
+    organizationId: string,
+    userId: string,
+    role: string,
+    puedeVender: boolean | undefined,
+    query: { desde?: string; hasta?: string; agenteId?: string },
+  ) {
+    const where: any = { organizationId, status: { in: ['WON', 'LOST'] }, closedAt: { not: null } }
+
+    if (soloVeSusNegocios(role, puedeVender)) {
+      where.assignedToId = userId
+    } else if (veSoloSuEquipo(role)) {
+      const miembros = await this.equipos.miembrosDelJefe(userId, organizationId)
+      where.assignedToId = { in: [userId, ...miembros] }
+    }
+    if (query.agenteId) {
+      const permitido =
+        !where.assignedToId ||
+        (typeof where.assignedToId === 'string' && where.assignedToId === query.agenteId) ||
+        (where.assignedToId?.in && where.assignedToId.in.includes(query.agenteId))
+      if (permitido) where.assignedToId = query.agenteId
+    }
+
+    if (query.desde || query.hasta) {
+      where.closedAt = { not: null }
+      if (query.desde) where.closedAt.gte = new Date(`${query.desde}T00:00:00-05:00`)
+      if (query.hasta) where.closedAt.lte = new Date(`${query.hasta}T23:59:59.999-05:00`)
+    }
+
+    const deals = await this.prisma.deal.findMany({
+      where,
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        contact: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { closedAt: 'desc' },
+    })
+
+    const filas = deals
+      .map((d) => {
+        const cf = (d.customFields ?? {}) as any
+        const inicio = cf.leadCreatedAt ? new Date(cf.leadCreatedAt) : d.createdAt
+        if (!d.closedAt || !inicio) return null
+        const dias = Math.max(
+          0,
+          Math.round((d.closedAt.getTime() - new Date(inicio).getTime()) / 86_400_000),
+        )
+        return {
+          dealId: d.id,
+          cliente: d.contact
+            ? `${d.contact.firstName} ${d.contact.lastName ?? ''}`.trim()
+            : d.title,
+          agente: d.assignedTo?.name ?? 'Sin asignar',
+          ganado: d.status === 'WON',
+          dias,
+          entroEn: new Date(inicio).toISOString(),
+          cerradoEn: d.closedAt.toISOString(),
+        }
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
+
+    const ganadas = filas.filter((f) => f.ganado)
+
+    // La MEDIANA además del promedio: un solo negocio que tardó ocho meses
+    // arrastra el promedio y da una idea equivocada del caso típico.
+    const mediana = (xs: number[]) => {
+      if (!xs.length) return null
+      const o = [...xs].sort((a, b) => a - b)
+      const m = Math.floor(o.length / 2)
+      return o.length % 2 ? o[m] : Math.round((o[m - 1] + o[m]) / 2)
+    }
+
+    const porAgente = new Map<string, number[]>()
+    for (const f of ganadas) {
+      porAgente.set(f.agente, [...(porAgente.get(f.agente) ?? []), f.dias])
+    }
+
+    // Tramos para el gráfico. Los cortes buscan separar lo que se cierra rápido
+    // de lo que se está enfriando.
+    const tramos = [
+      { rango: '0-7 días', min: 0, max: 7 },
+      { rango: '8-15 días', min: 8, max: 15 },
+      { rango: '16-30 días', min: 16, max: 30 },
+      { rango: '31-60 días', min: 31, max: 60 },
+      { rango: 'Más de 60', min: 61, max: Infinity },
+    ].map((t) => ({
+      rango: t.rango,
+      cantidad: ganadas.filter((f) => f.dias >= t.min && f.dias <= t.max).length,
+    }))
+
+    return {
+      filas,
+      resumen: {
+        cerrados: filas.length,
+        ganados: ganadas.length,
+        promedioGanados: ganadas.length
+          ? Math.round(ganadas.reduce((s, f) => s + f.dias, 0) / ganadas.length)
+          : null,
+        medianaGanados: mediana(ganadas.map((f) => f.dias)),
+        masRapido: ganadas.length ? Math.min(...ganadas.map((f) => f.dias)) : null,
+        masLento: ganadas.length ? Math.max(...ganadas.map((f) => f.dias)) : null,
+      },
+      tramos,
+      porAgente: [...porAgente.entries()]
+        .map(([nombre, dias]) => ({
+          nombre,
+          cerrados: dias.length,
+          promedio: Math.round(dias.reduce((s, d) => s + d, 0) / dias.length),
+          mediana: mediana(dias),
+        }))
+        .sort((a, b) => a.promedio - b.promedio),
+    }
+  }
+
 }

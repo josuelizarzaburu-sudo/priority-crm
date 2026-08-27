@@ -322,9 +322,12 @@ export class ReportsService {
 
     // Motivos de pérdida, para saber por qué se cae la gente. Es lo más útil de
     // los perdidos y hoy no se veía en ningún reporte.
+    //
+    // El motivo se guarda en `notes`: al cerrar un deal como perdido, closeDeal
+    // escribe ahí lo que puso el asesor. No hay un campo propio para esto.
     const motivos = new Map<string, number>()
     for (const d of perdidos) {
-      const m = (d.closingReason ?? '').trim() || 'Sin motivo registrado'
+      const m = (d.notes ?? '').trim() || 'Sin motivo registrado'
       motivos.set(m, (motivos.get(m) ?? 0) + 1)
     }
 

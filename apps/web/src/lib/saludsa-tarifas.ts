@@ -98,6 +98,15 @@ function factorPersona(p: SaludsaPersona, hayAdulto: boolean): number {
   return comoHombre ? 6.44 : 4.59
 }
 
+/**
+ * Plan exequial: cobertura por fallecimiento. Valor FIJO de $3,38 al mes POR
+ * PERSONA, no por grupo.
+ *
+ * Se ofrece siempre porque la aseguradora lo ofrece, y hasta ahora quedaba fuera
+ * de la cotizacion: el asesor lo mencionaba de palabra o se le pasaba.
+ */
+export const EXEQUIAL_POR_PERSONA = 3.38
+
 export interface SaludsaResultadoPlan {
   plan: SaludsaPlanId
   label: string
@@ -112,6 +121,19 @@ export interface SaludsaResultadoPlan {
   anualTarjeta: number
   /** Cashback Vitality estimado al año (20%, solo mayores de 18). */
   cashbackAnual: number
+  /**
+   * Plan exequial: $3,38 por persona al mes.
+   *
+   * Va SEPARADO del resto de cifras a proposito. Es un producto adicional con
+   * precio fijo: no entra en el descuento por volumen ni en los de forma de
+   * pago, que se calculan sobre la prima de salud. Mezclarlo daria un total que
+   * no cuadraria con el de la aseguradora.
+   */
+  exequialMensual: number
+  exequialAnual: number
+  /** Totales con el exequial incluido, para no tener que sumarlos a mano. */
+  mensualConExequial: number
+  anualConExequial: number
 }
 
 /** Cotiza un plan de Saludsa para un grupo de personas. */
@@ -154,6 +176,11 @@ export function cotizarSaludsaPlan(
     CASHBACK_VITALITY *
     12
 
+  // Exequial: fijo por persona, sin descuentos. Se cobra por cada integrante del
+  // grupo, incluidos los menores.
+  const exequialMensual = personas.length * EXEQUIAL_POR_PERSONA
+  const exequialAnual = exequialMensual * 12
+
   const r2 = (n: number) => Math.round(n * 100) / 100
   return {
     plan,
@@ -165,6 +192,10 @@ export function cotizarSaludsaPlan(
     anualTransferencia: r2(anualTransferencia),
     anualTarjeta: r2(anualTarjeta),
     cashbackAnual: r2(cashbackAnual),
+    exequialMensual: r2(exequialMensual),
+    exequialAnual: r2(exequialAnual),
+    mensualConExequial: r2(mensual + exequialMensual),
+    anualConExequial: r2(anual + exequialAnual),
   }
 }
 

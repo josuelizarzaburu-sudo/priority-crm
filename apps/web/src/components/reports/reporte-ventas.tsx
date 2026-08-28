@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Bar,
@@ -16,6 +16,7 @@ import {
 import * as XLSX from 'xlsx'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { SelectorPeriodo, mesConcreto, type Periodo } from './selector-periodo'
 import { Download, TrendingUp } from 'lucide-react'
 
 const NAVY = '#0C2057'
@@ -74,30 +75,19 @@ const fecha = (iso: string | null) =>
       })
     : '—'
 
-/** Últimos 12 meses como opciones de filtro. */
-function ultimosMeses() {
-  const hoy = new Date()
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
-    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const etiqueta = d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })
-    return { valor, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1) }
-  })
-}
-
-/** Primer y último día del mes, como YYYY-MM-DD. */
-function rangoDelMes(mes: string) {
-  const [a, m] = mes.split('-').map(Number)
-  const ultimo = new Date(a, m, 0).getDate()
-  return { desde: `${mes}-01`, hasta: `${mes}-${String(ultimo).padStart(2, '0')}` }
+function mesActual(): Periodo {
+  const h = new Date()
+  return mesConcreto(`${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}`)
 }
 
 export function ReporteVentas() {
-  const meses = useMemo(() => ultimosMeses(), [])
-  const [mes, setMes] = useState(meses[0].valor)
+  // Se usa el selector compartido: trae mes a mes, historicos de 3, 6 y 12
+  // meses, y rango personalizado. Antes este reporte solo dejaba elegir un mes
+  // suelto, sin forma de ver el acumulado.
+  const [periodo, setPeriodo] = useState<Periodo>(mesActual())
   const [agenteId, setAgenteId] = useState('')
 
-  const { desde, hasta } = rangoDelMes(mes)
+  const { desde, hasta } = periodo
 
   const { data: agentes = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['reportes', 'agentes'],
@@ -165,8 +155,7 @@ export function ReporteVentas() {
     ws2['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }]
     XLSX.utils.book_append_sheet(wb, ws2, 'Resumen')
 
-    const etiqueta = meses.find((m) => m.valor === mes)?.etiqueta ?? mes
-    XLSX.writeFile(wb, `Ventas ${etiqueta}${agenteId ? ' - filtrado' : ''}.xlsx`)
+    XLSX.writeFile(wb, `Ventas ${periodo.etiqueta}${agenteId ? ' - filtrado' : ''}.xlsx`)
   }
 
   const nombreAgente = agentes.find((a) => a.id === agenteId)?.name
@@ -175,20 +164,7 @@ export function ReporteVentas() {
     <div className="w-full space-y-5">
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Mes</label>
-          <select
-            value={mes}
-            onChange={(e) => setMes(e.target.value)}
-            className="h-10 rounded-md border bg-background px-3 text-sm"
-          >
-            {meses.map((m) => (
-              <option key={m.valor} value={m.valor}>
-                {m.etiqueta}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectorPeriodo valor={periodo} onCambio={setPeriodo} />
 
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Agente</label>
@@ -222,7 +198,7 @@ export function ReporteVentas() {
         <div className="rounded-xl border border-dashed py-16 text-center">
           <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground/40" />
           <p className="mt-3 text-sm text-muted-foreground">
-            No hay ventas cerradas en {meses.find((m) => m.valor === mes)?.etiqueta}
+            No hay ventas cerradas en {periodo.etiqueta}
             {nombreAgente ? ` para ${nombreAgente}` : ''}.
           </p>
         </div>

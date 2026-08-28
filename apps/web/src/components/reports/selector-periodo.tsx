@@ -122,12 +122,23 @@ export function SelectorPeriodo({
           <label className="mb-1 block text-xs text-muted-foreground">Rango</label>
           <select
             defaultValue="3"
-            onChange={(e) => onCambio(mesesAtras(Number(e.target.value)))}
+            onChange={(e) => {
+              const v = e.target.value
+              // "Todo" arranca en 2020: es anterior a cualquier dato del CRM, asi
+              // que trae el historico completo sin tener que consultar cual es el
+              // registro mas antiguo.
+              if (v === 'todo') {
+                onCambio({ desde: '2020-01-01', hasta: hoyISO(), etiqueta: 'Todo el histórico' })
+              } else {
+                onCambio(mesesAtras(Number(v)))
+              }
+            }}
             className="h-10 rounded-md border bg-background px-3 text-sm"
           >
             <option value="3">Últimos 3 meses</option>
             <option value="6">Últimos 6 meses</option>
             <option value="12">Último año</option>
+            <option value="todo">Todo el histórico</option>
           </select>
         </div>
       )}

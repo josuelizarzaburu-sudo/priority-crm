@@ -140,12 +140,19 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
       result = result.filter((d) => d.assignedToId === currentUserId)
     }
     if (mesFilter !== 'ALL') {
-      // Se filtra por el mes en que ENTRO el lead. Se prefiere leadCreatedAt
-      // cuando existe, porque createdAt del deal puede ser posterior si el
-      // registro se creo despues; si falta, createdAt es la mejor aproximacion.
+      // Un negocio pertenece al mes en que SE CIERRA, no a aquel en que entro el
+      // lead: si se gana en agosto es venta de agosto, aunque el contacto venga
+      // de julio. Es la regla con la que se mide el mes economico, y la misma
+      // que usan los reportes — antes este filtro miraba la fecha de entrada y
+      // los totales no coincidian.
+      //
+      // Los que siguen abiertos no tienen cierre todavia, asi que se ubican por
+      // su fecha de entrada: son justamente los que aun no pertenecen a ningun
+      // mes cerrado.
       result = result.filter((d) => {
         const cf = (d as any).customFields
-        const fuente = cf?.leadCreatedAt ?? (d as any).createdAt
+        const cerrado = (d as any).closedAt
+        const fuente = cerrado ?? cf?.leadCreatedAt ?? (d as any).createdAt
         if (!fuente) return false
         const f = new Date(fuente)
         if (Number.isNaN(f.getTime())) return false

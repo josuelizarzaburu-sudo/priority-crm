@@ -122,12 +122,11 @@ export interface SaludsaResultadoPlan {
   /** Cashback Vitality estimado al año (20%, solo mayores de 18). */
   cashbackAnual: number
   /**
-   * Plan exequial: $3,38 por persona al mes.
+   * Cuanto de la prima corresponde al exequial: $3,38 por persona.
    *
-   * Va SEPARADO del resto de cifras a proposito. Es un producto adicional con
-   * precio fijo: no entra en el descuento por volumen ni en los de forma de
-   * pago, que se calculan sobre la prima de salud. Mezclarlo daria un total que
-   * no cuadraria con el de la aseguradora.
+   * Es informativo, para poder mostrar el desglose. YA ESTA incluido en
+   * `mensual` y `anual`: en el cotizador oficial se suma al subtotal antes de
+   * los descuentos, asi que tambien recibe el de volumen y los de forma de pago.
    */
   exequialMensual: number
   exequialAnual: number
@@ -140,11 +139,26 @@ export interface SaludsaResultadoPlan {
 export function cotizarSaludsaPlan(
   plan: SaludsaPlanId,
   personas: SaludsaPersona[],
+  /** Incluir el plan exequial. Va en true porque la aseguradora lo ofrece siempre. */
+  conExequial = true,
 ): SaludsaResultadoPlan {
   const base = PRECIO_BASE[plan]
   const hayAdulto = personas.some((p) => Math.round(p.edad) >= 18)
 
-  const subtotal = personas.reduce((s, p) => s + base * factorPersona(p, hayAdulto), 0)
+  const primaSalud = personas.reduce((s, p) => s + base * factorPersona(p, hayAdulto), 0)
+
+  /**
+   * Exequial: $3,38 al mes por persona, TODAS incluidas —también los niños.
+   *
+   * En el cotizador oficial aparece como "Condiciones Especiales (Servicios
+   * Adicionales)" y se SUMA AL SUBTOTAL antes de los descuentos, no al final.
+   * Verificado con un caso real: hombre 33 + niña 10 en Star15K da subtotal
+   * 103,08 = 96,32 de plan + 6,76 de exequial, y el 3% de volumen se calcula
+   * sobre esos 103,08.
+   */
+  const exequialMensual = conExequial ? personas.length * EXEQUIAL_POR_PERSONA : 0
+
+  const subtotal = primaSalud + exequialMensual
   const descVolumen = descuentoVolumen(personas.length)
   const descuento = subtotal * descVolumen
 
@@ -176,9 +190,6 @@ export function cotizarSaludsaPlan(
     CASHBACK_VITALITY *
     12
 
-  // Exequial: fijo por persona, sin descuentos. Se cobra por cada integrante del
-  // grupo, incluidos los menores.
-  const exequialMensual = personas.length * EXEQUIAL_POR_PERSONA
   const exequialAnual = exequialMensual * 12
 
   const r2 = (n: number) => Math.round(n * 100) / 100
@@ -194,13 +205,18 @@ export function cotizarSaludsaPlan(
     cashbackAnual: r2(cashbackAnual),
     exequialMensual: r2(exequialMensual),
     exequialAnual: r2(exequialAnual),
-    mensualConExequial: r2(mensual + exequialMensual),
-    anualConExequial: r2(anual + exequialAnual),
+    // Iguales a mensual/anual: el exequial ya va dentro del subtotal. Se
+    // conservan para no romper lo que ya los usa.
+    mensualConExequial: r2(mensual),
+    anualConExequial: r2(anual),
   }
 }
 
 /** Cotiza los 5 planes del comparativo de una sola vez. */
-export function cotizarSaludsa(personas: SaludsaPersona[]): SaludsaResultadoPlan[] {
+export function cotizarSaludsa(
+  personas: SaludsaPersona[],
+  conExequial = true,
+): SaludsaResultadoPlan[] {
   if (personas.length === 0) return []
-  return SALUDSA_PLANES.map((p) => cotizarSaludsaPlan(p, personas))
+  return SALUDSA_PLANES.map((p) => cotizarSaludsaPlan(p, personas, conExequial))
 }

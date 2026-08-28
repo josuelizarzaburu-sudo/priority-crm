@@ -371,8 +371,9 @@ export function CotizadorPage() {
         // en mujeres de 18-31).
         sinMaternidad: false,
       })),
+      conExequial,
     )
-  }, [personas])
+  }, [personas, conExequial])
 
   const confiamed = useMemo(() => {
     if (personas.length === 0) return null
@@ -1094,7 +1095,9 @@ export function CotizadorPage() {
                   )}
                 </span>
                 <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  Cobertura por fallecimiento. Los precios de abajo ya lo incluyen.
+                  Cobertura por fallecimiento, para todos los integrantes incluidos los niños.
+                  En el cotizador de Saludsa aparece como &quot;Condiciones especiales&quot;. Los
+                  precios de abajo ya lo incluyen.
                 </span>
               </span>
             </label>
@@ -1129,19 +1132,18 @@ export function CotizadorPage() {
                               className="px-3 py-2 text-right font-bold"
                               style={{ color: NAVY }}
                             >
-                              ${money(conExequial ? r.mensualConExequial : r.mensual)}
+                              ${money(r.mensual)}
                             </td>
                             <td className="px-3 py-2 text-right text-[#333]">
-                              ${money(conExequial ? r.anualConExequial : r.anual)}
+                              ${money(r.anual)}
                             </td>
-                            {/* El exequial no recibe los descuentos por forma de
-                                pago: es un producto aparte con precio fijo. Por
-                                eso se suma tal cual a cada columna. */}
+                            {/* Todas las cifras ya traen el exequial: entra en el
+                                subtotal y recibe los mismos descuentos. */}
                             <td className="px-3 py-2 text-right text-[#333]">
-                              ${money(r.anualTransferencia + (conExequial ? r.exequialAnual : 0))}
+                              ${money(r.anualTransferencia)}
                             </td>
                             <td className="px-3 py-2 text-right text-[#333]">
-                              ${money(r.anualTarjeta + (conExequial ? r.exequialAnual : 0))}
+                              ${money(r.anualTarjeta)}
                             </td>
                             <td
                               className="px-3 py-2 text-right font-medium"
@@ -1161,7 +1163,7 @@ export function CotizadorPage() {
                                     detalle: conExequial
                                       ? `Incluye plan exequial · Cashback anual $${money(r.cashbackAnual)}`
                                       : `Cashback anual $${money(r.cashbackAnual)}`,
-                                    mensual: conExequial ? r.mensualConExequial : r.mensual,
+                                    mensual: r.mensual,
                                   })
                                 }
                                 className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"

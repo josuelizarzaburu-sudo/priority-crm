@@ -1,5 +1,12 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { NotificationsService } from '../notifications/notifications.service'
 
 /**
  * Quien ve las tareas de TODO el equipo.
@@ -21,7 +28,12 @@ const PUEDE_ASIGNAR_A_OTROS = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIO
 
 @Injectable()
 export class TareasService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TareasService.name)
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * Filtro segun quien consulta.
@@ -78,6 +90,7 @@ export class TareasService {
         asignado: { select: { id: true, name: true } },
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
+        subpuntos: { orderBy: { orden: 'asc' } },
       },
     })
   }
@@ -90,6 +103,7 @@ export class TareasService {
       fechaLimite?: string
       asignadoId?: string
       clienteId?: string
+      subpuntos?: string[]
     },
     organizationId: string,
     userId: string,
@@ -113,7 +127,7 @@ export class TareasService {
       if (!destino) throw new NotFoundException('La persona asignada no existe')
     }
 
-    return this.prisma.tarea.create({
+    const tarea = await this.prisma.tarea.create({
       data: {
         titulo,
         detalle: dto.detalle?.trim() || null,
@@ -128,12 +142,66 @@ export class TareasService {
         solicitanteId: userId,
         clienteId: dto.clienteId || null,
         organizationId,
+        ...(dto.subpuntos?.length
+          ? {
+              subpuntos: {
+                create: dto.subpuntos
+                  .map((t) => (t ?? '').trim())
+                  .filter(Boolean)
+                  .map((texto, orden) => ({ texto, orden })),
+              },
+            }
+          : {}),
       },
       include: {
         asignado: { select: { id: true, name: true } },
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
+        subpuntos: { orderBy: { orden: 'asc' } },
       },
+    })
+
+    // Aviso SOLO cuando la tarea es para otra persona: avisarle a alguien de una
+    // tarea que acaba de escribirse a si mismo seria ruido, y el ruido termina
+    // haciendo que se ignoren todos los avisos.
+    if (asignadoId !== userId) {
+      this.avisarAsignacion(tarea, userId).catch((e) =>
+        this.logger.error(`[tareas] no se pudo avisar la asignacion: ${e}`),
+      )
+    }
+
+    return tarea
+  }
+
+  /** Avisa por correo a quien recibe una tarea. */
+  private async avisarAsignacion(tarea: any, quienAsignaId: string) {
+    const [destino, quienAsigna] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: tarea.asignadoId },
+        select: { name: true, email: true },
+      }),
+      this.prisma.user.findUnique({ where: { id: quienAsignaId }, select: { name: true } }),
+    ])
+    if (!destino?.email) return
+
+    const fecha = tarea.fechaLimite
+      ? new Date(tarea.fechaLimite).toLocaleDateString('es-EC', {
+          day: 'numeric',
+          month: 'long',
+          timeZone: 'UTC',
+        })
+      : null
+
+    await this.notifications.enviarAvisoSeguridad({
+      email: destino.email,
+      asunto: `Nueva tarea de ${quienAsigna?.name ?? 'tu equipo'}: ${tarea.titulo}`,
+      mensaje:
+        `${quienAsigna?.name ?? 'Alguien de tu equipo'} te asignó una tarea:\n\n` +
+        `${tarea.titulo}` +
+        (tarea.detalle ? `\n${tarea.detalle}` : '') +
+        (fecha ? `\n\nPara el ${fecha}.` : '') +
+        (tarea.subpuntos?.length ? `\n\nTiene ${tarea.subpuntos.length} pasos.` : '') +
+        `\n\nLa encuentras en el CRM, en Tareas.`,
     })
   }
 
@@ -169,6 +237,7 @@ export class TareasService {
         asignado: { select: { id: true, name: true } },
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
+        subpuntos: { orderBy: { orden: 'asc' } },
       },
     })
   }
@@ -196,7 +265,16 @@ export class TareasService {
       throw new ForbiddenException('No puedes reasignar tareas')
     }
 
-    return this.prisma.tarea.update({
+    // Al REASIGNAR tambien se avisa: es el caso de Roxana -> Yessenia ->
+    // Carolina, donde quien recibe la tarea al final se entera por aqui.
+    const previo = await this.prisma.tarea.findUnique({
+      where: { id },
+      select: { asignadoId: true },
+    })
+    const cambioDeDueno =
+      !!dto.asignadoId && dto.asignadoId !== previo?.asignadoId && dto.asignadoId !== userId
+
+    const actualizada = await this.prisma.tarea.update({
       where: { id },
       data: {
         ...(dto.titulo !== undefined ? { titulo: dto.titulo.trim() } : {}),
@@ -216,7 +294,77 @@ export class TareasService {
         asignado: { select: { id: true, name: true } },
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
+        subpuntos: { orderBy: { orden: 'asc' } },
       },
+    })
+
+    if (cambioDeDueno) {
+      this.avisarAsignacion(actualizada, userId).catch((e) =>
+        this.logger.error(`[tareas] no se pudo avisar la reasignacion: ${e}`),
+      )
+    }
+
+    return actualizada
+  }
+
+  /** Marca o desmarca un paso de la tarea. */
+  async alternarSubpunto(
+    subpuntoId: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    const sub = await this.prisma.tareaSubpunto.findFirst({
+      where: { id: subpuntoId, tarea: { organizationId } },
+      include: { tarea: true },
+    })
+    if (!sub) throw new NotFoundException('Paso no encontrado')
+
+    await this.exigirAcceso(sub.tareaId, organizationId, userId, role)
+
+    return this.prisma.tareaSubpunto.update({
+      where: { id: subpuntoId },
+      data: { hecho: !sub.hecho },
+    })
+  }
+
+  /**
+   * Reemplaza los pasos de una tarea.
+   *
+   * Se conserva el estado de los que siguen ahi: si un paso ya estaba hecho y
+   * solo se corrigio su texto, no deberia volver a quedar pendiente.
+   */
+  async guardarSubpuntos(
+    tareaId: string,
+    subpuntos: { id?: string; texto: string; hecho?: boolean }[],
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    await this.exigirAcceso(tareaId, organizationId, userId, role)
+
+    const previos = await this.prisma.tareaSubpunto.findMany({ where: { tareaId } })
+    const estadoPrevio = new Map(previos.map((p) => [p.id, p.hecho]))
+
+    const lista = (subpuntos ?? [])
+      .map((sp) => ({ ...sp, texto: (sp.texto ?? '').trim() }))
+      .filter((sp) => sp.texto)
+
+    await this.prisma.tareaSubpunto.deleteMany({ where: { tareaId } })
+    if (lista.length) {
+      await this.prisma.tareaSubpunto.createMany({
+        data: lista.map((sp, orden) => ({
+          tareaId,
+          texto: sp.texto,
+          hecho: sp.id ? (estadoPrevio.get(sp.id) ?? false) : (sp.hecho ?? false),
+          orden,
+        })),
+      })
+    }
+
+    return this.prisma.tareaSubpunto.findMany({
+      where: { tareaId },
+      orderBy: { orden: 'asc' },
     })
   }
 

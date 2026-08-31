@@ -440,6 +440,8 @@ model Tarea {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  subpuntos    TareaSubpunto[]
+
   asignado     User         @relation("TareaAsignado", fields: [asignadoId], references: [id], onDelete: Restrict)
   solicitante  User         @relation("TareaSolicitante", fields: [solicitanteId], references: [id], onDelete: Restrict)
   cliente      Cliente?     @relation(fields: [clienteId], references: [id], onDelete: SetNull)
@@ -450,6 +452,25 @@ model Tarea {
   @@index([solicitanteId])
   @@index([clienteId])
   @@map("tareas")
+}
+
+/// Un paso dentro de una tarea.
+///
+/// Una tarea como "preparar la renovacion de X" son varios pasos. Sin
+/// subpuntos, se ve igual al 20% que al 80%: hecha o no hecha, sin forma de
+/// saber si alguien avanzo.
+model TareaSubpunto {
+  id        String   @id @default(cuid())
+  tareaId   String
+  texto     String
+  hecho     Boolean  @default(false)
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  tarea Tarea @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+
+  @@index([tareaId, orden])
+  @@map("tarea_subpuntos")
 }
 
 enum PrioridadTarea {

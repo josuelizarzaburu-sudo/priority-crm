@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -37,6 +37,10 @@ export class CreateTareaDto {
   @IsOptional()
   @IsString()
   clienteId?: string
+
+  /** Pasos de la tarea, en orden. */
+  @IsOptional()
+  subpuntos?: string[]
 }
 
 export class UpdateTareaDto {
@@ -92,6 +96,29 @@ export class TareasController {
   @ApiOperation({ summary: 'Crear una tarea, propia o asignada a alguien' })
   create(@Body() dto: CreateTareaDto, @Req() req: any) {
     return this.service.create(dto, req.user.organizationId, req.user.id, req.user.role)
+  }
+
+  @Patch('subpuntos/:id/hecho')
+  @ApiOperation({ summary: 'Marca o desmarca un paso de la tarea' })
+  alternarSubpunto(@Param('id') id: string, @Req() req: any) {
+    return this.service.alternarSubpunto(
+      id,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
+  @Put(':id/subpuntos')
+  @ApiOperation({ summary: 'Reemplaza los pasos de la tarea' })
+  guardarSubpuntos(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    return this.service.guardarSubpuntos(
+      id,
+      body?.subpuntos ?? [],
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
   }
 
   @Patch(':id/completada')

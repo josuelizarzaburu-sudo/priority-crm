@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { BuscadorCliente, type ClienteSugerido } from '@/components/reclamos/buscador-cliente'
 import {
   AlertTriangle,
@@ -33,6 +34,13 @@ interface Persona {
   name: string
 }
 
+interface Subpunto {
+  id: string
+  texto: string
+  hecho: boolean
+  orden: number
+}
+
 interface Tarea {
   id: string
   titulo: string
@@ -43,6 +51,7 @@ interface Tarea {
   asignado: { id: string; name: string }
   solicitante: { id: string; name: string }
   cliente: { id: string; nombres: string; apellidos: string } | null
+  subpuntos?: Subpunto[]
 }
 
 const PRIORIDAD: Record<string, { color: string; fondo: string; label: string }> = {
@@ -123,6 +132,8 @@ export function TareasPage() {
   const [asignadoId, setAsignadoId] = useState('')
   const [clienteTexto, setClienteTexto] = useState('')
   const [clienteId, setClienteId] = useState<string | null>(null)
+  /** Pasos de la tarea, uno por linea. */
+  const [pasos, setPasos] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verTodas, setVerTodas] = useState(false)
   const [mes, setMes] = useState(() => hoyISO().slice(0, 7))
@@ -157,6 +168,7 @@ export function TareasPage() {
     setAsignadoId('')
     setClienteTexto('')
     setClienteId(null)
+    setPasos('')
     setCreando(false)
     setError(null)
   }
@@ -179,6 +191,14 @@ export function TareasPage() {
         ...(fechaLimite ? { fechaLimite } : {}),
         ...(asignadoId ? { asignadoId } : {}),
         ...(clienteId ? { clienteId } : {}),
+        ...(pasos.trim()
+          ? {
+              subpuntos: pasos
+                .split('\n')
+                .map((l) => l.replace(/^[-•*\d.)\s]+/, '').trim())
+                .filter(Boolean),
+            }
+          : {}),
       }),
     onSuccess: () => {
       limpiar()
@@ -204,6 +224,25 @@ export function TareasPage() {
   const reasignar = useMutation({
     mutationFn: ({ id, asignadoId }: { id: string; asignadoId: string }) =>
       api.patch(`/tareas/${id}`, { asignadoId }),
+    onSuccess: refrescar,
+    onError: fallo,
+  })
+
+  const alternarSubpunto = useMutation({
+    mutationFn: (id: string) => api.patch(`/tareas/subpuntos/${id}/hecho`),
+    onSuccess: refrescar,
+    onError: fallo,
+  })
+
+  /**
+   * Editar la tarea: fecha, prioridad o titulo.
+   *
+   * La fecha se cambia sobre todo para APLAZAR: un pendiente que no se pudo
+   * hacer hoy no deberia quedar como vencido para siempre.
+   */
+  const editar = useMutation({
+    mutationFn: ({ id, ...cambios }: { id: string } & Record<string, unknown>) =>
+      api.patch(`/tareas/${id}`, cambios),
     onSuccess: refrescar,
     onError: fallo,
   })
@@ -316,15 +355,69 @@ export function TareasPage() {
             <p className="mt-1 whitespace-pre-line text-xs text-muted-foreground">{t.detalle}</p>
           )}
 
+          {/* Pasos. Sin esto una tarea de cinco pasos se ve igual al 20% que al
+              80%: solo hecha o no hecha. */}
+          {t.subpuntos && t.subpuntos.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {t.subpuntos.map((sp) => (
+                <button
+                  key={sp.id}
+                  type="button"
+                  onClick={() => alternarSubpunto.mutate(sp.id)}
+                  className="flex w-full items-start gap-2 text-left text-xs"
+                >
+                  <span
+                    className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors"
+                    style={{
+                      borderColor: sp.hecho ? VERDE : '#cbd5e1',
+                      backgroundColor: sp.hecho ? VERDE : 'transparent',
+                    }}
+                  >
+                    {sp.hecho && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                  </span>
+                  <span
+                    style={{
+                      color: sp.hecho ? '#94a3b8' : '#475569',
+                      textDecoration: sp.hecho ? 'line-through' : undefined,
+                    }}
+                  >
+                    {sp.texto}
+                  </span>
+                </button>
+              ))}
+              <p className="pt-0.5 text-[11px] text-muted-foreground">
+                {t.subpuntos.filter((x) => x.hecho).length} de {t.subpuntos.length} pasos
+              </p>
+            </div>
+          )}
+
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            {t.fechaLimite && (
-              <span
-                className="inline-flex items-center gap-1"
-                style={{ color: urgente && !hecha ? '#dc2626' : undefined }}
-              >
-                <CalendarDays className="h-3 w-3" />
-                {fechaLegible(diaDe(t.fechaLimite)!)}
+            {/* La fecha se edita en el sitio: aplazar es lo que mas se hace con
+                una tarea, y obligar a abrir un formulario para mover un dia
+                haria que nadie la aplace y todo quede vencido. */}
+            {!hecha ? (
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays
+                  className="h-3 w-3"
+                  style={{ color: urgente ? '#dc2626' : undefined }}
+                />
+                <input
+                  type="date"
+                  value={diaDe(t.fechaLimite) ?? ''}
+                  onChange={(e) =>
+                    editar.mutate({ id: t.id, fechaLimite: e.target.value || null })
+                  }
+                  className="cursor-pointer rounded border-0 bg-transparent p-0 text-[11px] hover:underline"
+                  style={{ color: urgente ? '#dc2626' : '#64748b' }}
+                />
               </span>
+            ) : (
+              t.fechaLimite && (
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3 w-3" />
+                  {fechaLegible(diaDe(t.fechaLimite)!)}
+                </span>
+              )
             )}
             {t.cliente && (
               <Link
@@ -367,12 +460,17 @@ export function TareasPage() {
         </div>
 
         {!hecha && (
-          <span
-            className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+          <select
+            value={t.prioridad}
+            onChange={(e) => editar.mutate({ id: t.id, prioridad: e.target.value })}
+            className="shrink-0 cursor-pointer rounded-full border-0 px-2 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: p.fondo, color: p.color }}
+            aria-label="Cambiar prioridad"
           >
-            {p.label}
-          </span>
+            <option value="ALTA">Alta</option>
+            <option value="MEDIA">Media</option>
+            <option value="BAJA">Baja</option>
+          </select>
         )}
 
         {/* Aparece al pasar el mouse: siempre visible ensuciaría la lista y
@@ -701,6 +799,22 @@ export function TareasPage() {
             onChange={(e) => setDetalle(e.target.value)}
             className="text-sm"
           />
+
+          {/* Un paso por linea. Se acepta que vengan con guion o numero delante
+              porque es como se pega una lista desde otro lado, y limpiarla a
+              mano seria una molestia. */}
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              Pasos (opcional) — uno por línea
+            </label>
+            <Textarea
+              rows={3}
+              value={pasos}
+              onChange={(e) => setPasos(e.target.value)}
+              placeholder={'Llamar al cliente\nPedir la cédula\nEnviar a la aseguradora'}
+              className="text-sm"
+            />
+          </div>
 
           {/* Cliente relacionado. No es obligatorio: muchas tareas no son de un
               cliente concreto, y forzarlo haría que se ponga cualquier cosa con

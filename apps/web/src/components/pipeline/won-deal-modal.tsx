@@ -303,15 +303,21 @@ export function WonDealModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !loading) onCancel() }}>
-      <DialogContent className="sm:max-w-lg">
+      {/* El dialogo entero se desplaza. Antes solo tenia scroll la lista de
+          clientes (max-h-[60vh] mas abajo), asi que al agregar los datos del
+          cliente y la nota, esa parte quedaba fuera de la pantalla y no habia
+          forma de llegar a los botones. */}
+      <DialogContent className="flex max-h-[92vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{modo === 'editar' ? 'Datos del seguro' : '🏆 Datos para cerrar deal'}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-1 pb-1">
+        <p className="shrink-0 text-sm text-muted-foreground -mt-1 pb-1">
           Completa los datos antes de mover a <strong>Ganado</strong>.
         </p>
 
-        <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+        {/* Un solo contenedor con scroll para TODO el formulario, en vez del
+            scroll anidado que solo cubria la lista de clientes. */}
+        <div className="-mr-2 flex-1 space-y-3 overflow-y-auto pr-2">
           {entries.map((entry, idx) => (
             <div key={entry.id} className="rounded-md border p-3 space-y-3">
               {entries.length > 1 && (
@@ -518,7 +524,6 @@ export function WonDealModal({
           >
             <Plus className="h-3.5 w-3.5" /> Agregar cliente
           </button>
-        </div>
 
         {/* Nota del comercial. Viaja hasta la ficha del cliente en el CRM
             operativo, para que la ejecutiva reciba el contexto de la venta
@@ -619,6 +624,8 @@ export function WonDealModal({
             </div>
           </div>
         )}
+
+        </div>
 
         {/* Se dice QUE falta, no solo que el boton esta apagado. Con varios
             clientes en la lista, un boton deshabilitado sin explicacion obliga a

@@ -158,18 +158,34 @@ export function WonDealModal({
 
   // La cedula es obligatoria a proposito: es lo unico que evita que se dupliquen
   // clientes en el operativo. El comercial ya la tiene, porque sin ella no emite.
-  const canConfirm = entries.length > 0 && entries.every(
-    (e) =>
-      e.plan.trim() !== '' &&
-      // El deducible se exige solo en SALUD: es el dato que sale en la carta de
-      // bienvenida y sin el la ejecutiva no puede enviarla. En auto y hogar no
-      // se maneja igual, asi que ahi no se bloquea el cierre.
-      (e.ramo !== 'SALUD' || e.deducible.trim() !== '') &&
-      e.netPremium.trim() !== '' &&
-      parseFloat(e.netPremium) > 0 &&
-      e.identificacion.trim() !== '' &&
-      revisarIdentificacion(e.identificacion) === null,
-  )
+  /**
+   * Que falta en una entrada para poder cerrar.
+   *
+   * Se exige TODO lo que despues necesita operaciones, y por una razon concreta:
+   * cada dato que falta aqui es una llamada de la ejecutiva al comercial dias
+   * despues, o una carta de bienvenida que no se puede enviar.
+   *
+   * Devuelve la lista de faltantes, no un true/false, para poder decir en
+   * pantalla QUE falta en vez de dejar el boton apagado sin explicacion.
+   */
+  function faltantesDe(e: EntryDraft): string[] {
+    const faltan: string[] = []
+    if (!e.holderName.trim()) faltan.push('titular')
+    if (!e.identificacion.trim()) faltan.push('cédula')
+    else if (revisarIdentificacion(e.identificacion)) faltan.push('cédula válida')
+    if (!e.aseguradora.trim()) faltan.push('aseguradora')
+    if (!e.plan.trim()) faltan.push('plan')
+    // El deducible solo aplica en salud: en auto y hogar no se maneja igual.
+    if (e.ramo === 'SALUD' && !e.deducible.trim()) faltan.push('deducible')
+    // Es la VIGENCIA que sale en la carta: "vigente desde el 01 de agosto".
+    if (!e.issueDate) faltan.push('fecha de vigencia')
+    if (!e.paymentFrequency) faltan.push('forma de pago')
+    if (!e.netPremium.trim() || !(parseFloat(e.netPremium) > 0)) faltan.push('prima anual')
+    return faltan
+  }
+
+  const faltantesPorEntrada = entries.map(faltantesDe)
+  const canConfirm = entries.length > 0 && faltantesPorEntrada.every((f) => f.length === 0)
 
   function updateEntry(idx: number, field: keyof EntryDraft, value: string) {
     setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e)))
@@ -241,7 +257,7 @@ export function WonDealModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Titular del plan</Label>
+                  <Label className="text-xs">Titular del plan <span className="text-red-500">*</span></Label>
                   <Input
                     placeholder="Nombre completo"
                     value={entry.holderName}
@@ -267,7 +283,7 @@ export function WonDealModal({
                     )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Aseguradora</Label>
+                  <Label className="text-xs">Aseguradora <span className="text-red-500">*</span></Label>
                   {/* Lista con sugerencias pero de texto libre: el catalogo aun no
                       cubre vida ni hogar, y no queremos bloquear el cierre por eso. */}
                   <Input
@@ -385,7 +401,7 @@ export function WonDealModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Forma de pago</Label>
+                  <Label className="text-xs">Forma de pago <span className="text-red-500">*</span></Label>
                   <Select value={entry.paymentFrequency} onValueChange={(v) => updateEntry(idx, 'paymentFrequency', v)}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
@@ -398,7 +414,7 @@ export function WonDealModal({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Fecha de vigencia</Label>
+                  <Label className="text-xs">Fecha de vigencia <span className="text-red-500">*</span></Label>
                   <Input
                     type="date"
                     value={entry.issueDate}
@@ -449,6 +465,31 @@ export function WonDealModal({
             La verá la ejecutiva que reciba este cliente en el CRM operativo.
           </p>
         </div>
+
+        {/* Se dice QUE falta, no solo que el boton esta apagado. Con varios
+            clientes en la lista, un boton deshabilitado sin explicacion obliga a
+            revisar campo por campo hasta dar con el vacio. */}
+        {!canConfirm && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="font-medium">Falta completar antes de cerrar la venta:</p>
+            <ul className="mt-1 space-y-0.5">
+              {faltantesPorEntrada.map((faltan, i) =>
+                faltan.length === 0 ? null : (
+                  <li key={i}>
+                    <strong>
+                      {entries[i].holderName.trim() || `Cliente ${i + 1}`}:
+                    </strong>{' '}
+                    {faltan.join(', ')}
+                  </li>
+                ),
+              )}
+            </ul>
+            <p className="mt-1.5 text-[11px] opacity-80">
+              Con estos datos, operaciones puede enviar la bienvenida sin tener que pedírtelos
+              después.
+            </p>
+          </div>
+        )}
 
         <DialogFooter className="mt-2">
           <Button variant="outline" onClick={onCancel} disabled={loading}>

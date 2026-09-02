@@ -1176,6 +1176,37 @@ export class PipelineService {
           `Cédula o RUC no válido: ${invalidas.map((e: any) => e.identificacion).join(', ')}`,
         )
       }
+
+      // Todos los datos que despues necesita operaciones. Cada uno que falte
+      // aqui es una llamada de la ejecutiva al comercial dias despues, o una
+      // carta de bienvenida que no se puede enviar.
+      //
+      // Se comprueba tambien en el SERVIDOR y no solo en el formulario: por aqui
+      // pasan todos los caminos, incluido arrastrar la tarjeta a Ganado.
+      const texto = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+      const REQUERIDOS: [string, (e: any) => boolean][] = [
+        ['titular', (e) => !!texto(e.holderName)],
+        ['aseguradora', (e) => !!texto(e.aseguradora)],
+        ['plan contratado', (e) => !!texto(e.plan)],
+        ['fecha de vigencia', (e) => !!texto(e.issueDate)],
+        ['forma de pago', (e) => !!texto(e.paymentFrequency)],
+        ['prima anual', (e) => typeof e?.netPremium === 'number' && e.netPremium > 0],
+        // El deducible solo en salud: en auto y hogar no se maneja igual.
+        ['deducible', (e) => e?.ramo !== 'SALUD' || !!texto(e.deducible)],
+      ]
+
+      const problemas: string[] = []
+      entradas.forEach((e: any, i: number) => {
+        const faltan = REQUERIDOS.filter(([, ok]) => !ok(e)).map(([nombre]) => nombre)
+        if (faltan.length) {
+          problemas.push(`${texto(e.holderName) || `Cliente ${i + 1}`}: ${faltan.join(', ')}`)
+        }
+      })
+      if (problemas.length) {
+        throw new ForbiddenException(
+          `Faltan datos para cerrar la venta — ${problemas.join(' · ')}`,
+        )
+      }
     }
 
     if (isMovingToWon && dto.insuranceData && dto.insuranceData.length > 0) {

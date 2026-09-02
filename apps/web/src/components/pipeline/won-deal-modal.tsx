@@ -111,6 +111,19 @@ interface WonDealModalProps {
   modo?: 'cerrar' | 'editar'
   /** Datos ya capturados, para poder corregirlos en vez de empezar de cero. */
   datosIniciales?: WonInsuranceData[]
+  /**
+   * Datos del contacto que tambien viajan a la ficha del cliente.
+   *
+   * Se piden AQUI y no en el panel del lead para no obligar a salir del modal,
+   * llenarlos y volver. El comercial completa todo de una vez.
+   */
+  contacto?: { email?: string; direccion?: string; fechaNacimiento?: string }
+  /** Se llama al confirmar, con los datos del contacto ya completos. */
+  onGuardarContacto?: (datos: {
+    email: string
+    direccion: string
+    fechaNacimiento: string
+  }) => void
 }
 
 export function WonDealModal({
@@ -120,13 +133,25 @@ export function WonDealModal({
   loading,
   modo = 'cerrar',
   datosIniciales,
+  contacto,
+  onGuardarContacto,
 }: WonDealModalProps) {
+  // Datos del contacto que hacen falta para que operaciones pueda trabajar.
+  const [email, setEmail] = useState('')
+  const [direccion, setDireccion] = useState('')
+  const [fechaNacimiento, setFechaNacimiento] = useState('')
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
   // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
   const [notaOperaciones, setNotaOperaciones] = useState('')
 
   useEffect(() => {
     if (!open) return
+    // Se precargan los datos que ya tenga el contacto: si el correo ya estaba,
+    // no hay que volver a escribirlo.
+    setEmail(contacto?.email ?? '')
+    setDireccion(contacto?.direccion ?? '')
+    setFechaNacimiento(contacto?.fechaNacimiento?.slice(0, 10) ?? '')
+
     const previos = datosIniciales ?? []
     if (previos.length > 0) {
       setEntries(
@@ -185,7 +210,26 @@ export function WonDealModal({
   }
 
   const faltantesPorEntrada = entries.map(faltantesDe)
-  const canConfirm = entries.length > 0 && faltantesPorEntrada.every((f) => f.length === 0)
+
+  /**
+   * Lo que falta del CONTACTO.
+   *
+   * Sin correo no se puede enviar la bienvenida, y sin fecha de nacimiento no
+   * entra al saludo de cumpleanos. La direccion la necesita operaciones para el
+   * retiro de documentos.
+   */
+  const faltantesContacto: string[] = []
+  if (modo === 'cerrar') {
+    if (!email.trim()) faltantesContacto.push('correo')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim()))
+      faltantesContacto.push('correo válido')
+    if (!direccion.trim()) faltantesContacto.push('dirección')
+    if (!fechaNacimiento) faltantesContacto.push('fecha de nacimiento')
+  }
+  const canConfirm =
+    entries.length > 0 &&
+    faltantesPorEntrada.every((f) => f.length === 0) &&
+    faltantesContacto.length === 0
 
   function updateEntry(idx: number, field: keyof EntryDraft, value: string) {
     setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e)))
@@ -201,6 +245,13 @@ export function WonDealModal({
 
   function handleConfirm() {
     if (!canConfirm || loading) return
+    // Los datos del contacto se guardan junto con el cierre: si se guardaran
+    // aparte, un fallo dejaria la venta cerrada y el contacto a medias.
+    onGuardarContacto?.({
+      email: email.trim(),
+      direccion: direccion.trim(),
+      fechaNacimiento,
+    })
     onConfirm(
       entries.map((e) => ({
         netPremium: parseFloat(e.netPremium),
@@ -466,6 +517,59 @@ export function WonDealModal({
           </p>
         </div>
 
+        {/* Datos del contacto que viajan a la ficha del cliente. Se piden aqui
+            para no obligar a salir del modal, llenarlos en el panel y volver. */}
+        {modo === 'cerrar' && (
+          <div className="space-y-2.5 rounded-lg border p-3">
+            <p className="text-xs font-semibold" style={{ color: '#DBAA59' }}>
+              Datos del cliente
+            </p>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Correo <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="cliente@correo.com"
+                className="h-8 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Sin correo no se le puede enviar la bienvenida.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Dirección <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                placeholder="Calle, número, sector, ciudad"
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Fecha de nacimiento <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="date"
+                value={fechaNacimiento}
+                onChange={(e) => setFechaNacimiento(e.target.value)}
+                className="h-8 max-w-[180px] text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para el saludo de cumpleaños.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Se dice QUE falta, no solo que el boton esta apagado. Con varios
             clientes en la lista, un boton deshabilitado sin explicacion obliga a
             revisar campo por campo hasta dar con el vacio. */}
@@ -484,6 +588,11 @@ export function WonDealModal({
                 ),
               )}
             </ul>
+            {faltantesContacto.length > 0 && (
+              <p className="mt-1">
+                <strong>Datos del cliente:</strong> {faltantesContacto.join(', ')}
+              </p>
+            )}
             <p className="mt-1.5 text-[11px] opacity-80">
               Con estos datos, operaciones puede enviar la bienvenida sin tener que pedírtelos
               después.

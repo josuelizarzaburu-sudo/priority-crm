@@ -641,6 +641,25 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           onCancel={() => setShowWonModal(false)}
           loading={moveStage.isPending}
           datosIniciales={insuranceEntries as any}
+          // Datos del contacto que tambien viajan a la ficha del cliente. Se
+          // piden dentro del modal para no obligar a salir, llenarlos en el
+          // panel y volver.
+          contacto={{
+            email: deal?.contact?.email ?? '',
+            direccion: (deal?.customFields?.direccion as string) ?? '',
+            fechaNacimiento: (deal?.customFields?.birthDate as string) ?? '',
+          }}
+          onGuardarContacto={({ email, direccion, fechaNacimiento }) => {
+            // El correo vive en el contacto; los otros dos en customFields del
+            // deal, que es de donde los lee la creacion del cliente.
+            if (email && email !== deal?.contact?.email) {
+              updateContact.mutate({ email })
+            }
+            patchCustomFields.mutate({
+              direccion: direccion || undefined,
+              birthDate: fechaNacimiento || null,
+            })
+          }}
         />
 
         {/* Mismo formulario, pero sin mover el deal de etapa: sirve para capturar

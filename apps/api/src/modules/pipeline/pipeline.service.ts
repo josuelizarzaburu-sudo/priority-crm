@@ -613,6 +613,19 @@ export class PipelineService {
           identificacion,
           email: deal.contact.email,
           celular: deal.contact.phone,
+          // Fecha de nacimiento del TITULAR. Se capturaba en el lead pero no
+          // llegaba a la ficha, asi que el cliente nacia sin ella y quedaba
+          // fuera del saludo de cumpleanos.
+          //
+          // Se fija a medianoche UTC: es una fecha sin hora, y leerla en hora
+          // local guardaria el dia anterior.
+          ...(txt(cf?.birthDate)
+            ? {
+                fechaNacimiento: new Date(
+                  `${String(cf.birthDate).slice(0, 10)}T00:00:00.000Z`,
+                ),
+              }
+            : {}),
           ...(direccion ? { direccion: mayus(direccion) } : {}),
           ...(vieneDeOtroSeguro ? { vieneDeOtroSeguro } : {}),
           // De donde vino el cliente. Se copia del deal porque despues no hay

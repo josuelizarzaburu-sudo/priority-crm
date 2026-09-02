@@ -117,12 +117,20 @@ interface WonDealModalProps {
    * Se piden AQUI y no en el panel del lead para no obligar a salir del modal,
    * llenarlos y volver. El comercial completa todo de una vez.
    */
-  contacto?: { email?: string; direccion?: string; fechaNacimiento?: string }
+  contacto?: {
+    email?: string
+    direccion?: string
+    fechaNacimiento?: string
+    vieneDeOtroSeguro?: string
+    aseguradoraAnterior?: string
+  }
   /** Se llama al confirmar, con los datos del contacto ya completos. */
   onGuardarContacto?: (datos: {
     email: string
     direccion: string
     fechaNacimiento: string
+    vieneDeOtroSeguro: string
+    aseguradoraAnterior: string
   }) => void
 }
 
@@ -140,6 +148,8 @@ export function WonDealModal({
   const [email, setEmail] = useState('')
   const [direccion, setDireccion] = useState('')
   const [fechaNacimiento, setFechaNacimiento] = useState('')
+  const [vieneDeOtroSeguro, setVieneDeOtroSeguro] = useState('')
+  const [aseguradoraAnterior, setAseguradoraAnterior] = useState('')
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
   // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
   const [notaOperaciones, setNotaOperaciones] = useState('')
@@ -151,6 +161,8 @@ export function WonDealModal({
     setEmail(contacto?.email ?? '')
     setDireccion(contacto?.direccion ?? '')
     setFechaNacimiento(contacto?.fechaNacimiento?.slice(0, 10) ?? '')
+    setVieneDeOtroSeguro(contacto?.vieneDeOtroSeguro ?? '')
+    setAseguradoraAnterior(contacto?.aseguradoraAnterior ?? '')
 
     const previos = datosIniciales ?? []
     if (previos.length > 0) {
@@ -225,6 +237,12 @@ export function WonDealModal({
       faltantesContacto.push('correo válido')
     if (!direccion.trim()) faltantesContacto.push('dirección')
     if (!fechaNacimiento) faltantesContacto.push('fecha de nacimiento')
+    // Si viene de otro seguro, hay que decir de cual: saber que "si" a secas no
+    // sirve para preparar la conversacion ni para entender la cartera.
+    if (!vieneDeOtroSeguro) faltantesContacto.push('si viene de otro seguro')
+    else if (vieneDeOtroSeguro === 'SI' && !aseguradoraAnterior.trim()) {
+      faltantesContacto.push('de qué aseguradora viene')
+    }
   }
   const canConfirm =
     entries.length > 0 &&
@@ -251,6 +269,8 @@ export function WonDealModal({
       email: email.trim(),
       direccion: direccion.trim(),
       fechaNacimiento,
+      vieneDeOtroSeguro,
+      aseguradoraAnterior: aseguradoraAnterior.trim(),
     })
     onConfirm(
       entries.map((e) => ({
@@ -566,6 +586,36 @@ export function WonDealModal({
               <p className="text-[11px] text-muted-foreground">
                 Se usa para el saludo de cumpleaños.
               </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                ¿Viene de otro seguro? <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={vieneDeOtroSeguro}
+                  onChange={(e) => {
+                    setVieneDeOtroSeguro(e.target.value)
+                    // Si cambia a No, se limpia la aseguradora: dejarla puesta
+                    // guardaria un dato que contradice la respuesta.
+                    if (e.target.value !== 'SI') setAseguradoraAnterior('')
+                  }}
+                  className="h-8 rounded-md border bg-background px-2 text-sm"
+                >
+                  <option value="">Elegir…</option>
+                  <option value="SI">Sí</option>
+                  <option value="NO">No</option>
+                </select>
+                {vieneDeOtroSeguro === 'SI' && (
+                  <Input
+                    value={aseguradoraAnterior}
+                    onChange={(e) => setAseguradoraAnterior(e.target.value)}
+                    placeholder="¿De cuál?"
+                    className="h-8 max-w-[200px] text-sm"
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}

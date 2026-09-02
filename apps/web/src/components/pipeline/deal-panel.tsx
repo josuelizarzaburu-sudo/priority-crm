@@ -648,8 +648,16 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
             email: deal?.contact?.email ?? '',
             direccion: (deal?.customFields?.direccion as string) ?? '',
             fechaNacimiento: (deal?.customFields?.birthDate as string) ?? '',
+            vieneDeOtroSeguro: (deal?.customFields?.vieneDeOtroSeguro as string) ?? '',
+            aseguradoraAnterior: (deal?.customFields?.aseguradoraAnterior as string) ?? '',
           }}
-          onGuardarContacto={({ email, direccion, fechaNacimiento }) => {
+          onGuardarContacto={({
+            email,
+            direccion,
+            fechaNacimiento,
+            vieneDeOtroSeguro,
+            aseguradoraAnterior,
+          }) => {
             // El correo vive en el contacto; los otros dos en customFields del
             // deal, que es de donde los lee la creacion del cliente.
             if (email && email !== deal?.contact?.email) {
@@ -658,6 +666,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
             patchCustomFields.mutate({
               direccion: direccion || undefined,
               birthDate: fechaNacimiento || null,
+              vieneDeOtroSeguro: vieneDeOtroSeguro || undefined,
+              aseguradoraAnterior: aseguradoraAnterior || undefined,
             })
           }}
         />

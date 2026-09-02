@@ -805,7 +805,7 @@ export function ComparativosPage() {
             {/* Marca de agua: un solo logo de Priority, centrado, mediano-grande, repetido en cada página al imprimir */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0 flex select-none items-center justify-center print:fixed print:inset-0"
+              className="comparativo-marca pointer-events-none absolute inset-0 z-0 flex select-none items-center justify-center print:fixed print:inset-0"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -1006,7 +1006,10 @@ export function ComparativosPage() {
               </table>
               </div>
 
-              <div className="mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
+              {/* comparativo-cierre: al imprimir, este bloque se mantiene pegado
+                  a la tabla en vez de arrastrar una hoja casi vacia con solo el
+                  logo y el pie. */}
+              <div className="comparativo-cierre mt-6 flex justify-between border-t pt-3 text-[9.5px] text-muted-foreground">
                 <span className="font-semibold" style={{ color: NAVY }}>
                   Priority Asesores de Seguros · www.priority.ec
                   {advisorPhone ? ` · WhatsApp ${advisorPhone}` : ''}
@@ -1016,7 +1019,7 @@ export function ComparativosPage() {
               {/* Ya no es temporal: el dominio priority.ec se migro a Cloudflare y apunta
                   al sitio nuevo, asi que el enlace usa el dominio propio en vez de la URL
                   de Railway. */}
-              <div className="mt-2 border-t pt-2 text-center text-[9px] leading-relaxed text-muted-foreground">
+              <div className="comparativo-cierre mt-2 border-t pt-2 text-center text-[9px] leading-relaxed text-muted-foreground">
                 🔐 En SEGUROS IDEAL ASESORES PRODUCTORES DE SEGUROS SEGUROSIDEAL CIA.LTDA. nos preocupamos por tu seguridad: tus datos
                 personales se tratan conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador. Conoce más aquí 👉{' '}
                 <a href="https://priority.ec/politicas/segurosideal" className="underline" style={{ color: NAVY }}>
@@ -1032,6 +1035,8 @@ export function ComparativosPage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
+        /* Estos estilos SOLO se aplican al imprimir o exportar a PDF. En
+           pantalla —computadora y celular— no cambia nada. */
         @media print {
           * {
             -webkit-print-color-adjust: exact !important;
@@ -1042,6 +1047,46 @@ export function ComparativosPage() {
           .comparativo-doc, .comparativo-doc * { visibility: visible; }
           .comparativo-doc { position: absolute; left: 0; top: 0; width: 100%; }
           @page { size: A4 landscape; margin: 8mm; }
+
+          /* El encabezado de la tabla se REPITE en cada hoja.
+             Sin esto, en la segunda pagina quedaban tres columnas de datos sin
+             la fila azul que dice cual es BMI, cual Salud y cual Confiamed: el
+             cliente no sabia que estaba mirando. */
+          .comparativo-doc thead { display: table-header-group; }
+          .comparativo-doc tfoot { display: table-footer-group; }
+
+          /* Una fila no se parte entre dos hojas: se pasa entera a la siguiente.
+             En el impreso se veian beneficios cortados a la mitad. */
+          .comparativo-doc tr,
+          .comparativo-doc td,
+          .comparativo-doc th {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* La marca de agua se atenua. En pantalla al 22% se ve sutil, pero la
+             impresora la marca mucho mas y terminaba cruzando el texto de la
+             tabla. */
+          .comparativo-marca img { opacity: 0.06 !important; }
+
+          /* El bloque final no se queda solo en una hoja casi vacia: se mantiene
+             pegado a lo que viene antes. */
+          .comparativo-doc .comparativo-cierre {
+            break-before: avoid;
+            page-break-before: avoid;
+          }
+
+          /* Un titulo nunca queda al pie de una hoja con su contenido en la
+             siguiente. */
+          .comparativo-doc h1,
+          .comparativo-doc h2,
+          .comparativo-doc h3 {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+
+          /* Se evitan lineas sueltas al principio o al final de una hoja. */
+          .comparativo-doc p { orphans: 3; widows: 3; }
         }
       `,
         }}

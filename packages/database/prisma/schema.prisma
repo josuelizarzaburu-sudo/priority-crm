@@ -119,6 +119,10 @@ model User {
   trainingVideoViews      TrainingVideoView[]
   sentWhatsappMessages    WhatsappMessage[]
   clientesAsignados       Cliente[]           @relation("ClienteEjecutivo")
+  /// Clientes cuya venta hizo esta persona. Solo los de agentes que SI tienen
+  /// usuario: las ventas historicas de vendedoras que ya no estan guardan el
+  /// nombre en Cliente.agenteNombre y no aparecen aqui.
+  clientesVendidos        Cliente[]           @relation("ClienteAgente")
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
   notasClientes           NotaCliente[]
   registrosAcceso         RegistroAcceso[]

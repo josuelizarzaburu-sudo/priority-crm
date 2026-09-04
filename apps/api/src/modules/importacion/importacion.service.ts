@@ -247,6 +247,7 @@ export class ImportacionService {
       dependientes: 0,
       polizas: 0,
       yaExistian: 0,
+      polizasSumadas: 0,
       sinCedula: 0,
       cedulaInvalida: 0,
       agentesSinUsuario: new Set<string>(),
@@ -367,6 +368,42 @@ export class ImportacionService {
       resumen.polizas++
       resumen.dependientes += deps.length
 
+      // En la previsualización se avisa de lo que ya está en la base, para que
+      // el informe diga qué va a pasar con cada uno antes de escribir.
+      if (!opciones.escribir) {
+        const existente = await this.prisma.cliente.findUnique({
+          where: { organizationId_identificacion: { organizationId, identificacion } },
+          select: { id: true },
+        })
+        if (existente) {
+          const mismoContrato = poliza.numeroContrato
+            ? await this.prisma.poliza.findFirst({
+                where: { clienteId: existente.id, numeroContrato: poliza.numeroContrato },
+                select: { id: true },
+              })
+            : null
+          if (mismoContrato) {
+            resumen.yaExistian++
+            resumen.clientes--
+            resumen.polizas--
+            resumen.dependientes -= deps.length
+            avisos.push({
+              fila: titular.fila,
+              nivel: 'aviso',
+              texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya está cargado, se omitirá`,
+            })
+          } else {
+            resumen.polizasSumadas++
+            resumen.clientes--
+            avisos.push({
+              fila: titular.fila,
+              nivel: 'aviso',
+              texto: `${cliente.nombres} ${cliente.apellidos}: ya existe, se le sumará la póliza de ${poliza.aseguradora ?? 'otra aseguradora'}`,
+            })
+          }
+        }
+      }
+
       detalle.push({
         contrato,
         cliente: `${cliente.nombres} ${cliente.apellidos}`.trim(),
@@ -389,12 +426,59 @@ export class ImportacionService {
         where: { organizationId_identificacion: { organizationId, identificacion } },
         select: { id: true },
       })
+
+      // Cliente ya cargado: se le SUMA esta póliza en vez de descartarla.
+      //
+      // Una misma persona puede tener varios contratos —salud con una
+      // aseguradora y auto con otra— y en el Excel vienen como filas separadas.
+      // Omitir el segundo perdería esa póliza sin que nadie lo notara.
+      //
+      // Los datos personales no se pisan: los del primer contrato ya están, y
+      // sobrescribirlos con los del segundo podría reemplazar un dato bueno por
+      // uno viejo.
       if (yaExiste) {
-        resumen.yaExistian++
+        const mismaPoliza = poliza.numeroContrato
+          ? await this.prisma.poliza.findFirst({
+              where: { clienteId: yaExiste.id, numeroContrato: poliza.numeroContrato },
+              select: { id: true },
+            })
+          : null
+
+        if (mismaPoliza) {
+          // Mismo contrato ya cargado: es una re-subida del mismo archivo.
+          resumen.yaExistian++
+          avisos.push({
+            fila: titular.fila,
+            nivel: 'aviso',
+            texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya estaba cargado, se omite`,
+          })
+          continue
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.poliza.create({ data: { ...poliza, clienteId: yaExiste.id } as any })
+          // Los dependientes se agregan solo si no estaban ya: la misma familia
+          // suele repetirse entre las pólizas de una persona.
+          for (const dep of deps) {
+            const existe = await tx.dependiente.findFirst({
+              where: {
+                clienteId: yaExiste.id,
+                nombres: dep.nombres,
+                apellidos: dep.apellidos ?? undefined,
+              },
+              select: { id: true },
+            })
+            if (!existe) {
+              await tx.dependiente.create({ data: { ...dep, clienteId: yaExiste.id } as any })
+            }
+          }
+        })
+
+        resumen.polizasSumadas++
         avisos.push({
           fila: titular.fila,
           nivel: 'aviso',
-          texto: `${cliente.nombres} ${cliente.apellidos}: ya existía con esa cédula, se omite`,
+          texto: `${cliente.nombres} ${cliente.apellidos}: ya existía, se le sumó la póliza de ${poliza.aseguradora ?? 'otra aseguradora'}`,
         })
         continue
       }

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
   CheckSquare,
+  Upload,
   GraduationCap,
   MessageSquare,
   Zap,
@@ -67,6 +68,8 @@ const NAV_ITEMS = [
   // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
   // personales con las reuniones haria inutiles a las dos.
   { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES },
+  // Solo SUPER_ADMIN: esta pantalla puede vaciar la base entera.
+  { href: '/importar',         label: 'Importar clientes',  icon: Upload,          roles: ['SUPER_ADMIN'] },
   { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },
   { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
   { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'SALES_REP', 'JEFE_EQUIPO'] },

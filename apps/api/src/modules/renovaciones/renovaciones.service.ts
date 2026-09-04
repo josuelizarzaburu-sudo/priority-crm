@@ -250,8 +250,14 @@ export class RenovacionesService {
     // de aqui y se guarda alla. Se corrige desde esta pantalla porque cambia
     // justo al renovar y es un dato que sale en el correo al cliente; dejarla
     // solo en la ficha obligaria a salir, buscar la poliza y volver.
+    // Datos de la POLIZA que se corrigen desde la renovacion: son los tres que
+    // suelen cambiar de un año a otro. Se sacan de aqui y se guardan alla.
     const formaPago = data.formaPago
+    const plan = data.plan
+    const deducible = data.deducible
     delete data.formaPago
+    delete data.plan
+    delete data.deducible
 
     // Al marcar el primer envío se guarda cuándo, para el seguimiento posterior.
     if (dto.envio === 'PRIMER_ENVIO') {
@@ -270,7 +276,23 @@ export class RenovacionesService {
       data.ejecutivoNombre = u?.name ?? null
     }
 
-    if (formaPago) {
+    /**
+     * Los tres datos que cambian al renovar se guardan en la POLIZA.
+     *
+     * Asi el año que viene la renovacion sale con la informacion correcta sola,
+     * sin que nadie tenga que corregirla ficha por ficha.
+     *
+     * La FECHA DE EMISION no se toca: es cuando se emitio el contrato y no
+     * cambia nunca. Lo que avanza año a año es la fecha de renovacion, que se
+     * calcula a partir de ella al generar las renovaciones del periodo
+     * siguiente.
+     */
+    const cambiosPoliza: Record<string, unknown> = {}
+    if (formaPago) cambiosPoliza.formaPago = formaPago
+    if (plan !== undefined) cambiosPoliza.plan = plan || null
+    if (deducible !== undefined) cambiosPoliza.deducible = deducible || null
+
+    if (Object.keys(cambiosPoliza).length) {
       const r = await this.prisma.renovacion.findUnique({
         where: { id },
         select: { polizaId: true },
@@ -278,7 +300,25 @@ export class RenovacionesService {
       if (r?.polizaId) {
         await this.prisma.poliza.update({
           where: { id: r.polizaId },
-          data: { formaPago: formaPago as any },
+          data: cambiosPoliza as any,
+        })
+      }
+    }
+
+    // Al marcar RENOVADO se sube la prima nueva a la poliza.
+    //
+    // Solo en ese momento y no al enviar el correo: mientras se negocia, el
+    // valor todavia puede cambiar. Cuando la renovacion se da por hecha, esa es
+    // la prima con la que corre la poliza el año siguiente.
+    if (dto.estado === 'RENOVADO') {
+      const r = await this.prisma.renovacion.findUnique({
+        where: { id },
+        select: { polizaId: true, valorRenovacion: true },
+      })
+      if (r?.polizaId && r.valorRenovacion) {
+        await this.prisma.poliza.update({
+          where: { id: r.polizaId },
+          data: { primaNeta: r.valorRenovacion },
         })
       }
     }

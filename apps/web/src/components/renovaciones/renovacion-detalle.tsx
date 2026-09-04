@@ -43,6 +43,8 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
       envio: txt(r.envio) || 'NO_ENVIADO',
       comentarios: txt(r.comentarios),
       formaPago: txt(r.poliza?.formaPago),
+      plan: txt(r.poliza?.plan),
+      deducible: txt(r.poliza?.deducible),
     })
   }, [r])
 
@@ -151,6 +153,29 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
               <option value="DIFERIDO">Diferido</option>
               <option value="DIFERIDO_ESPECIAL">Diferido especial</option>
             </select>
+          </div>
+          {/* Plan y deducible: junto con la forma de pago, son los tres datos
+              que cambian al renovar. Se corrigen aqui y quedan guardados en la
+              poliza, asi el año que viene la renovacion sale correcta sola. */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Plan</span>
+            <input
+              value={form.plan ?? ''}
+              onChange={(e) => set('plan', e.target.value)}
+              placeholder="Sin definir"
+              className="h-7 max-w-[170px] rounded border bg-background px-1.5 text-right text-xs font-medium"
+              style={{ color: NAVY }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Deducible</span>
+            <input
+              value={form.deducible ?? ''}
+              onChange={(e) => set('deducible', e.target.value)}
+              placeholder="Sin definir"
+              className="h-7 max-w-[170px] rounded border bg-background px-1.5 text-right text-xs font-medium"
+              style={{ color: NAVY }}
+            />
           </div>
           <Dato label="Correo" valor={c?.email} />
           <Dato label="Celular" valor={c?.celular} />

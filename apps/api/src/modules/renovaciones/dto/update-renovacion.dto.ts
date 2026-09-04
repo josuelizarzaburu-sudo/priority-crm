@@ -29,6 +29,21 @@ export class UpdateRenovacionDto {
   @IsOptional()
   formaPago?: string
 
+  /**
+   * Plan y deducible viven en la POLIZA, no en la renovacion, pero se corrigen
+   * desde aqui: son —con la forma de pago— los tres datos que cambian al
+   * renovar, y guardarlos deja la poliza lista para el año siguiente.
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  plan?: string
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  deducible?: string
+
   @ApiProperty({ required: false })
   @IsNumber()
   @Type(() => Number)

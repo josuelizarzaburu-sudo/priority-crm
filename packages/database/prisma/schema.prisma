@@ -120,7 +120,6 @@ model User {
   sentWhatsappMessages    WhatsappMessage[]
   clientesAsignados       Cliente[]           @relation("ClienteEjecutivo")
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
-  polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   notasClientes           NotaCliente[]
   registrosAcceso         RegistroAcceso[]
   notasReclamos           NotaReclamo[]
@@ -244,8 +243,6 @@ model Requerimiento {
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])
-  @@index([organizationId, empresa])
-  @@index([agenteId])
   @@index([organizationId, estado])
   @@index([clienteId])
   @@index([polizaId])
@@ -1143,7 +1140,11 @@ model Poliza {
   id              String        @id @default(cuid())
   // Define que campos se muestran/piden en la ficha.
   tipo            TipoPoliza    @default(SALUD)
+  /// Numero de contrato de la aseguradora: la llave con la que operaciones
+  /// identifica la poliza al hablar con la compania.
   numeroContrato  String?
+  /// Mensual, Anual, Semestral... tal como lo maneja la aseguradora.
+  frecuenciaPago  String?
   estado          EstadoPoliza?
   aseguradora     String?
   plan            String?
@@ -1171,15 +1172,12 @@ model Poliza {
 
   clienteId       String
   organizationId  String
-  agenteId        String?
-  agenteNombre    String?
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   cliente         Cliente             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  agente          User?               @relation("PolizaAgente", fields: [agenteId], references: [id])
   dependientes    PolizaDependiente[]
 
   renovaciones    Renovacion[]
@@ -1270,9 +1268,7 @@ model Reclamo {
   aseguradora    String?
   /// Numero de contrato de la aseguradora: la llave con la que operaciones
   /// identifica la poliza al hablar con la compania.
-  numeroContrato String?
   /// Mensual, Anual, Semestral... tal como lo maneja la aseguradora.
-  frecuenciaPago String?
   // "INDIVIDUAL" o el nombre de la empresa en contratos corporativos (ej. FAES FARMA)
   contrato       String?
   diagnostico    String?
@@ -1314,8 +1310,6 @@ model Reclamo {
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])
-  @@index([organizationId, empresa])
-  @@index([agenteId])
   @@index([organizationId, estado])
   @@index([clienteId])
   @@index([organizationId, fechaEnvioAseguradora])

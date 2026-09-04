@@ -76,6 +76,7 @@ interface Resultado {
     yaExistian: number
     polizasSumadas: number
     fallidos: number
+    completados: number
     sinCedula: number
     cedulaInvalida: number
     agentesSinUsuario: string[]
@@ -144,7 +145,8 @@ export function ImportarClientes() {
     const base: Resultado = {
       resumen: {
         filas: 0, contratos: 0, clientes: 0, dependientes: 0, polizas: 0,
-        yaExistian: 0, polizasSumadas: 0, fallidos: 0, sinCedula: 0, cedulaInvalida: 0,
+        yaExistian: 0, polizasSumadas: 0, fallidos: 0, completados: 0,
+        sinCedula: 0, cedulaInvalida: 0,
         agentesSinUsuario: [], ejecutivasSinUsuario: [],
       },
       avisos: [],
@@ -311,12 +313,13 @@ export function ImportarClientes() {
 
           {r && (
             <div className="mt-4 space-y-3">
-              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 {[
                   { t: 'Clientes nuevos', v: r.clientes, color: VERDE },
                   { t: 'Pólizas', v: r.polizas },
                   { t: 'Dependientes', v: r.dependientes },
                   { t: 'Se suman a existentes', v: r.polizasSumadas },
+                  { t: 'Se completan', v: r.completados },
                   { t: 'Se omiten', v: r.yaExistian },
                 ].map((c) => (
                   <div key={c.t} className="rounded-lg border p-3">
@@ -445,6 +448,12 @@ export function ImportarClientes() {
               existían
             </p>
           </div>
+          {importado.completados > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              A {importado.completados} pólizas que ya estaban cargadas se les completaron datos
+              que faltaban.
+            </p>
+          )}
           {importado.yaExistian > 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
               {importado.yaExistian} contratos ya estaban cargados y se omitieron.

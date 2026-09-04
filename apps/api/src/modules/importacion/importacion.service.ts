@@ -256,6 +256,7 @@ export class ImportacionService {
       yaExistian: 0,
       polizasSumadas: 0,
       fallidos: 0,
+      completados: 0,
       sinCedula: 0,
       cedulaInvalida: 0,
       agentesSinUsuario: new Set<string>(),
@@ -355,6 +356,11 @@ export class ImportacionService {
         primaNeta: numero(d.primaAnual),
         formaPago: FORMA_PAGO[mayus(d.formaPago)] ?? null,
         frecuenciaPago: t(d.frecuenciaPago) || null,
+        // El agente va TAMBIEN en la poliza, no solo en el cliente: la ficha lo
+        // muestra por poliza, que es lo correcto —una persona puede tener una
+        // poliza vendida por un agente y otra por otro— y sin esto salia vacio.
+        agenteNombre: agenteTexto || null,
+        agenteId: agenteUsuario?.id ?? null,
         fechaEmision: fecha(d.fechaEmision),
         // El enum EstadoPoliza no tiene "VIGENTE": sus valores son NUEVO,
         // RENOVADO, CARTA_DE_NOMBRAMIENTO y CANCELADA. La base historica son
@@ -393,15 +399,35 @@ export class ImportacionService {
               })
             : null
           if (mismoContrato) {
-            resumen.yaExistian++
             resumen.clientes--
             resumen.polizas--
             resumen.dependientes -= deps.length
-            avisos.push({
-              fila: titular.fila,
-              nivel: 'aviso',
-              texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya está cargado, se omitirá`,
+
+            // Se mira si hay huecos que rellenar, para decirlo antes de escribir.
+            const actual = await this.prisma.poliza.findUnique({
+              where: { id: mismoContrato.id },
+              select: { agenteNombre: true, frecuenciaPago: true },
             })
+            const huecos = [
+              !actual?.agenteNombre && poliza.agenteNombre ? 'agente' : '',
+              !actual?.frecuenciaPago && poliza.frecuenciaPago ? 'frecuencia de pago' : '',
+            ].filter(Boolean)
+
+            if (huecos.length) {
+              resumen.completados++
+              avisos.push({
+                fila: titular.fila,
+                nivel: 'aviso',
+                texto: `${cliente.nombres} ${cliente.apellidos}: ya está cargado; se completará ${huecos.join(', ')}`,
+              })
+            } else {
+              resumen.yaExistian++
+              avisos.push({
+                fila: titular.fila,
+                nivel: 'aviso',
+                texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya está cargado, se omitirá`,
+              })
+            }
           } else {
             resumen.polizasSumadas++
             resumen.clientes--
@@ -455,13 +481,42 @@ export class ImportacionService {
           : null
 
         if (mismaPoliza) {
-          // Mismo contrato ya cargado: es una re-subida del mismo archivo.
-          resumen.yaExistian++
-          avisos.push({
-            fila: titular.fila,
-            nivel: 'aviso',
-            texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya estaba cargado, se omite`,
+          // Mismo contrato ya cargado. No se recrea, pero SI se completan los
+          // datos que esten vacios: si una carga anterior dejo huecos —como paso
+          // con el agente—, volver a subir el archivo los rellena en vez de
+          // obligar a vaciar y empezar de nuevo.
+          //
+          // Solo rellena lo VACIO: nunca pisa un dato que ya este puesto, que
+          // podria haberse corregido a mano despues de la carga.
+          const actual = await this.prisma.poliza.findUnique({
+            where: { id: mismaPoliza.id },
+            select: { agenteNombre: true, agenteId: true, frecuenciaPago: true },
           })
+          const completar: Record<string, unknown> = {}
+          if (!actual?.agenteNombre && poliza.agenteNombre) {
+            completar.agenteNombre = poliza.agenteNombre
+          }
+          if (!actual?.agenteId && poliza.agenteId) completar.agenteId = poliza.agenteId
+          if (!actual?.frecuenciaPago && poliza.frecuenciaPago) {
+            completar.frecuenciaPago = poliza.frecuenciaPago
+          }
+
+          if (Object.keys(completar).length && opciones.escribir) {
+            await this.prisma.poliza.update({ where: { id: mismaPoliza.id }, data: completar })
+            resumen.completados++
+            avisos.push({
+              fila: titular.fila,
+              nivel: 'aviso',
+              texto: `${cliente.nombres} ${cliente.apellidos}: ya estaba cargado; se completó ${Object.keys(completar).join(', ')}`,
+            })
+          } else {
+            resumen.yaExistian++
+            avisos.push({
+              fila: titular.fila,
+              nivel: 'aviso',
+              texto: `${cliente.nombres} ${cliente.apellidos}: el contrato ${poliza.numeroContrato} ya estaba cargado, se omite`,
+            })
+          }
           continue
         }
 

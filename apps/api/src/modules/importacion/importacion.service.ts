@@ -219,7 +219,11 @@ export class ImportacionService {
       where: { organizationId },
       select: { id: true, name: true, role: true },
     })
-    const porClave = new Map(usuarios.map((u) => [claveNombre(u.name), u]))
+    // El tipo va explicito: sin el, TypeScript deduce Map<string, {}> cuando la
+    // lista viene vacia y despues no deja leer .id.
+    const porClave = new Map<string, { id: string; name: string; role: string }>(
+      usuarios.map((u) => [claveNombre(u.name), u] as const),
+    )
 
     /**
      * Agrupa por contrato: las filas del mismo N DE CONTRATO son una familia.
@@ -437,7 +441,13 @@ export class ImportacionService {
       )
     }
 
-    const antes = await this.prisma.cliente.count({ where: { organizationId } })
+    // Se cuenta ANTES de borrar para poder informar cuánto se llevó: después ya
+    // no hay forma de saberlo.
+    const [antes, polizasAntes, renovacionesAntes] = await Promise.all([
+      this.prisma.cliente.count({ where: { organizationId } }),
+      this.prisma.poliza.count({ where: { organizationId } }),
+      this.prisma.renovacion.count({ where: { organizationId } }),
+    ])
 
     // El orden importa: primero lo que apunta a clientes sin borrarse en
     // cascada, o quedarían huérfanos apuntando a fichas que ya no existen.
@@ -450,7 +460,8 @@ export class ImportacionService {
       this.prisma.reclamo.deleteMany({ where: { organizationId } }),
     ])
 
-    // Polizas, dependientes, notas y correos automaticos se van en cascada.
+    // Al borrar el cliente se van EN CASCADA: sus polizas, y con cada poliza sus
+    // renovaciones; ademas dependientes, notas y correos automaticos.
     const borrados = await this.prisma.cliente.deleteMany({ where: { organizationId } })
 
     this.logger.warn(
@@ -459,8 +470,14 @@ export class ImportacionService {
 
     return {
       clientesBorrados: borrados.count,
+      // Reembolsos: en el CRM el modulo se llama asi, en la base son Reclamos.
+      reembolsosBorrados: reclamos.count,
       requerimientosBorrados: reqs.count,
-      reclamosBorrados: reclamos.count,
+      // Se fueron en cascada con sus clientes y polizas.
+      polizasBorradas: polizasAntes,
+      renovacionesBorradas: renovacionesAntes,
+      // Las tareas NO se borran: pueden ser de trabajo interno. Solo se les
+      // quita el cliente al que apuntaban.
       tareasDesvinculadas: tareas.count,
       habia: antes,
     }

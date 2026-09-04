@@ -40,6 +40,8 @@ export function RenovacionCorreo({
   const [texto, setTexto] = useState('')
   const [destinatario, setDestinatario] = useState('')
   const [plantilla, setPlantilla] = useState('')
+  /** Copias extra. comercial@priority.ec va siempre, sin escribirlo. */
+  const [copias, setCopias] = useState('')
   const [error, setError] = useState<string | null>(null)
   /**
    * Adjuntos. Viven solo en esta pantalla: viajan con el envío y se descartan.
@@ -121,6 +123,7 @@ export function RenovacionCorreo({
         texto,
         destinatario,
         ...(plantilla ? { plantilla } : {}),
+        ...(copias.trim() ? { copias } : {}),
         ...(adjuntos.length
           ? { adjuntos: adjuntos.map(({ filename, content }) => ({ filename, content })) }
           : {}),
@@ -280,6 +283,22 @@ export function RenovacionCorreo({
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          Copiar a (opcional)
+        </label>
+        <Input
+          value={copias}
+          onChange={(e) => setCopias(e.target.value)}
+          placeholder="otro@priority.ec, y otro más"
+          disabled={enviado}
+        />
+        <p className="mb-3 mt-1 text-[11px] text-muted-foreground">
+          Siempre se envía copia a <strong>comercial@priority.ec</strong> y a ti. Aquí puedes
+          agregar a alguien más, separando con comas.
+        </p>
       </div>
 
       <div>

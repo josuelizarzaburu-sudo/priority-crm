@@ -335,7 +335,8 @@ export class NotificationsService {
     asunto: string
     texto: string
     ejecutivaNombre?: string | null
-    copiaA?: string | null
+    /** Todas las copias del correo. Siempre incluye comercial@priority.ec. */
+    copias?: string[]
     /**
      * Adjuntos en base64. NO se guardan en ningún lado: viajan con este envío y
      * se descartan. Son documentos que la aseguradora manda para reenviar al
@@ -371,6 +372,13 @@ export class NotificationsService {
              </p>`
           : ''
       }
+      <!-- Firma institucional. Se referencia por URL y no se adjunta: incrustarla
+           haria el correo mucho mas pesado y algunos clientes de correo la
+           mostrarian como archivo adjunto en vez de como imagen. -->
+      <p style="margin:20px 0 0;">
+        <img src="https://priority.ec/img/firma-priority.png" alt="Priority Asesores de Seguros"
+             style="max-width:340px;width:100%;height:auto;display:block;border:0;" />
+      </p>
     </div>
   </div>
 </body>`
@@ -380,7 +388,9 @@ export class NotificationsService {
       data.asunto,
       html,
       FROM_CLIENTES,
-      data.copiaA ? [data.copiaA] : undefined,
+      // Se quitan repetidos: la ejecutiva podria escribir a mano un correo que
+      // ya va en la lista, y llegaria dos veces.
+      data.copias?.length ? [...new Set(data.copias)] : undefined,
       data.adjuntos,
     )
   }

@@ -149,3 +149,27 @@ export function nombreCompletoFormal(nombres: string, apellidos: string): string
 export function primerNombre(nombres: string): string {
   return paraMostrarAlCliente((nombres ?? '').trim().split(/\s+/)[0] ?? '')
 }
+
+/**
+ * Como llamar al cliente en un correo, sin "Estimado" delante.
+ *
+ * Reglas, en orden:
+ *   1. Si tiene nombre preferido, ese.
+ *   2. Si no, y tiene UN solo nombre, ese.
+ *   3. Si no, y tiene DOS o mas nombres, cadena vacia.
+ *
+ * La tercera parece rara pero es deliberada: a alguien que se llama "Maria
+ * Fernanda" no se sabe si le dicen Maria o Fernanda, y elegir mal es peor que no
+ * poner nombre. El saludo queda sin nombre hasta que alguien cargue el preferido.
+ */
+export function nombreParaSaludo(
+  nombres: string | null | undefined,
+  nombrePreferido: string | null | undefined,
+): string {
+  const preferido = (nombrePreferido ?? '').trim()
+  if (preferido) return paraMostrarAlCliente(preferido)
+
+  const partes = (nombres ?? '').trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 1) return paraMostrarAlCliente(partes[0])
+  return ''
+}

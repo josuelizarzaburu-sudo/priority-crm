@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { RenovacionesQueryDto } from './dto/renovaciones-query.dto'
 import { UpdateRenovacionDto } from './dto/update-renovacion.dto'
 import { NotificationsService } from '../notifications/notifications.service'
-import { paraMostrarAlCliente } from '../../common/texto'
+import { nombreCorto, nombreParaSaludo, paraMostrarAlCliente } from '../../common/texto'
 import {
   PLANTILLAS,
   elegirPlantilla,
@@ -407,11 +407,13 @@ export class RenovacionesService {
         : null
 
     return {
-      // Se suaviza el nombre: la ficha guarda "PABLO" para los reportes, pero el
-      // correo debe decir "Estimado Pablo," y no "Estimado PABLO,".
-      saludo: cliente
-        ? `Estimad${cliente.genero === 'FEMENINO' ? 'a' : 'o'} ${paraMostrarAlCliente(cliente.nombres?.trim().split(/\s+/)[0] ?? '')},`
-        : 'Estimado cliente,',
+      // Sin "Estimado": va el nombre directo, o nada si no se sabe cual usar.
+      // Ver nombreParaSaludo: con dos nombres y sin preferido se deja en blanco,
+      // porque elegir mal entre "Maria" y "Fernanda" es peor que no poner nada.
+      saludo: (() => {
+        const n = cliente ? nombreParaSaludo(cliente.nombres, cliente.nombrePreferido) : ''
+        return n ? `${n},` : ''
+      })(),
       plan: paraMostrarAlCliente(r.poliza?.plan) || '',
       deducible: r.poliza?.deducible ? `USD ${r.poliza.deducible}` : '',
       // BMI, AIG y similares son siglas: se dejan como están si no tienen
@@ -443,6 +445,8 @@ export class RenovacionesService {
       destinatario: string
       plantilla?: string
       adjuntos?: { filename: string; content: string }[]
+      /** Copias extra que escribe la ejecutiva, separadas por coma. */
+      copias?: string
     },
     organizationId: string,
     userId: string,
@@ -479,12 +483,30 @@ export class RenovacionesService {
 
     await this.notifications.enviarCorreoRenovacion({
       email: destinatario,
-      asunto: `Renovación de su póliza ${r.poliza?.plan ?? ''} — Priority`,
+      // El nombre va en el ASUNTO para poder buscar el correo despues. Solo
+      // primer nombre y primer apellido: el nombre completo de la cedula hace el
+      // asunto ilegible en la bandeja.
+      asunto: `Renovación Plan Médico - ${nombreCorto(
+        r.poliza?.cliente?.nombres ?? '',
+        r.poliza?.cliente?.apellidos ?? '',
+      )}`,
       texto: dto.texto,
       ejecutivaNombre: ejecutiva?.name ?? null,
-      // Copia a la ejecutiva, igual que en bienvenida: es su respaldo de que la
-      // renovación se comunicó y en qué términos.
-      copiaA: ejecutiva?.email ?? null,
+      // Copias del correo.
+      //
+      // Siempre va comercial@priority.ec: es la constancia de la empresa de que
+      // la renovacion se comunico y en que terminos, sin depender de que la
+      // ejecutiva conserve su copia.
+      //
+      // Ademas la ejecutiva que lo envia y las que ella agregue a mano.
+      copias: [
+        'comercial@priority.ec',
+        ejecutiva?.email,
+        ...(dto.copias ?? '')
+          .split(/[,;]/)
+          .map((c) => c.trim())
+          .filter((c) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c)),
+      ].filter((c): c is string => !!c),
       adjuntos,
     })
 

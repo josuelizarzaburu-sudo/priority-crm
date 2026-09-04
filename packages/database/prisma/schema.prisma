@@ -123,6 +123,8 @@ model User {
   /// usuario: las ventas historicas de vendedoras que ya no estan guardan el
   /// nombre en Cliente.agenteNombre y no aparecen aqui.
   clientesVendidos        Cliente[]           @relation("ClienteAgente")
+  /// Polizas vendidas por esta persona. Existia desde antes de la importacion.
+  polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
   notasClientes           NotaCliente[]
   registrosAcceso         RegistroAcceso[]
@@ -1176,12 +1178,18 @@ model Poliza {
 
   clienteId       String
   organizationId  String
+  /// Quien vendio esta poliza. Estos campos son ANTERIORES a la importacion y
+  /// los usan pipeline, renovaciones y el seed: no confundir con los de Cliente,
+  /// que guardan el agente historico de la base migrada.
+  agenteId        String?
+  agenteNombre    String?
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   cliente         Cliente             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agente          User?               @relation("PolizaAgente", fields: [agenteId], references: [id])
   dependientes    PolizaDependiente[]
 
   renovaciones    Renovacion[]

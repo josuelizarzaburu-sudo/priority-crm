@@ -1,10 +1,17 @@
 """
 Valida el schema como lo haría Prisma, sin necesidad de ejecutarlo.
 
-Comprueba lo que ya nos rompió el build tres veces:
+Comprueba lo que ya nos rompió el build:
   1. @@index y @@unique que apuntan a campos inexistentes
   2. @relation(fields:) que apunta a un campo inexistente
-  3. Relaciones con nombre SIN su inversa en el otro modelo  <- el ultimo fallo
+  3. Relaciones con nombre SIN su inversa en el otro modelo
+
+NO comprueba que el código siga usando campos existentes: distinguir un campo
+del modelo de uno anidado en una relación exige entender la consulta entera, y
+una comprobación con falsas alarmas se termina ignorando. Para eso está el
+compilador, que es quien detectó el borrado de Poliza.agenteId.
+
+Uso:  python3 scripts/valida-schema.py
 """
 import re, sys
 

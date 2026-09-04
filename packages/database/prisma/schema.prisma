@@ -244,6 +244,8 @@ model Requerimiento {
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])
+  @@index([organizationId, empresa])
+  @@index([agenteId])
   @@index([organizationId, estado])
   @@index([clienteId])
   @@index([polizaId])
@@ -1094,6 +1096,20 @@ model Cliente {
   // ejecutivoId == su id. El filtro va en el servidor, nunca solo en la UI.
   ejecutivoId     String?
   ejecutivoNombre String?
+
+  /// Empresa a la que pertenece, en clientes corporativos. Va aqui y no en la
+  /// poliza porque se busca por cliente: "que clientes tengo de tal empresa".
+  empresa         String?
+  /// INDIVIDUAL o CORPORATIVO.
+  tipoCliente     String?
+
+  /// Quien vendio la poliza.
+  ///
+  /// Se guarda el NOMBRE ademas del id porque parte de las ventas historicas
+  /// las hicieron vendedores que ya no estan y que nunca tuvieron usuario en el
+  /// CRM. Si solo hubiera relacion, esas ventas quedarian sin agente.
+  agenteNombre    String?
+  agenteId        String?
   // Enganche con el área comercial: de qué contacto/lead salió este cliente.
   contactId       String?   @unique
   createdById     String?
@@ -1103,6 +1119,7 @@ model Cliente {
 
   organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ejecutivo       User?         @relation("ClienteEjecutivo", fields: [ejecutivoId], references: [id])
+  agente          User?         @relation("ClienteAgente", fields: [agenteId], references: [id], onDelete: SetNull)
   createdBy       User?         @relation("ClienteCreatedBy", fields: [createdById], references: [id])
   contact         Contact?      @relation(fields: [contactId], references: [id])
   polizas         Poliza[]
@@ -1115,6 +1132,8 @@ model Cliente {
 
   @@unique([organizationId, identificacion])
   @@index([organizationId, ejecutivoId])
+  @@index([organizationId, empresa])
+  @@index([agenteId])
   @@index([organizationId, apellidos])
   @@index([identificacion])
   @@map("clientes")
@@ -1249,6 +1268,11 @@ model Reclamo {
   pacienteNombre String?
 
   aseguradora    String?
+  /// Numero de contrato de la aseguradora: la llave con la que operaciones
+  /// identifica la poliza al hablar con la compania.
+  numeroContrato String?
+  /// Mensual, Anual, Semestral... tal como lo maneja la aseguradora.
+  frecuenciaPago String?
   // "INDIVIDUAL" o el nombre de la empresa en contratos corporativos (ej. FAES FARMA)
   contrato       String?
   diagnostico    String?
@@ -1290,6 +1314,8 @@ model Reclamo {
   ejecutivo      User?         @relation(fields: [ejecutivoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, ejecutivoId])
+  @@index([organizationId, empresa])
+  @@index([agenteId])
   @@index([organizationId, estado])
   @@index([clienteId])
   @@index([organizationId, fechaEnvioAseguradora])

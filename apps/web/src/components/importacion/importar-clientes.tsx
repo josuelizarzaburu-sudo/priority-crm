@@ -75,6 +75,7 @@ interface Resultado {
     polizas: number
     yaExistian: number
     polizasSumadas: number
+    fallidos: number
     sinCedula: number
     cedulaInvalida: number
     agentesSinUsuario: string[]
@@ -143,7 +144,7 @@ export function ImportarClientes() {
     const base: Resultado = {
       resumen: {
         filas: 0, contratos: 0, clientes: 0, dependientes: 0, polizas: 0,
-        yaExistian: 0, polizasSumadas: 0, sinCedula: 0, cedulaInvalida: 0,
+        yaExistian: 0, polizasSumadas: 0, fallidos: 0, sinCedula: 0, cedulaInvalida: 0,
         agentesSinUsuario: [], ejecutivasSinUsuario: [],
       },
       avisos: [],
@@ -447,6 +448,14 @@ export function ImportarClientes() {
           {importado.yaExistian > 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
               {importado.yaExistian} contratos ya estaban cargados y se omitieron.
+            </p>
+          )}
+          {/* Los que fallaron se muestran con su motivo: con 1.500 filas hay que
+              poder ver cuales quedaron fuera y por que, no solo el total. */}
+          {importado.fallidos > 0 && (
+            <p className="mt-2 text-xs font-medium text-red-700">
+              {importado.fallidos} no se pudieron cargar. Mira los avisos para ver el motivo de
+              cada uno.
             </p>
           )}
         </div>

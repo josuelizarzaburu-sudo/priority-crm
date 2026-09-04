@@ -129,13 +129,20 @@ function primerCorreo(v: unknown): string | null {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(primero) ? primero : null
 }
 
+/**
+ * Tipos de poliza. Solo estos cuatro existen en el enum TipoPoliza; cualquier
+ * otro se carga como SALUD, que es el ramo de casi toda la base historica.
+ */
 const TIPO_POLIZA: Record<string, string> = {
   SALUD: 'SALUD',
+  'ASISTENCIA MEDICA': 'SALUD',
+  ASISTENCIA: 'SALUD',
+  MEDICO: 'SALUD',
   VIDA: 'VIDA',
   AUTO: 'AUTO',
   VEHICULO: 'AUTO',
+  VEHICULOS: 'AUTO',
   HOGAR: 'HOGAR',
-  ASISTENCIA: 'ASISTENCIA',
 }
 
 const PARENTESCO: Record<string, string> = {
@@ -248,6 +255,7 @@ export class ImportacionService {
       polizas: 0,
       yaExistian: 0,
       polizasSumadas: 0,
+      fallidos: 0,
       sinCedula: 0,
       cedulaInvalida: 0,
       agentesSinUsuario: new Set<string>(),
@@ -348,8 +356,10 @@ export class ImportacionService {
         formaPago: FORMA_PAGO[mayus(d.formaPago)] ?? null,
         frecuenciaPago: t(d.frecuenciaPago) || null,
         fechaEmision: fecha(d.fechaEmision),
-        contrato: mayus(d.tipoCliente) === 'CORPORATIVO' ? mayus(d.empresa) || 'CORPORATIVO' : 'INDIVIDUAL',
-        estado: 'VIGENTE',
+        // El enum EstadoPoliza no tiene "VIGENTE": sus valores son NUEVO,
+        // RENOVADO, CARTA_DE_NOMBRAMIENTO y CANCELADA. La base historica son
+        // polizas que ya venian de antes, asi que entran como RENOVADO.
+        estado: mayus(d.estado).includes('CANCELAD') ? 'CANCELADA' : 'RENOVADO',
         organizationId,
       }
 
@@ -485,15 +495,36 @@ export class ImportacionService {
 
       // Cliente, póliza y dependientes en una sola transacción: si algo falla,
       // no queda un cliente a medias sin su póliza.
-      await this.prisma.$transaction(async (tx) => {
-        const creado = await tx.cliente.create({ data: cliente as any })
-        await tx.poliza.create({ data: { ...poliza, clienteId: creado.id } as any })
-        if (deps.length) {
-          await tx.dependiente.createMany({
-            data: deps.map((x) => ({ ...x, clienteId: creado.id })) as any,
-          })
-        }
-      })
+      //
+      // El error se captura por fila: si una da problemas, se anota y se sigue
+      // con las demás. Cortar toda la importación por un registro malo obligaría
+      // a empezar de cero, y con 1.500 filas eso es carísimo.
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const creado = await tx.cliente.create({ data: cliente as any })
+          await tx.poliza.create({ data: { ...poliza, clienteId: creado.id } as any })
+          if (deps.length) {
+            await tx.dependiente.createMany({
+              data: deps.map((x) => ({ ...x, clienteId: creado.id })) as any,
+            })
+          }
+        })
+      } catch (e: any) {
+        resumen.clientes--
+        resumen.polizas--
+        resumen.dependientes -= deps.length
+        resumen.fallidos++
+        // Se guarda el motivo real, no un "error interno": con 1.500 filas hay
+        // que poder ver QUÉ pasó sin entrar a los registros del servidor.
+        avisos.push({
+          fila: titular.fila,
+          nivel: 'error',
+          texto: `${cliente.nombres} ${cliente.apellidos}: no se pudo cargar — ${
+            e?.message?.split('\n').pop()?.trim() ?? 'error desconocido'
+          }`,
+        })
+        this.logger.error(`[importacion] fila ${titular.fila}: ${e}`)
+      }
     }
 
     return {

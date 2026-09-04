@@ -408,9 +408,19 @@ export class ImportacionService {
               where: { id: mismoContrato.id },
               select: { agenteNombre: true, frecuenciaPago: true },
             })
+            // Tambien se mira si a la poliza le faltan los enlaces con sus
+            // dependientes: es lo que hacia que dijera "cubre a ningun
+            // dependiente" aunque la familia estuviera cargada.
+            const enlaces = await this.prisma.polizaDependiente.count({
+              where: { polizaId: mismoContrato.id },
+            })
+
             const huecos = [
               !actual?.agenteNombre && poliza.agenteNombre ? 'agente' : '',
               !actual?.frecuenciaPago && poliza.frecuenciaPago ? 'frecuencia de pago' : '',
+              deps.length > enlaces
+                ? `${deps.length - enlaces} dependiente(s) por enlazar a la póliza`
+                : '',
             ].filter(Boolean)
 
             if (huecos.length) {
@@ -501,13 +511,55 @@ export class ImportacionService {
             completar.frecuenciaPago = poliza.frecuenciaPago
           }
 
-          if (Object.keys(completar).length && opciones.escribir) {
-            await this.prisma.poliza.update({ where: { id: mismaPoliza.id }, data: completar })
+          // Enlaces de dependientes que falten. Las cargas anteriores creaban
+          // los dependientes pero no los enlazaban a la poliza, asi que la ficha
+          // decia "cubre a ningun dependiente".
+          let enlazados = 0
+          if (opciones.escribir && deps.length) {
+            for (const dep of deps) {
+              const existente = await this.prisma.dependiente.findFirst({
+                where: {
+                  clienteId: yaExiste.id,
+                  nombres: dep.nombres,
+                  apellidos: dep.apellidos ?? undefined,
+                },
+                select: { id: true },
+              })
+              const id =
+                existente?.id ??
+                (
+                  await this.prisma.dependiente.create({
+                    data: { ...dep, clienteId: yaExiste.id } as any,
+                  })
+                ).id
+              const yaEnlazado = await this.prisma.polizaDependiente.findUnique({
+                where: { polizaId_dependienteId: { polizaId: mismaPoliza.id, dependienteId: id } },
+              })
+              if (!yaEnlazado) {
+                await this.prisma.polizaDependiente.create({
+                  data: { polizaId: mismaPoliza.id, dependienteId: id },
+                })
+                enlazados++
+              }
+            }
+          }
+
+          if ((Object.keys(completar).length || enlazados > 0) && opciones.escribir) {
+            if (Object.keys(completar).length) {
+              await this.prisma.poliza.update({ where: { id: mismaPoliza.id }, data: completar })
+            }
             resumen.completados++
             avisos.push({
               fila: titular.fila,
               nivel: 'aviso',
-              texto: `${cliente.nombres} ${cliente.apellidos}: ya estaba cargado; se completó ${Object.keys(completar).join(', ')}`,
+              texto: `${cliente.nombres} ${cliente.apellidos}: ya estaba cargado; se completó ${
+                [
+                  ...Object.keys(completar),
+                  enlazados > 0 ? `${enlazados} dependiente(s) enlazados a la póliza` : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+              }`,
             })
           } else {
             resumen.yaExistian++
@@ -521,9 +573,12 @@ export class ImportacionService {
         }
 
         await this.prisma.$transaction(async (tx) => {
-          await tx.poliza.create({ data: { ...poliza, clienteId: yaExiste.id } as any })
-          // Los dependientes se agregan solo si no estaban ya: la misma familia
-          // suele repetirse entre las pólizas de una persona.
+          const polizaCreada = await tx.poliza.create({
+            data: { ...poliza, clienteId: yaExiste.id } as any,
+          })
+          // El dependiente se reutiliza si ya existe —la misma familia suele
+          // repetirse entre las pólizas de una persona— pero SIEMPRE se enlaza a
+          // la póliza nueva: es otra póliza que también lo cubre.
           for (const dep of deps) {
             const existe = await tx.dependiente.findFirst({
               where: {
@@ -533,9 +588,12 @@ export class ImportacionService {
               },
               select: { id: true },
             })
-            if (!existe) {
-              await tx.dependiente.create({ data: { ...dep, clienteId: yaExiste.id } as any })
-            }
+            const id =
+              existe?.id ??
+              (await tx.dependiente.create({ data: { ...dep, clienteId: yaExiste.id } as any })).id
+            await tx.polizaDependiente.create({
+              data: { polizaId: polizaCreada.id, dependienteId: id },
+            })
           }
         })
 
@@ -557,10 +615,22 @@ export class ImportacionService {
       try {
         await this.prisma.$transaction(async (tx) => {
           const creado = await tx.cliente.create({ data: cliente as any })
-          await tx.poliza.create({ data: { ...poliza, clienteId: creado.id } as any })
-          if (deps.length) {
-            await tx.dependiente.createMany({
-              data: deps.map((x) => ({ ...x, clienteId: creado.id })) as any,
+          const polizaCreada = await tx.poliza.create({
+            data: { ...poliza, clienteId: creado.id } as any,
+          })
+
+          // Los dependientes se ENLAZAN a la póliza, no solo se crean.
+          //
+          // Si vienen bajo el mismo número de contrato es porque esa póliza los
+          // cubre: es lo que significa la columna TITULAR - DEPENDIENTE. Sin el
+          // enlace, la ficha decía "cubre a ningún dependiente" aunque la
+          // familia estuviera cargada.
+          for (const dep of deps) {
+            const creadoDep = await tx.dependiente.create({
+              data: { ...dep, clienteId: creado.id } as any,
+            })
+            await tx.polizaDependiente.create({
+              data: { polizaId: polizaCreada.id, dependienteId: creadoDep.id },
             })
           }
         })

@@ -33,6 +33,7 @@ const NO_CONVERTIR = new Set([
   'notas',
   'nota',
   'contenido',
+  'observacion',
   'observaciones',
   'comentarios',
   'descripcion',
@@ -54,6 +55,19 @@ export function seConvierte(campo: string): boolean {
   // Cualquier cosa que parezca un correo o una contraseña, por si el campo se
   // llama distinto en otro módulo.
   const c = campo.toLowerCase()
+
+  /**
+   * IDENTIFICADORES: nunca se convierten.
+   *
+   * Los ids de la base son cuid —minusculas y numeros— asi que pasarlos a
+   * mayusculas los convierte en un id que no existe, y la clave foranea falla
+   * con un error interno que no dice nada. Paso con agenteId al crear una
+   * poliza.
+   *
+   * Se detecta por el sufijo "Id" y por el campo "id" a secas, que es como se
+   * nombran en todo el esquema.
+   */
+  if (campo === 'id' || /Id$/.test(campo) || /Ids$/.test(campo)) return false
   // 'correo' incluido: sin él, campos como correoEjecutiva o correoDestinatario
   // se convertirían y podrían romper el envío.
   if (c.includes('email') || c.includes('mail') || c.includes('correo')) return false

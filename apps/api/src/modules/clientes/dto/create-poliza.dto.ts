@@ -91,10 +91,23 @@ export class CreatePolizaDto {
   @IsOptional()
   observacion?: string
 
+  /**
+   * Quien vendio la poliza.
+   *
+   * Van los dos campos: el NOMBRE siempre, y el id solo cuando esa persona
+   * tiene usuario en el CRM. Hay ventas de asesores que ya no estan y nunca
+   * tuvieron acceso, y si solo se guardara el id esas ventas quedarian sin
+   * dueno.
+   */
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   agenteNombre?: string
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  agenteId?: string
 
   // Ids de los dependientes del cliente que esta poliza cubre (solo SALUD).
   @ApiProperty({ required: false, type: [String] })

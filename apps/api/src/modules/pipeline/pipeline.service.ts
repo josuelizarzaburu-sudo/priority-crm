@@ -1049,6 +1049,25 @@ export class PipelineService {
     const customFields: Record<string, unknown> = { ...(dto.customFields as any) }
     let assignedToId = dto.assignedToId
 
+    /**
+     * Gerencia que crea un lead SIN decir para quien, se lo queda.
+     *
+     * SUPER_ADMIN, OWNER y MANAGER reparten leads, y por eso no entran en
+     * creaNegociosPropios: pueden crear un negocio a nombre de otra persona. Pero
+     * si no eligen a nadie, lo mas razonable es que sea suyo —Josue tambien
+     * vende— en vez de dejarlo sin asignar y que no aparezca en el pipeline de
+     * nadie.
+     *
+     * Si eligieron un vendedor, se respeta: ahi si estan repartiendo.
+     */
+    const REPARTEN = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+    if (!assignedToId && REPARTEN.includes(role)) {
+      assignedToId = createdById
+      // Sin origen explicito, un lead que se crea a si mismo es PROPIO: lo
+      // consiguio quien lo esta creando, no vino de una campana.
+      if (!customFields.leadOrigin) customFields.leadOrigin = 'PROPIO'
+    }
+
     if (creaNegociosPropios(role, puedeVender)) {
       // Quien crea negocios propios —vendedor, jefe de equipo, o perfil de Operaciones
       // con el permiso— crea negocios unicamente para si mismo. El origen y la

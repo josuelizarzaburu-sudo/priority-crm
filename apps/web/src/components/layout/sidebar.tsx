@@ -9,6 +9,7 @@ import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard,
   Users,
+  Cake,
   CheckSquare,
   Upload,
   GraduationCap,
@@ -68,6 +69,7 @@ const NAV_ITEMS = [
   // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
   // personales con las reuniones haria inutiles a las dos.
   { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES },
+  { href: '/cumpleanos',       label: 'Cumpleaños',         icon: Cake,            roles: ['SUPER_ADMIN'] },
   // Solo SUPER_ADMIN: esta pantalla puede vaciar la base entera.
   { href: '/importar',         label: 'Importar clientes',  icon: Upload,          roles: ['SUPER_ADMIN'] },
   { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },

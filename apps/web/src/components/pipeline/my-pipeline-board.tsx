@@ -111,7 +111,7 @@ export function MyPipelineBoard() {
   const [createOpen, setCreateOpen] = useState(false)
   const [insuranceFilter, setInsuranceFilter] = useState<InsuranceFilter>('ALL')
 
-  const [stagesQuery, dealsQuery] = useQueries({
+  const [stagesQuery, dealsQuery, usersQuery] = useQueries({
     queries: [
       {
         queryKey: ['pipeline', 'stages'],
@@ -120,6 +120,19 @@ export function MyPipelineBoard() {
       {
         queryKey: ['pipeline', 'my-deals'],
         queryFn: () => api.get('/pipeline/my-deals').then((r) => r.data as MyDeal[]),
+      },
+      {
+        // Lista de usuarios para poder REASIGNAR desde este tablero.
+        //
+        // Antes se pasaba una lista vacia y el selector de vendedor salia sin
+        // nadie: quien administra abria un lead desde Mi Pipeline y no podia
+        // pasarselo a otra persona.
+        //
+        // Solo se pide si el rol puede reasignar; a un vendedor no le sirve y
+        // seria una consulta de mas en cada carga.
+        queryKey: ['users'],
+        queryFn: () => api.get('/users').then((r) => r.data as { id: string; name: string }[]),
+        enabled: ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(userRole),
       },
     ],
   })
@@ -372,7 +385,7 @@ export function MyPipelineBoard() {
         dealId={selectedDealId}
         onClose={() => setSelectedDealId(null)}
         userRole={userRole}
-        users={[]}
+        users={(usersQuery.data as any) ?? []}
       />
 
       {/* En Mi Pipeline el negocio nace PROPIO: es el tablero de uno mismo, o sea

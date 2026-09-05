@@ -95,6 +95,9 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
       celular: cliente.celular ?? '',
       ciudad: cliente.ciudad ?? '',
       genero: cliente.genero ?? '',
+      tipoCliente: (cliente as any).tipoCliente ?? 'INDIVIDUAL',
+      empresa: (cliente as any).empresa ?? '',
+      agenteNombre: (cliente as any).agenteNombre ?? '',
       vieneDeOtroSeguro: (cliente as any).vieneDeOtroSeguro ?? '',
       direccion: cliente.direccion ?? '',
       notas: cliente.notas ?? '',
@@ -122,6 +125,9 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
         'notas',
         'genero',
         'vieneDeOtroSeguro',
+        'tipoCliente',
+        'empresa',
+        'agenteNombre',
       ]
       for (const c of ['nombres', 'apellidos', 'fechaNacimiento'] as const) {
         if (puedeCompletar(c)) editables.push(c)
@@ -298,7 +304,39 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
           {/* Viene del CRM comercial al ganarse el deal, pero a veces llega
               vacio o el cliente lo aclara despues. Faltaba en el formulario, asi
               que no habia forma de corregirlo desde la ficha. */}
-          <Campo label="Viene de otro seguro">
+          {/* Empresa y tipo: si un cliente individual pasa a corporativo, hay que
+            poder cambiarlo sin crear la ficha de nuevo. */}
+        <Campo label="Tipo de cliente">
+          <select
+            value={form.tipoCliente ?? 'INDIVIDUAL'}
+            onChange={(e) => {
+              set('tipoCliente', e.target.value)
+              if (e.target.value !== 'CORPORATIVO') set('empresa', '')
+            }}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="INDIVIDUAL">Individual</option>
+            <option value="CORPORATIVO">Corporativo</option>
+          </select>
+        </Campo>
+
+        {form.tipoCliente === 'CORPORATIVO' && (
+          <Campo label="Empresa">
+            <Input
+              value={form.empresa ?? ''}
+              onChange={enMayusculas((v) => set('empresa', v))}
+            />
+          </Campo>
+        )}
+
+        <Campo label="Agente (quien vendió)">
+          <Input
+            value={form.agenteNombre ?? ''}
+            onChange={enMayusculas((v) => set('agenteNombre', v))}
+          />
+        </Campo>
+
+        <Campo label="Viene de otro seguro">
             <Input
               value={form.vieneDeOtroSeguro ?? ''}
               onChange={enMayusculas((v) => set('vieneDeOtroSeguro', v))}

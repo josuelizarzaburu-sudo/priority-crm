@@ -174,6 +174,43 @@ export function NuevoCliente() {
           <Input value={form.referidoDe ?? ''} onChange={enMayusculas((v) => set('referidoDe', v))} />
         </Campo>
 
+        {/* Tipo y empresa: para los clientes corporativos. La empresa se guarda
+            en el cliente porque es por donde se busca —"que clientes tengo de
+            tal empresa"— y no plan por plan. */}
+        <Campo label="Tipo de cliente">
+          <select
+            value={form.tipoCliente ?? 'INDIVIDUAL'}
+            onChange={(e) => {
+              set('tipoCliente', e.target.value)
+              // Si vuelve a individual se limpia la empresa: dejarla puesta
+              // guardaria un dato que contradice el tipo.
+              if (e.target.value !== 'CORPORATIVO') set('empresa', '')
+            }}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="INDIVIDUAL">Individual</option>
+            <option value="CORPORATIVO">Corporativo</option>
+          </select>
+        </Campo>
+
+        {form.tipoCliente === 'CORPORATIVO' && (
+          <Campo label="Empresa">
+            <Input
+              value={form.empresa ?? ''}
+              onChange={enMayusculas((v) => set('empresa', v))}
+              placeholder="Nombre de la empresa"
+            />
+          </Campo>
+        )}
+
+        <Campo label="Agente (quien vendió)">
+          <Input
+            value={form.agenteNombre ?? ''}
+            onChange={enMayusculas((v) => set('agenteNombre', v))}
+            placeholder="Nombre del asesor"
+          />
+        </Campo>
+
         <Campo label="Celular">
           <Input value={form.celular ?? ''} onChange={(e) => set('celular', e.target.value)} />
         </Campo>

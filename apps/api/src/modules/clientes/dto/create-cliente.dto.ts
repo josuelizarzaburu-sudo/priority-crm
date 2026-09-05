@@ -59,6 +59,26 @@ export class CreateClienteDto {
   @IsOptional()
   vieneDeOtroSeguro?: string
 
+  /**
+   * Empresa del cliente corporativo. Va en el CLIENTE y no en la poliza porque
+   * se busca por ahi: "que clientes tengo de tal empresa".
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  empresa?: string
+
+  @ApiProperty({ required: false, enum: ['INDIVIDUAL', 'CORPORATIVO'] })
+  @IsIn(['INDIVIDUAL', 'CORPORATIVO'])
+  @IsOptional()
+  tipoCliente?: string
+
+  /** Quien vendio: nombre libre, porque hay agentes historicos sin usuario. */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  agenteNombre?: string
+
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()

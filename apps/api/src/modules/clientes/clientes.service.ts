@@ -167,14 +167,38 @@ export class ClientesService {
 
     const { dependientes, ...datosCliente } = dto
 
+    /**
+     * Las fechas llegan como texto 'YYYY-MM-DD' del formulario y la base espera
+     * una fecha. Esta conversion existia en update pero NO aqui, asi que crear
+     * un cliente con fecha de nacimiento fallaba con "Internal server error".
+     *
+     * Se fija a medianoche UTC porque es un dia de calendario sin hora: leerla en
+     * hora de Ecuador guardaria el dia anterior.
+     */
+    const aFecha = (v: unknown) =>
+      v ? new Date(`${String(v).slice(0, 10)}T00:00:00.000Z`) : null
+
     const data: any = {
       ...datosCliente,
+      fechaNacimiento: aFecha(datosCliente.fechaNacimiento),
       organizationId,
       ejecutivoId,
       createdById: userId,
     }
+
     if (dependientes?.length) {
-      data.dependientes = { create: dependientes.map(d => ({ ...d })) }
+      // Se descartan las filas vacias: el formulario deja una lista en blanco al
+      // pulsar "Agregar" y, si no se llena, no deberia crear un dependiente sin
+      // nombre.
+      const conNombre = dependientes.filter((d) => (d.nombres ?? '').trim())
+      if (conNombre.length) {
+        data.dependientes = {
+          create: conNombre.map((d) => ({
+            ...d,
+            fechaNacimiento: aFecha(d.fechaNacimiento),
+          })),
+        }
+      }
     }
 
     return this.prisma.cliente.create({

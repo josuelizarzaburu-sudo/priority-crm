@@ -56,6 +56,9 @@ export class ClientesService {
         { nombres: { contains: s, mode: 'insensitive' } },
         { apellidos: { contains: s, mode: 'insensitive' } },
         { identificacion: { contains: s } },
+        // Buscar por empresa es justamente para lo que sirve el campo: poder
+        // ver de una vez todos los clientes de una compania.
+        { empresa: { contains: s, mode: 'insensitive' } },
         { email: { contains: s, mode: 'insensitive' } },
         { celular: { contains: s } },
         { telefono: { contains: s } },

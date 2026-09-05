@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertTriangle, User, Shield, Users, Trash2 } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Building2, User, Shield, Users, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -80,6 +80,9 @@ interface ClienteDetalle {
   direccion: string | null
   origenLead: string | null
   vieneDeOtroSeguro: string | null
+  empresa: string | null
+  tipoCliente: string | null
+  agenteNombre: string | null
   notas: string | null
   revisar: boolean
   revisarMotivo: string | null
@@ -228,6 +231,14 @@ export function ClienteDetalle({ id }: { id: string }) {
               preferido={c.nombrePreferido}
             />
           </h1>
+          {/* La empresa va junto al nombre y no solo en la lista de datos: al
+              abrir la ficha de un corporativo, saber de que empresa es cambia
+              como se atiende la llamada. */}
+          {c.empresa && (
+            <Badge variant="outline" style={{ borderColor: GOLD, color: NAVY }}>
+              <Building2 className="mr-1 h-3 w-3" /> {c.empresa}
+            </Badge>
+          )}
           {c.revisar && (
             <Badge variant="outline" className="border-amber-500 text-amber-600">
               <AlertTriangle className="mr-1 h-3 w-3" /> Datos por revisar
@@ -272,6 +283,9 @@ export function ClienteDetalle({ id }: { id: string }) {
                     : null
             }
           />
+          {/* Empresa: solo en los corporativos. En un cliente individual seria
+              una fila vacia que no aporta nada. */}
+          {c.empresa && <Dato label="Empresa" valor={c.empresa} />}
           <Dato label="Viene de otro seguro" valor={c.vieneDeOtroSeguro} />
           <Dato label="Persona de contacto" valor={c.contactoSugerido} />
           <Dato label="Referido de" valor={c.referidoDe} />

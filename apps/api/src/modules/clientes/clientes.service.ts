@@ -43,11 +43,30 @@ export class ClientesService {
 
     if (revisar === 'true') where.revisar = true
 
-    // Bandeja de nuevos por asignar: los que llegaron de un deal ganado y todavía
-    // no tienen ejecutiva. Solo tiene sentido para quien puede asignar, porque a
-    // una OPERACIONES baseWhere ya la dejó viendo únicamente lo suyo.
+    /**
+     * Bandeja de nuevos por asignar.
+     *
+     * Son los que llegaron de un deal GANADO y todavia no tienen ejecutiva: el
+     * trabajo pendiente de operaciones.
+     *
+     * Se exige contactId, que solo tienen los clientes nacidos de un deal. Sin
+     * eso, la bandeja mostraba tambien los 700 de la base historica —que llegaron
+     * por importacion y muchos sin ejecutiva enlazada— y dejaba de servir para lo
+     * que existe: ver que acaba de entrar y hay que repartir.
+     *
+     * Tampoco entran los que traen el NOMBRE de la ejecutiva aunque no tengan su
+     * usuario: alguien ya esta a cargo, aunque esa persona no use el CRM.
+     */
     if (query.sinAsignar === 'true' && VE_TODO.includes(role)) {
       where.ejecutivoId = null
+      where.contactId = { not: null }
+      // Va en AND y no en OR: el OR de arriba lo usa la busqueda por texto, y
+      // asignarlo aqui lo pisaria — buscar un nombre dentro de esta bandeja
+      // habria devuelto cualquier cliente.
+      where.AND = [
+        ...(where.AND ?? []),
+        { OR: [{ ejecutivoNombre: null }, { ejecutivoNombre: '' }] },
+      ]
     }
 
     if (search) {

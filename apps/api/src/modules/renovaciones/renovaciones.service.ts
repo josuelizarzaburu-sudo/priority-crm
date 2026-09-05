@@ -394,7 +394,10 @@ export class RenovacionesService {
     }
 
     return {
-      yaEnviado: r.envio === 'ENVIADO' ? r.fechaPrimerEnvio : null,
+      // Ya enviado si esta en cualquiera de los dos envios. El enum no tiene
+      // "ENVIADO": distingue PRIMER_ENVIO del SEGUNDO_ENVIO, que es el
+      // recordatorio cuando el cliente no contesta.
+      yaEnviado: r.envio !== 'NO_ENVIADO' ? r.fechaPrimerEnvio : null,
       destinatario: r.correoDestinatario ?? cliente?.email ?? '',
       plantilla: plantillaId,
       // El texto guardado gana sobre el generado: son las correcciones de la
@@ -497,10 +500,11 @@ export class RenovacionesService {
     })
     if (!r) throw new NotFoundException('Renovación no encontrada')
 
-    if (r.envio === 'ENVIADO') {
+    // Se permite un SEGUNDO envio —el recordatorio cuando el cliente no
+    // contesta— pero no un tercero.
+    if (r.envio === 'SEGUNDO_ENVIO') {
       throw new ForbiddenException(
-        'Esta renovación ya se envió el ' +
-          new Date(r.fechaPrimerEnvio).toLocaleDateString('es-EC'),
+        'Esta renovación ya tuvo sus dos envíos. Si hace falta insistir, hazlo por otro medio.',
       )
     }
 
@@ -573,8 +577,14 @@ export class RenovacionesService {
     return this.prisma.renovacion.update({
       where: { id },
       data: {
-        envio: 'ENVIADO' as any,
-        fechaPrimerEnvio: new Date(),
+        // Primer envio o recordatorio, segun como estuviera. "ENVIADO" no existe
+        // en el enum y guardarlo hacia fallar la actualizacion DESPUES de que el
+        // correo ya habia salido: el cliente lo recibia y la pantalla mostraba
+        // un error.
+        envio: (r.envio === 'NO_ENVIADO' ? 'PRIMER_ENVIO' : 'SEGUNDO_ENVIO') as any,
+        // La fecha del primer envio no se pisa en el recordatorio: sirve para
+        // saber cuanto lleva esperando respuesta el cliente.
+        ...(r.envio === 'NO_ENVIADO' ? { fechaPrimerEnvio: new Date() } : {}),
         correoTexto: dto.texto,
         correoDestinatario: destinatario,
         ...(dto.plantilla ? { correoPlantilla: dto.plantilla } : {}),

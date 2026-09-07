@@ -368,7 +368,20 @@ export function ClienteDetalle({ id }: { id: string }) {
                     {p.aseguradora ?? 'Sin aseguradora'}
                   </span>
                   {p.plan && <span className="text-sm text-muted-foreground">· {p.plan}</span>}
-                  {p.estado && <Badge variant="outline">{bonito(p.estado)}</Badge>}
+                  {/* POR_RENOVAR va en ambar: es lo unico de esta lista que pide
+                      accion, y en gris se perderia entre los demas estados. */}
+                  {p.estado && (
+                    <Badge
+                      variant="outline"
+                      className={
+                        p.estado === 'POR_RENOVAR'
+                          ? 'border-amber-500 bg-amber-50 text-amber-700'
+                          : undefined
+                      }
+                    >
+                      {bonito(p.estado)}
+                    </Badge>
+                  )}
                   {p.revisar && (
                     <Badge variant="outline" className="border-amber-500 text-amber-600">
                       Revisar

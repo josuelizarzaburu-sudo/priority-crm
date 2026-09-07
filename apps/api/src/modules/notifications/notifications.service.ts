@@ -139,10 +139,12 @@ export class NotificationsService {
     from: string = FROM,
     cc?: string[],
     attachments?: { filename: string; content: string }[],
-  ): Promise<void> {
+  ): Promise<{ ok: boolean; id?: string; error?: string }> {
     if (!this.resend) {
       this.logger.log(`[EMAIL] To: ${to} | Subject: ${subject}\n--- (set RESEND_API_KEY to send real emails)`)
-      return
+      // Sin clave configurada no es un fallo: es el modo de desarrollo, donde el
+      // correo se escribe en los registros en vez de enviarse.
+      return { ok: true }
     }
     try {
       const { data, error } = await this.resend.emails.send({
@@ -156,13 +158,23 @@ export class NotificationsService {
       if (error) {
         console.log('Resend error →', to, error)
         this.logger.error(`Email failed → ${to}: ${JSON.stringify(error)}`)
-      } else {
-        console.log('Resend OK →', to, data?.id)
-        this.logger.log(`Email sent → ${to} | ${subject}`)
+        // Se DEVUELVE el fallo en vez de tragarselo.
+        //
+        // Antes solo quedaba en los registros del servidor: la ejecutiva veia
+        // "enviado" y el correo no habia salido, sin forma de enterarse hasta
+        // que el cliente reclamaba.
+        return {
+          ok: false,
+          error: (error as any)?.message ?? 'El proveedor de correo rechazó el envío',
+        }
       }
-    } catch (err) {
+      console.log('Resend OK →', to, data?.id)
+      this.logger.log(`Email sent → ${to} | ${subject}`)
+      return { ok: true, id: data?.id }
+    } catch (err: any) {
       console.log('Resend exception →', to, err)
       this.logger.error(`Email exception → ${to}: ${err}`)
+      return { ok: false, error: err?.message ?? 'No se pudo conectar con el servicio de correo' }
     }
   }
 
@@ -343,7 +355,8 @@ export class NotificationsService {
      * cliente, no información que el CRM deba conservar.
      */
     adjuntos?: { filename: string; content: string }[]
-  }): Promise<void> {
+    // Devuelve si el correo salio, para poder avisar cuando no.
+  }): Promise<{ ok: boolean; id?: string; error?: string }> {
     // Los saltos de línea del cuadro de texto se vuelven párrafos: sin esto, el
     // correo llegaría como un solo bloque ilegible.
     const parrafos = data.texto
@@ -383,7 +396,7 @@ export class NotificationsService {
   </div>
 </body>`
 
-    await this.sendEmail(
+    return this.sendEmail(
       data.email,
       data.asunto,
       html,

@@ -1019,6 +1019,8 @@ enum Genero {
 
 enum EstadoPoliza {
   NUEVO
+  /// Llego su mes de renovacion y todavia no se cierra.
+  POR_RENOVAR
   RENOVADO
   CARTA_DE_NOMBRAMIENTO
   CANCELADA

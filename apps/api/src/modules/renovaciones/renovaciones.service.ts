@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { RenovacionesQueryDto } from './dto/renovaciones-query.dto'
 import { UpdateRenovacionDto } from './dto/update-renovacion.dto'
@@ -80,6 +80,26 @@ export class RenovacionesService {
       while (proxima <= hoy && vueltas < 50) {
         proxima.setFullYear(proxima.getFullYear() + 1)
         vueltas++
+      }
+
+      /**
+       * La poliza se marca POR_RENOVAR cuando su renovacion cae en el mes en
+       * curso.
+       *
+       * Asi, al abrir la ficha del cliente se ve en que situacion esta cada
+       * poliza sin tener que entrar al modulo de renovaciones. Vuelve a RENOVADO
+       * cuando la renovacion se cierra.
+       *
+       * Solo se toca si esta en NUEVO o RENOVADO: una poliza CANCELADA o con
+       * carta de nombramiento no deberia cambiar de estado por esto.
+       */
+      const mismoMes =
+        proxima.getFullYear() === hoy.getFullYear() && proxima.getMonth() === hoy.getMonth()
+      if (mismoMes) {
+        await this.prisma.poliza.updateMany({
+          where: { id: p.id, estado: { in: ['NUEVO', 'RENOVADO'] as any } },
+          data: { estado: 'POR_RENOVAR' as any },
+        })
       }
 
       try {
@@ -315,10 +335,14 @@ export class RenovacionesService {
         where: { id },
         select: { polizaId: true, valorRenovacion: true },
       })
-      if (r?.polizaId && r.valorRenovacion) {
+      if (r?.polizaId) {
         await this.prisma.poliza.update({
           where: { id: r.polizaId },
-          data: { primaNeta: r.valorRenovacion },
+          data: {
+            // La poliza sale de POR_RENOVAR: la renovacion ya se cerro.
+            estado: 'RENOVADO' as any,
+            ...(r.valorRenovacion ? { primaNeta: r.valorRenovacion } : {}),
+          },
         })
       }
     }
@@ -525,7 +549,7 @@ export class RenovacionesService {
         })
       : null
 
-    await this.notifications.enviarCorreoRenovacion({
+    const envio = await this.notifications.enviarCorreoRenovacion({
       email: destinatario,
       // El nombre va en el ASUNTO para poder buscar el correo despues. Solo
       // primer nombre y primer apellido: el nombre completo de la cedula hace el
@@ -553,6 +577,21 @@ export class RenovacionesService {
       ].filter((c): c is string => !!c),
       adjuntos,
     })
+
+    /**
+     * Si el correo NO salio, se corta aqui.
+     *
+     * Antes se marcaba la renovacion como enviada pasara lo que pasara: la
+     * ejecutiva veia "enviado", el cliente no recibia nada y nadie se enteraba
+     * hasta que el cliente reclamaba. Ahora falla a la vista y se puede
+     * reintentar, porque el estado se queda como estaba.
+     */
+    if (envio && envio.ok === false) {
+      throw new BadRequestException(
+        `No se pudo enviar el correo: ${envio.error ?? 'error del servicio de correo'}. ` +
+          'La renovación queda sin enviar para que puedas reintentar.',
+      )
+    }
 
     const autor = await this.prisma.user.findUnique({
       where: { id: userId },

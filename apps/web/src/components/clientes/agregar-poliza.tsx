@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CampoAgente } from '@/components/ui/campo-agente'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { enMayusculas } from '@/lib/mayusculas'
@@ -65,12 +66,9 @@ export function AgregarPoliza({
   const [abierto, setAbierto] = useState(false)
   const [tipo, setTipo] = useState<string>('SALUD')
 
-  // Equipo del CRM, para elegir el agente que vendió la póliza.
-  const { data: equipo } = useQuery({
-    queryKey: ['usuarios-poliza'],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => (await api.get('/users')).data as { id: string; name: string }[],
-  })
+  // La lista de agentes la carga CampoAgente por su cuenta, con la misma clave
+  // de consulta que el resto del CRM: asi se comparte la cache en vez de pedir
+  // los usuarios dos veces.
   const [form, setForm] = useState<Record<string, string>>({})
   const [cubre, setCubre] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -247,26 +245,19 @@ export function AgregarPoliza({
           </Campo>
         )}
 
-        <Campo label="Agente">
-          {/* Se elige del equipo del CRM en vez de escribirlo: asi el nombre queda
-              siempre bien escrito y la poliza queda enlazada al usuario real. */}
-          <select
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={form.agenteId ?? ''}
-            onChange={(e) => {
-              const u = (equipo ?? []).find((x) => x.id === e.target.value)
-              set('agenteId', e.target.value)
-              set('agenteNombre', u?.name ?? '')
-            }}
-          >
-            <option value="">Selecciona</option>
-            {(equipo ?? []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        {/* Antes era una lista cerrada del equipo. No servia: hay vendedores
+            externos que traen clientes de vez en cuando y no tienen usuario, y
+            sus polizas quedaban sin agente.
+            Ahora se elige de la lista O se escribe; si el nombre coincide con
+            alguien del CRM, se enlaza para poder filtrar en los reportes. */}
+        <CampoAgente
+          label="Agente"
+          nombre={form.agenteNombre ?? ''}
+          onCambio={(nombre, id) => {
+            set('agenteNombre', nombre)
+            set('agenteId', id ?? '')
+          }}
+        />
       </div>
 
       {/* Datos del vehículo: solo auto */}

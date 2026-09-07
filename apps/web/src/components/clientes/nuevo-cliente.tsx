@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CampoAgente } from '@/components/ui/campo-agente'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { enMayusculas } from '@/lib/mayusculas'
@@ -203,13 +204,15 @@ export function NuevoCliente() {
           </Campo>
         )}
 
-        <Campo label="Agente (quien vendió)">
-          <Input
-            value={form.agenteNombre ?? ''}
-            onChange={enMayusculas((v) => set('agenteNombre', v))}
-            placeholder="Nombre del asesor"
-          />
-        </Campo>
+        {/* Elegir de la lista o escribir: hay vendedores externos que traen
+            clientes de vez en cuando y nunca han tenido usuario en el CRM. */}
+        <CampoAgente
+          nombre={form.agenteNombre ?? ''}
+          onCambio={(nombre, id) => {
+            set('agenteNombre', nombre)
+            set('agenteId', id ?? '')
+          }}
+        />
 
         <Campo label="Celular">
           <Input value={form.celular ?? ''} onChange={(e) => set('celular', e.target.value)} />

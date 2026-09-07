@@ -73,11 +73,22 @@ export class CreateClienteDto {
   @IsOptional()
   tipoCliente?: string
 
-  /** Quien vendio: nombre libre, porque hay agentes historicos sin usuario. */
+  /**
+   * Quien vendio.
+   *
+   * El NOMBRE siempre —hay vendedores externos sin usuario en el CRM— y el id
+   * solo cuando coincide con alguien del equipo, para poder filtrar por agente
+   * en los reportes.
+   */
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   agenteNombre?: string
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  agenteId?: string
 
   @ApiProperty({ required: false })
   @IsString()

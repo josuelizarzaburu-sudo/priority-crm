@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import { Pencil, Lock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CampoAgente } from '@/components/ui/campo-agente'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { enMayusculas } from '@/lib/mayusculas'
@@ -329,12 +330,13 @@ export function EditarCliente({ cliente }: { cliente: Cliente }) {
           </Campo>
         )}
 
-        <Campo label="Agente (quien vendió)">
-          <Input
-            value={form.agenteNombre ?? ''}
-            onChange={enMayusculas((v) => set('agenteNombre', v))}
-          />
-        </Campo>
+        <CampoAgente
+          nombre={form.agenteNombre ?? ''}
+          onCambio={(nombre, id) => {
+            set('agenteNombre', nombre)
+            set('agenteId', id ?? '')
+          }}
+        />
 
         <Campo label="Viene de otro seguro">
             <Input

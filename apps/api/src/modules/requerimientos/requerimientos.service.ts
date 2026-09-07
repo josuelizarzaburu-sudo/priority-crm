@@ -4,6 +4,12 @@ import { NotificationsService } from '../notifications/notifications.service'
 import { nombreCompletoFormal, paraMostrarAlCliente, primerNombre } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
+import {
+  PLANTILLAS_BIENVENIDA,
+  construirTextoBienvenida,
+  plantillaSugerida,
+  type DatosBienvenida,
+} from './plantillas-bienvenida'
 import { UpdateRequerimientoDto } from './dto/update-requerimiento.dto'
 
 // Igual que en reclamos: estos roles ven todo; el resto solo lo suyo.
@@ -315,7 +321,13 @@ export class RequerimientosService {
    * mire si quiere —sobre todo las primeras veces— sin imponerle un clic extra
    * en cada envio, que a la larga se aprende a saltar y deja de proteger.
    */
-  async vistaPreviaBienvenida(id: string, organizationId: string, userId: string, role: string) {
+  async vistaPreviaBienvenida(
+    id: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+    plantillaId?: string,
+  ) {
     const req: any = await this.findOne(id, organizationId, userId, role)
     if (req.tipo !== 'BIENVENIDA') {
       throw new ForbiddenException('Este requerimiento no es de bienvenida')
@@ -325,11 +337,49 @@ export class RequerimientosService {
     }
 
     const datos = await this.datosParaCarta(req, organizationId)
+
+    // El texto se arma desde una plantilla y viaja EDITABLE, igual que en
+    // renovaciones: la plantilla ahorra escribir, no impone lo que se manda.
+    const datosPlantilla = this.paraPlantilla(datos, req)
+    const elegida = plantillaId ?? plantillaSugerida(datosPlantilla)
+
     return {
       para: datos.email,
       copiaA: datos.ejecutivaEmail,
       asunto: this.notifications.asuntoBienvenida(datos.nombreParaAsunto),
-      html: this.notifications.armarHtmlBienvenida(datos),
+      // Texto plano editable. El html se arma al enviar, con lo que quede aqui.
+      texto: construirTextoBienvenida(elegida, datosPlantilla),
+      plantilla: elegida,
+      plantillas: PLANTILLAS_BIENVENIDA.map((p) => ({
+        id: p.id,
+        label: p.label,
+        descripcion: p.descripcion,
+      })),
+      datos: {
+        aseguradora: datosPlantilla.aseguradora,
+        plan: datosPlantilla.plan,
+        deducible: datosPlantilla.deducible,
+        vigenciaDesde: datos.vigenciaDesde,
+        ejecutiva: datos.ejecutivaNombre,
+      },
+    }
+  }
+
+  /** Adapta los datos de la carta a lo que esperan las plantillas. */
+  private paraPlantilla(datos: any, req: any): DatosBienvenida {
+    const [aseguradora, plan] = String(datos.plan ?? '').split(' — ')
+    return {
+      // Sin "Estimado", igual que en renovaciones: el nombre directo, o vacio
+      // cuando hay dos nombres y no se sabe cual usa.
+      saludo: datos.nombreCompleto ?? '',
+      aseguradora: aseguradora || null,
+      plan: plan || null,
+      deducible: datos.deducible ?? null,
+      ejecutivaNombre: datos.ejecutivaNombre ?? null,
+      ejecutivaEmail: datos.ejecutivaEmail ?? null,
+      ejecutivaCelular: datos.ejecutivaCelular ?? null,
+      preexistencias: req?.preexistencias ?? null,
+      vigenciaDesde: datos.vigenciaDesde ?? null,
     }
   }
 
@@ -343,7 +393,14 @@ export class RequerimientosService {
    * Se guarda la fecha de envio y se comprueba antes de mandar, para que el
    * cliente no reciba la carta dos veces si alguien pulsa el boton de nuevo.
    */
-  async enviarBienvenida(id: string, organizationId: string, userId: string, role: string) {
+  async enviarBienvenida(
+    id: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+    /** Texto corregido por la ejecutiva. Si no viene, se arma con la plantilla. */
+    dto?: { texto?: string; plantilla?: string },
+  ) {
     const req: any = await this.findOne(id, organizationId, userId, role)
 
     if (req.tipo !== 'BIENVENIDA') {
@@ -360,7 +417,24 @@ export class RequerimientosService {
     }
 
     const datos = await this.datosParaCarta(req, organizationId)
-    await this.notifications.enviarCorreoBienvenida(datos)
+
+    // Se manda el texto TAL COMO quedo en pantalla. Si la ejecutiva no lo toco,
+    // es el de la plantilla; si lo corrigio, sale su version.
+    const datosPlantilla = this.paraPlantilla(datos, req)
+    const texto =
+      dto?.texto?.trim() ||
+      construirTextoBienvenida(dto?.plantilla ?? plantillaSugerida(datosPlantilla), datosPlantilla)
+
+    const envio = await this.notifications.enviarCorreoBienvenida({ ...datos, texto })
+
+    // Si el correo no salio, se corta: marcarlo como enviado dejaria al cliente
+    // sin bienvenida y sin forma de notarlo.
+    if (envio && envio.ok === false) {
+      throw new ForbiddenException(
+        `No se pudo enviar el correo: ${envio.error ?? 'error del servicio de correo'}. ` +
+          'La bienvenida queda sin enviar para que puedas reintentar.',
+      )
+    }
 
     const autor = await this.prisma.user.findUnique({
       where: { id: userId },

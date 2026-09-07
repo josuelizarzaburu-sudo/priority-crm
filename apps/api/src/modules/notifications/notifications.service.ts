@@ -239,7 +239,79 @@ export class NotificationsService {
    * y la previa mostraria algo que no es — el peor fallo posible en algo cuyo
    * proposito es dar confianza.
    */
-  armarHtmlBienvenida(data: DatosBienvenidaCorreo): string {
+  armarHtmlBienvenida(data: DatosBienvenidaCorreo & { texto?: string }): string {
+    // Si viene texto editado, se usa ESE: es lo que la ejecutiva reviso en
+    // pantalla. El armado por partes queda para cuando no hay texto.
+    if (data.texto?.trim()) {
+      return this.htmlBienvenidaDesdeTexto(data.texto, data)
+    }
+    return this.htmlBienvenidaPorPartes(data)
+  }
+
+  /** Convierte el texto editable en el correo, respetando los párrafos. */
+  private htmlBienvenidaDesdeTexto(
+    texto: string,
+    data: DatosBienvenidaCorreo,
+  ): string {
+    const bloques = texto
+      .split(/\n\s*\n/)
+      .map((b) => b.trim())
+      .filter(Boolean)
+      .map((b) => {
+        // Las líneas que empiezan con viñeta se agrupan en una lista.
+        if (b.split('\n').every((l) => l.trim().startsWith('•'))) {
+          const items = b
+            .split('\n')
+            .map((l) => `<li style="margin:0 0 6px;">${this.escape(l.replace(/^•\s*/, '').trim())}</li>`)
+            .join('')
+          return `<ul style="margin:0 0 14px;padding-left:20px;color:#3f4754;font-size:15px;line-height:1.65;">${items}</ul>`
+        }
+        return `<p style="margin:0 0 14px;color:#3f4754;font-size:15px;line-height:1.65;">${this.escape(
+          b,
+        ).replace(/\n/g, '<br/>')}</p>`
+      })
+      .join('')
+
+    return this.envolturaBienvenida(bloques, data)
+  }
+
+  /**
+   * Envoltura del correo de bienvenida: cabecera, cuerpo y firma.
+   *
+   * Se comparte entre el texto editable y el armado por partes, para que los dos
+   * salgan identicos y no se vayan separando con el tiempo.
+   */
+  private envolturaBienvenida(cuerpo: string, data: DatosBienvenidaCorreo): string {
+    return `
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <div style="background:#0C2057;padding:32px 24px;text-align:center;">
+      <!-- Mas grande que antes (era 20px): es el titulo del correo y lo primero
+           que ve el cliente al abrirlo. -->
+      <p style="margin:0;color:#DBAA59;font-size:30px;font-weight:bold;letter-spacing:0.3px;">
+        Bienvenido a Priority
+      </p>
+    </div>
+    <div style="padding:28px 26px;">
+      ${cuerpo}
+      ${
+        data.ejecutivaNombre
+          ? `<p style="margin:22px 0 0;color:#6b7585;font-size:14px;">
+               <strong style="color:#0C2057;">${this.escape(data.ejecutivaNombre)}</strong><br/>
+               Priority Asesores de Seguros
+             </p>`
+          : ''
+      }
+      <p style="margin:20px 0 0;">
+        <img src="https://priority.ec/img/firma-priority.png" alt="Priority Asesores de Seguros"
+             style="max-width:340px;width:100%;height:auto;display:block;border:0;" />
+      </p>
+    </div>
+  </div>
+</body>`
+  }
+
+  private htmlBienvenidaPorPartes(data: DatosBienvenidaCorreo): string {
     const e = (v: string) => this.escape(v)
     const correoEjec = e(data.ejecutivaEmail)
 
@@ -260,8 +332,10 @@ export class NotificationsService {
     const html = `
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
-    <div style="background:#0C2057;padding:24px;text-align:center;">
-      <p style="margin:0;color:#DBAA59;font-size:20px;font-weight:bold;">Bienvenido a Priority</p>
+    <div style="background:#0C2057;padding:32px 24px;text-align:center;">
+      <p style="margin:0;color:#DBAA59;font-size:30px;font-weight:bold;letter-spacing:0.3px;">
+        Bienvenido a Priority
+      </p>
     </div>
     <div style="padding:28px 26px;color:#25324b;font-size:15px;line-height:1.7;">
       <p style="margin:0 0 16px;">Estimad${data.tratamiento === 'Sra.' ? 'a' : 'o'} ${e(data.tratamiento)} ${e(data.nombreCompleto)},</p>
@@ -324,8 +398,10 @@ export class NotificationsService {
       : 'Bienvenido a Priority sus Asesores de Seguros'
   }
 
-  async enviarCorreoBienvenida(data: DatosBienvenidaCorreo): Promise<void> {
-    await this.sendEmail(
+  async enviarCorreoBienvenida(
+    data: DatosBienvenidaCorreo & { texto?: string },
+  ): Promise<{ ok: boolean; id?: string; error?: string }> {
+    return this.sendEmail(
       data.email,
       this.asuntoBienvenida(data.nombreParaAsunto ?? data.nombreCompleto),
       this.armarHtmlBienvenida(data),
@@ -373,7 +449,12 @@ export class NotificationsService {
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
     <div style="background:#0C2057;padding:22px 24px;text-align:center;">
-      <p style="margin:0;color:#DBAA59;font-size:19px;font-weight:bold;">Renovación de su póliza</p>
+      <!-- Va el mismo texto del asunto —"Renovación Plan Médico - Nombre
+           Apellido"— en vez de un titulo generico: asi la cabecera del correo
+           dice de quien es, igual que en la bandeja de entrada. -->
+      <p style="margin:0;color:#DBAA59;font-size:22px;font-weight:bold;">${this.escape(
+        data.asunto,
+      )}</p>
     </div>
     <div style="padding:28px 26px;color:#25324b;font-size:15px;line-height:1.7;">
       ${parrafos}

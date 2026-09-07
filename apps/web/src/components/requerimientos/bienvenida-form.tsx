@@ -82,12 +82,33 @@ export function BienvenidaForm({
     onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo guardar'),
   })
 
-  const vistaPrevia = useQuery<{ para: string; copiaA: string; asunto: string; html: string }>({
-    queryKey: ['requerimiento', requerimientoId, 'vista-previa'],
+  /** Plantilla elegida. Vacío = la que sugiera el servidor. */
+  const [plantilla, setPlantilla] = useState('')
+  /** Texto del correo, editable antes de enviar. */
+  const [texto, setTexto] = useState('')
+  const [textoTocado, setTextoTocado] = useState(false)
+
+  const vistaPrevia = useQuery<{
+    para: string
+    copiaA: string
+    asunto: string
+    texto: string
+    plantilla: string
+    plantillas: { id: string; label: string; descripcion: string }[]
+  }>({
+    queryKey: ['requerimiento', requerimientoId, 'vista-previa', plantilla],
     queryFn: () =>
-      api.get(`/requerimientos/${requerimientoId}/vista-previa-bienvenida`).then((r) => r.data),
-    // Solo se pide cuando se abre: no tiene sentido cargarla si nadie la mira.
-    enabled: previa,
+      api
+        .get(`/requerimientos/${requerimientoId}/vista-previa-bienvenida`, {
+          params: plantilla ? { plantilla } : {},
+        })
+        .then((r) => {
+          // El texto se carga en el cuadro editable, pero NO se pisa lo que la
+          // ejecutiva ya escribio: perder una correccion por cambiar de plantilla
+          // sin querer seria peor que tener que borrarla a mano.
+          if (!textoTocado) setTexto(r.data.texto ?? '')
+          return r.data
+        }),
   })
 
   const enviar = useMutation({
@@ -95,7 +116,11 @@ export function BienvenidaForm({
     // guardo, la carta saldria sin ellas y no habria como notarlo.
     mutationFn: async () => {
       await api.patch(`/requerimientos/${requerimientoId}`, { preexistencias })
-      return api.post(`/requerimientos/${requerimientoId}/enviar-bienvenida`)
+      // Se manda el texto TAL COMO quedo en pantalla.
+      return api.post(`/requerimientos/${requerimientoId}/enviar-bienvenida`, {
+        texto,
+        plantilla: vistaPrevia.data?.plantilla,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requerimientos'] })
@@ -268,7 +293,7 @@ export function BienvenidaForm({
             <div className="flex items-start justify-between gap-3 border-b p-4">
               <div className="min-w-0">
                 <p className="text-sm font-semibold" style={{ color: NAVY }}>
-                  Así lo recibe el cliente
+                  Correo de bienvenida
                 </p>
                 {vistaPrevia.data && (
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -291,16 +316,48 @@ export function BienvenidaForm({
                     {vistaPrevia.data.asunto}
                   </p>
                 </div>
-                {/* Se muestra en un iframe aislado a propósito: el HTML del
-                    correo trae sus propios estilos y, puesto directamente en la
-                    página, se mezclarían con los del CRM y la previa mostraría
-                    algo distinto a lo que llega. */}
-                <iframe
-                  title="Vista previa del correo"
-                  srcDoc={vistaPrevia.data.html}
-                  sandbox=""
-                  className="min-h-[420px] w-full flex-1 border-0"
-                />
+                {/* Plantilla y texto editable, igual que en renovaciones: la
+                    plantilla ahorra escribir, no impone lo que se manda. */}
+                <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">Plantilla</label>
+                    <select
+                      value={vistaPrevia.data.plantilla}
+                      onChange={(e) => {
+                        setPlantilla(e.target.value)
+                        // Al cambiar de plantilla se regenera el texto: es lo que
+                        // se espera al elegir otra.
+                        setTextoTocado(false)
+                      }}
+                      className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    >
+                      {vistaPrevia.data.plantillas.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label} — {p.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      Texto del correo
+                    </label>
+                    <textarea
+                      value={texto}
+                      onChange={(e) => {
+                        setTexto(e.target.value)
+                        setTextoTocado(true)
+                      }}
+                      rows={16}
+                      className="w-full rounded-md border bg-background p-3 text-sm leading-relaxed"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Se envía tal como se ve aquí. Los saltos de línea se convierten en párrafos
+                      y las líneas con • en viñetas.
+                    </p>
+                  </div>
+                </div>
               </>
             ) : (
               <p className="p-10 text-center text-sm text-muted-foreground">

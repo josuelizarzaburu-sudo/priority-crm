@@ -399,7 +399,7 @@ export class RequerimientosService {
     userId: string,
     role: string,
     /** Texto corregido por la ejecutiva. Si no viene, se arma con la plantilla. */
-    dto?: { texto?: string; plantilla?: string },
+    dto?: { texto?: string; plantilla?: string; copias?: string },
   ) {
     const req: any = await this.findOne(id, organizationId, userId, role)
 
@@ -425,7 +425,16 @@ export class RequerimientosService {
       dto?.texto?.trim() ||
       construirTextoBienvenida(dto?.plantilla ?? plantillaSugerida(datosPlantilla), datosPlantilla)
 
-    const envio = await this.notifications.enviarCorreoBienvenida({ ...datos, texto })
+    const envio = await this.notifications.enviarCorreoBienvenida({
+      ...datos,
+      texto,
+      // Copias extra escritas por la ejecutiva. Se descartan las mal escritas:
+      // un correo invalido puede hacer que el proveedor rechace el envio entero.
+      copias: (dto?.copias ?? '')
+        .split(/[,;]/)
+        .map((c) => c.trim())
+        .filter((c) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c)),
+    })
 
     // Si el correo no salio, se corta: marcarlo como enviado dejaria al cliente
     // sin bienvenida y sin forma de notarlo.

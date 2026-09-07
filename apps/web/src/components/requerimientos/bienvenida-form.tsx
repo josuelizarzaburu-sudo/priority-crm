@@ -87,6 +87,8 @@ export function BienvenidaForm({
   /** Texto del correo, editable antes de enviar. */
   const [texto, setTexto] = useState('')
   const [textoTocado, setTextoTocado] = useState(false)
+  /** Copias extra. comercial@priority.ec y la ejecutiva van siempre. */
+  const [copias, setCopias] = useState('')
 
   const vistaPrevia = useQuery<{
     para: string
@@ -120,6 +122,7 @@ export function BienvenidaForm({
       return api.post(`/requerimientos/${requerimientoId}/enviar-bienvenida`, {
         texto,
         plantilla: vistaPrevia.data?.plantilla,
+        ...(copias.trim() ? { copias } : {}),
       })
     },
     onSuccess: () => {
@@ -337,6 +340,22 @@ export function BienvenidaForm({
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      Copiar a (opcional)
+                    </label>
+                    <input
+                      value={copias}
+                      onChange={(e) => setCopias(e.target.value)}
+                      placeholder="otro@priority.ec, y otro más"
+                      className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Siempre se envía copia a <strong>comercial@priority.ec</strong> y a la
+                      ejecutiva. Aquí puedes agregar a alguien más, separando con comas.
+                    </p>
                   </div>
 
                   <div>

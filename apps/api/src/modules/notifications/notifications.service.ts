@@ -399,15 +399,24 @@ export class NotificationsService {
   }
 
   async enviarCorreoBienvenida(
-    data: DatosBienvenidaCorreo & { texto?: string },
+    data: DatosBienvenidaCorreo & { texto?: string; copias?: string[] },
   ): Promise<{ ok: boolean; id?: string; error?: string }> {
     return this.sendEmail(
       data.email,
       this.asuntoBienvenida(data.nombreParaAsunto ?? data.nombreCompleto),
       this.armarHtmlBienvenida(data),
       FROM_CLIENTES,
-      // Copia a la ejecutiva: su respaldo de que la carta se envio.
-      [data.ejecutivaEmail],
+      /**
+       * Copias, igual que en renovaciones.
+       *
+       * Siempre comercial@priority.ec —la constancia de la empresa de que la
+       * carta salio— y la ejecutiva que la envia. Mas las que ella agregue.
+       *
+       * Se quitan repetidos: podria escribir a mano un correo que ya va en la
+       * lista, y llegaria dos veces.
+       */
+      [...new Set(['comercial@priority.ec', data.ejecutivaEmail, ...(data.copias ?? [])]
+        .filter((c): c is string => !!c))],
     )
   }
 

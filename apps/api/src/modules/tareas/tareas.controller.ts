@@ -98,6 +98,18 @@ export class TareasController {
     return this.service.create(dto, req.user.organizationId, req.user.id, req.user.role)
   }
 
+  @Post(':id/comentarios')
+  @ApiOperation({ summary: 'Comenta una tarea y avisa a los involucrados' })
+  comentar(@Param('id') id: string, @Body() body: { texto: string }, @Req() req: any) {
+    return this.service.comentar(
+      id,
+      body?.texto ?? '',
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Patch('subpuntos/:id/hecho')
   @ApiOperation({ summary: 'Marca o desmarca un paso de la tarea' })
   alternarSubpunto(@Param('id') id: string, @Req() req: any) {

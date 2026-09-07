@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
+import { NotificacionesService } from '../notificaciones/notificaciones.service'
 
 /**
  * Quien ve las tareas de TODO el equipo.
@@ -33,6 +34,7 @@ export class TareasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   /**
@@ -91,6 +93,7 @@ export class TareasService {
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
         subpuntos: { orderBy: { orden: 'asc' } },
+        comentarios: { orderBy: { createdAt: 'asc' } },
       },
     })
   }
@@ -158,6 +161,7 @@ export class TareasService {
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
         subpuntos: { orderBy: { orden: 'asc' } },
+        comentarios: { orderBy: { createdAt: 'asc' } },
       },
     })
 
@@ -168,6 +172,21 @@ export class TareasService {
       this.avisarAsignacion(tarea, userId).catch((e) =>
         this.logger.error(`[tareas] no se pudo avisar la asignacion: ${e}`),
       )
+      // Ademas del correo, el aviso dentro del CRM: quien esta trabajando aqui
+      // no deberia tener que mirar la bandeja para enterarse.
+      const quien = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      })
+      await this.notificaciones.crear({
+        usuarioId: asignadoId,
+        organizationId,
+        tipo: 'TAREA_ASIGNADA',
+        titulo: `${quien?.name ?? 'Alguien'} te asignó una tarea`,
+        detalle: dto.titulo,
+        enlace: '/tareas',
+        provocadoPor: userId,
+      })
     }
 
     return tarea
@@ -238,6 +257,7 @@ export class TareasService {
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
         subpuntos: { orderBy: { orden: 'asc' } },
+        comentarios: { orderBy: { createdAt: 'asc' } },
       },
     })
   }
@@ -295,6 +315,7 @@ export class TareasService {
         solicitante: { select: { id: true, name: true } },
         cliente: { select: { id: true, nombres: true, apellidos: true } },
         subpuntos: { orderBy: { orden: 'asc' } },
+        comentarios: { orderBy: { createdAt: 'asc' } },
       },
     })
 
@@ -302,6 +323,19 @@ export class TareasService {
       this.avisarAsignacion(actualizada, userId).catch((e) =>
         this.logger.error(`[tareas] no se pudo avisar la reasignacion: ${e}`),
       )
+      const quien = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      })
+      await this.notificaciones.crear({
+        usuarioId: dto.asignadoId!,
+        organizationId,
+        tipo: 'TAREA_ASIGNADA',
+        titulo: `${quien?.name ?? 'Alguien'} te pasó una tarea`,
+        detalle: (actualizada as any).titulo,
+        enlace: '/tareas',
+        provocadoPor: userId,
+      })
     }
 
     return actualizada
@@ -366,6 +400,54 @@ export class TareasService {
       where: { tareaId },
       orderBy: { orden: 'asc' },
     })
+  }
+
+  /**
+   * Agrega un comentario y avisa a los demas involucrados.
+   *
+   * Se avisa a quien tiene la tarea y a quien la pidio —menos al que escribe—
+   * porque un comentario sin aviso se queda esperando a que alguien entre a
+   * mirar, que es justo lo que no pasa.
+   */
+  async comentar(
+    tareaId: string,
+    texto: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    const limpio = (texto ?? '').trim()
+    if (!limpio) throw new BadRequestException('El comentario está vacío')
+
+    const tarea = await this.exigirAcceso(tareaId, organizationId, userId, role)
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const comentario = await this.prisma.tareaComentario.create({
+      data: {
+        tareaId,
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+        texto: limpio,
+      },
+    })
+
+    await this.notificaciones.crearParaVarios(
+      [(tarea as any).asignadoId, (tarea as any).solicitanteId],
+      {
+        organizationId,
+        tipo: 'TAREA_COMENTARIO',
+        titulo: `${autor?.name ?? 'Alguien'} comentó en una tarea`,
+        detalle: `${(tarea as any).titulo}: ${limpio.slice(0, 90)}${limpio.length > 90 ? '…' : ''}`,
+        enlace: '/tareas',
+        provocadoPor: userId,
+      },
+    )
+
+    return comentario
   }
 
   async remove(id: string, organizationId: string, userId: string, role: string) {

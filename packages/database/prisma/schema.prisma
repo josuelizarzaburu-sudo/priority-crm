@@ -41,6 +41,7 @@ model Organization {
   correosAutomaticos CorreoAutomatico[]
   tareas         Tarea[]
   cursos         Curso[]
+  notificaciones  Notificacion[]
 
   @@map("organizations")
 }
@@ -123,6 +124,8 @@ model User {
   /// usuario: las ventas historicas de vendedoras que ya no estan guardan el
   /// nombre en Cliente.agenteNombre y no aparecen aqui.
   clientesVendidos        Cliente[]           @relation("ClienteAgente")
+  comentariosTareas       TareaComentario[]   @relation("ComentarioTareaAutor")
+  notificaciones          Notificacion[]      @relation("NotificacionUsuario")
   /// Polizas vendidas por esta persona. Existia desde antes de la importacion.
   polizasComoAgente       Poliza[]            @relation("PolizaAgente")
   clientesCreados         Cliente[]           @relation("ClienteCreatedBy")
@@ -446,6 +449,7 @@ model Tarea {
   updatedAt      DateTime       @updatedAt
 
   subpuntos    TareaSubpunto[]
+  comentarios  TareaComentario[]
 
   asignado     User         @relation("TareaAsignado", fields: [asignadoId], references: [id], onDelete: Restrict)
   solicitante  User         @relation("TareaSolicitante", fields: [solicitanteId], references: [id], onDelete: Restrict)
@@ -457,6 +461,50 @@ model Tarea {
   @@index([solicitanteId])
   @@index([clienteId])
   @@map("tareas")
+}
+
+/// Un comentario en una tarea.
+///
+/// Mismo patron que NotaRequerimiento y NotaRenovacion: quien escribio, que y
+/// cuando, sin poder editarse. Una conversacion de trabajo no deberia poder
+/// reescribirse despues.
+model TareaComentario {
+  id          String   @id @default(cuid())
+  tareaId     String
+  autorId     String?
+  /// Se guarda el nombre ademas del id: si el usuario se borra, el comentario
+  /// sigue diciendo quien lo escribio.
+  autorNombre String?
+  texto       String
+  createdAt   DateTime @default(now())
+
+  tarea Tarea @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  autor User? @relation("ComentarioTareaAutor", fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([tareaId, createdAt])
+  @@map("tarea_comentarios")
+}
+
+/// Aviso dentro del CRM: lo que muestra la campanita.
+model Notificacion {
+  id             String   @id @default(cuid())
+  usuarioId      String
+  /// TAREA_ASIGNADA, TAREA_COMENTARIO, etc. Texto y no enum: los tipos van a ir
+  /// creciendo y cada uno obligaria a una migracion.
+  tipo           String
+  titulo         String
+  detalle        String?
+  /// Ruta ya resuelta, para poder ir directo al pulsar el aviso.
+  enlace         String?
+  leida          Boolean  @default(false)
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  usuario      User         @relation("NotificacionUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, leida, createdAt])
+  @@map("notificaciones")
 }
 
 /// Un paso dentro de una tarea.

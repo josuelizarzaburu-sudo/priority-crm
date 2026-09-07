@@ -34,6 +34,13 @@ interface Persona {
   name: string
 }
 
+interface Comentario {
+  id: string
+  texto: string
+  autorNombre: string | null
+  createdAt: string
+}
+
 interface Subpunto {
   id: string
   texto: string
@@ -52,6 +59,7 @@ interface Tarea {
   solicitante: { id: string; name: string }
   cliente: { id: string; nombres: string; apellidos: string } | null
   subpuntos?: Subpunto[]
+  comentarios?: Comentario[]
 }
 
 const PRIORIDAD: Record<string, { color: string; fondo: string; label: string }> = {
@@ -247,6 +255,19 @@ export function TareasPage() {
     onError: fallo,
   })
 
+  /** Comentario que se está escribiendo, por tarea. */
+  const [comentando, setComentando] = useState<Record<string, string>>({})
+
+  const comentar = useMutation({
+    mutationFn: ({ id, texto }: { id: string; texto: string }) =>
+      api.post(`/tareas/${id}/comentarios`, { texto }),
+    onSuccess: (_d, v) => {
+      setComentando((c) => ({ ...c, [v.id]: '' }))
+      refrescar()
+    },
+    onError: fallo,
+  })
+
   const borrar = useMutation({
     mutationFn: (id: string) => api.delete(`/tareas/${id}`),
     onSuccess: refrescar,
@@ -388,6 +409,56 @@ export function TareasPage() {
               <p className="pt-0.5 text-[11px] text-muted-foreground">
                 {t.subpuntos.filter((x) => x.hecho).length} de {t.subpuntos.length} pasos
               </p>
+            </div>
+          )}
+
+          {/* Comentarios: para acordar cosas sobre la tarea sin salir a WhatsApp
+              y que quede escrito donde corresponde. */}
+          {!hecha && (
+            <div className="mt-2.5 border-t pt-2">
+              {t.comentarios && t.comentarios.length > 0 && (
+                <div className="mb-2 space-y-1.5">
+                  {t.comentarios.map((c) => (
+                    <div key={c.id} className="rounded-lg bg-muted/40 px-2.5 py-1.5">
+                      <p className="text-xs text-[#334155]">{c.texto}</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {c.autorNombre ?? 'Alguien'} ·{' '}
+                        {new Date(c.createdAt).toLocaleDateString('es-EC', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <input
+                  value={comentando[t.id] ?? ''}
+                  onChange={(e) => setComentando((c) => ({ ...c, [t.id]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    // Enter envía: escribir un comentario y tener que buscar el
+                    // botón con el ratón rompe el ritmo.
+                    if (e.key === 'Enter' && (comentando[t.id] ?? '').trim()) {
+                      comentar.mutate({ id: t.id, texto: comentando[t.id] })
+                    }
+                  }}
+                  placeholder="Escribe un comentario…"
+                  className="h-7 flex-1 rounded-md border bg-background px-2 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    (comentando[t.id] ?? '').trim() &&
+                    comentar.mutate({ id: t.id, texto: comentando[t.id] })
+                  }
+                  disabled={!(comentando[t.id] ?? '').trim() || comentar.isPending}
+                  className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
+                  style={{ color: NAVY }}
+                >
+                  Enviar
+                </button>
+              </div>
             </div>
           )}
 

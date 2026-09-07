@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { Bell, Sparkles, Menu } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { Sparkles, Menu } from 'lucide-react'
+import { Campanita } from './campanita'
 import { useUIStore } from '@/store'
 import { useNotifications } from '@/hooks/use-notifications'
 import { GlobalSearch } from './global-search'
@@ -15,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { api } from '@/lib/api'
 
 export function Header() {
   const { data: session } = useSession()
@@ -28,20 +26,6 @@ export function Header() {
     .join('')
     .toUpperCase()
 
-  const { data: deals } = useQuery<any[]>({
-    queryKey: ['pipeline', 'deals-all'],
-    queryFn: () => api.get('/pipeline/deals').then((r) => r.data),
-    staleTime: 60_000,
-  })
-
-  const overdueCount = useMemo(() => {
-    if (!deals) return 0
-    const now = new Date()
-    return deals.filter((d) => {
-      const followUpAt = d.customFields?.followUpAt as string | undefined
-      return followUpAt && new Date(followUpAt) < now && d.status === 'OPEN'
-    }).length
-  }, [deals])
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#e8eaef] bg-white px-3 shadow-[0_1px_3px_rgba(37,50,75,0.06)] md:h-16 md:justify-between md:px-6">
@@ -75,17 +59,9 @@ export function Header() {
           <Sparkles className="h-[18px] w-[18px]" />
         </button>
 
-        {/* Notifications */}
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-[#25324b]/60 transition-all hover:bg-[#f0f2f7] hover:text-[#25324b]">
-          <Bell className="h-[18px] w-[18px]" />
-          {overdueCount > 0 ? (
-            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-              {overdueCount}
-            </span>
-          ) : (
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#25324b]/15" />
-          )}
-        </button>
+        {/* Campanita: avisos reales del CRM. Antes solo contaba tareas vencidas
+            y no se podia abrir. */}
+        <Campanita />
 
         {/* Divider */}
         <div className="h-6 w-px bg-[#e8eaef]" />

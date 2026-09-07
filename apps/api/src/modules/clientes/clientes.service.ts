@@ -325,6 +325,29 @@ export class ClientesService {
         : null
     }
 
+    /**
+     * Se recalcula la marca "datos por revisar".
+     *
+     * Se ponia al importar y no se volvia a mirar: un cliente al que ya le
+     * cargaron el correo seguia apareciendo como incompleto para siempre, y la
+     * bandeja de "Por revisar" dejaba de servir.
+     *
+     * Se mira el resultado FINAL —lo que ya tenia mas lo que llega ahora— y no
+     * solo los campos que vienen en esta edicion.
+     */
+    const final = { ...actual, ...data }
+    const faltan = [
+      !String(final.identificacion ?? '').trim() ||
+      String(final.identificacion).startsWith('SIN-CED-')
+        ? 'sin cédula'
+        : '',
+      !String(final.email ?? '').trim() ? 'sin correo' : '',
+      !final.fechaNacimiento ? 'sin fecha de nacimiento' : '',
+    ].filter(Boolean)
+
+    data.revisar = faltan.length > 0
+    data.revisarMotivo = faltan.length ? faltan.join(', ') : null
+
     return this.prisma.cliente.update({ where: { id }, data })
   }
 

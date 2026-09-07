@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Search, AlertTriangle, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
@@ -45,6 +45,13 @@ export function ClientesTable() {
   // Bandeja de entrega comercial: clientes que llegaron de un deal ganado y
   // todavia no tienen ejecutiva. Solo la ve quien puede asignar.
   const [soloSinAsignar, setSoloSinAsignar] = useState(false)
+
+  const qc = useQueryClient()
+
+  const recalcular = useMutation({
+    mutationFn: () => api.post('/clientes/recalcular-revisar').then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes'] }),
+  })
   const [page, setPage] = useState(1)
 
   // Esperamos a que deje de escribir antes de consultar: con ~1000 clientes
@@ -108,6 +115,21 @@ export function ClientesTable() {
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Nuevos por asignar
+            </Button>
+          )}
+          {/* Recalcular: la marca se ponia al importar y no se volvia a mirar,
+              asi que las fichas ya corregidas seguian saliendo como incompletas.
+              Hace falta una vez; despues cada edicion la mantiene al dia. */}
+          {soloRevisar && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => recalcular.mutate()}
+              disabled={recalcular.isPending}
+              title="Revisa todos los clientes y quita la marca a los que ya están completos"
+            >
+              {recalcular.isPending ? 'Revisando…' : 'Actualizar marcas'}
             </Button>
           )}
           <Button

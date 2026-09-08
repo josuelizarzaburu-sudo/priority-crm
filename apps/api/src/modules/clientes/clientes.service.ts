@@ -485,6 +485,102 @@ export class ClientesService {
    * el nombre del autor además de su id, para que la nota siga siendo legible
    * aunque esa persona ya no esté en la empresa.
    */
+  /**
+   * Borra un cliente y todo lo suyo.
+   *
+   * Solo SUPER_ADMIN: es irreversible y se lleva sus polizas, dependientes,
+   * renovaciones y notas. Una ejecutiva que borra por error un cliente con años
+   * de historial no tiene como deshacerlo.
+   *
+   * Los requerimientos y reembolsos NO se borran: son el registro de gestiones
+   * que ya ocurrieron y pueden hacer falta despues. Quedan sin cliente enlazado.
+   */
+  async remove(id: string, organizationId: string, role: string) {
+    if (role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo un administrador puede eliminar clientes')
+    }
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id, organizationId },
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        _count: { select: { polizas: true, dependientes: true } },
+      },
+    })
+    if (!cliente) throw new NotFoundException('Cliente no encontrado')
+
+    // Se sueltan antes de borrar, para que no queden apuntando a una ficha que
+    // ya no existe.
+    await this.prisma.$transaction([
+      this.prisma.requerimiento.updateMany({ where: { clienteId: id }, data: { clienteId: null } }),
+      this.prisma.reclamo.updateMany({ where: { clienteId: id }, data: { clienteId: null } }),
+      this.prisma.tarea.updateMany({ where: { clienteId: id }, data: { clienteId: null } }),
+    ])
+
+    await this.prisma.cliente.delete({ where: { id } })
+
+    this.logger.warn(
+      `[clientes] ${cliente.nombres} ${cliente.apellidos} eliminado ` +
+        `(${cliente._count.polizas} póliza(s), ${cliente._count.dependientes} dependiente(s))`,
+    )
+
+    return {
+      eliminado: `${cliente.nombres} ${cliente.apellidos}`.trim(),
+      polizas: cliente._count.polizas,
+      dependientes: cliente._count.dependientes,
+    }
+  }
+
+  /**
+   * Revisa TODOS los clientes y actualiza la marca de "datos por revisar".
+   *
+   * Hace falta una vez: los que se corrigieron antes de que la marca se
+   * recalculara siguen apareciendo como incompletos, y a mano serian cientos.
+   * Despues, cada edicion la mantiene al dia sola.
+   */
+  async recalcularRevisar(organizationId: string, role: string) {
+    if (!['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(role)) {
+      throw new ForbiddenException('No tienes permiso para esta acción')
+    }
+
+    const clientes = await this.prisma.cliente.findMany({
+      where: { organizationId },
+      select: {
+        id: true,
+        identificacion: true,
+        email: true,
+        fechaNacimiento: true,
+        revisar: true,
+      },
+    })
+
+    let corregidos = 0
+    for (const c of clientes) {
+      const faltan = [
+        !String(c.identificacion ?? '').trim() || c.identificacion.startsWith('SIN-CED-')
+          ? 'sin cédula'
+          : '',
+        !String(c.email ?? '').trim() ? 'sin correo' : '',
+        !c.fechaNacimiento ? 'sin fecha de nacimiento' : '',
+      ].filter(Boolean)
+
+      const deberia = faltan.length > 0
+      // Solo se escribe si cambia: recorrer cientos de fichas actualizandolas
+      // todas seria lento sin motivo.
+      if (deberia !== c.revisar) {
+        await this.prisma.cliente.update({
+          where: { id: c.id },
+          data: { revisar: deberia, revisarMotivo: faltan.length ? faltan.join(', ') : null },
+        })
+        corregidos++
+      }
+    }
+
+    return { revisados: clientes.length, corregidos }
+  }
+
   async agregarNota(
     clienteId: string,
     contenido: string,

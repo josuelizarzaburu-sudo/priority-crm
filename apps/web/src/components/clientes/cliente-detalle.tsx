@@ -172,6 +172,16 @@ export function ClienteDetalle({ id }: { id: string }) {
   const qc = useQueryClient()
   const { data: session } = useSession()
   const rol = (session?.user as any)?.role ?? ''
+  /** Confirmación escrita antes de borrar. */
+  const [confirmarBorrado, setConfirmarBorrado] = useState('')
+
+  const eliminarCliente = useMutation({
+    mutationFn: () => api.delete(`/clientes/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes'] })
+      router.push('/clientes')
+    },
+  })
   // Borrar una poliza pierde datos: solo jefe de operaciones y admin.
   const puedeEliminar = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol)
   // Reasignar un cliente es decision de Yessenia (o admin), no de la ejecutiva.
@@ -492,6 +502,41 @@ export function ClienteDetalle({ id }: { id: string }) {
           <AgregarPoliza clienteId={c.id} dependientes={c.dependientes} />
         </div>
       </section>
+
+      {/* Eliminar: solo SUPER_ADMIN. Es irreversible y se lleva las polizas,
+          dependientes y renovaciones del cliente. Va al final de la ficha, no
+          arriba: no es una accion que se busque a menudo. */}
+      {rol === 'SUPER_ADMIN' && (
+        <div className="rounded-xl border-2 border-red-200 bg-red-50/40 p-4">
+          <p className="text-sm font-semibold text-red-800">Eliminar cliente</p>
+          <p className="mt-1 text-xs text-red-900/80">
+            Borra la ficha con sus <strong>pólizas, dependientes y renovaciones</strong>. Los
+            requerimientos y reembolsos se conservan como registro. Es irreversible.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              value={confirmarBorrado}
+              onChange={(e) => setConfirmarBorrado(e.target.value)}
+              placeholder="Escribe ELIMINAR para confirmar"
+              className="h-9 max-w-[280px] rounded-md border bg-white px-2 text-sm"
+            />
+            <Button
+              variant="outline"
+              className="border-red-300 text-red-700 hover:bg-red-100"
+              disabled={confirmarBorrado !== 'ELIMINAR' || eliminarCliente.isPending}
+              onClick={() => eliminarCliente.mutate()}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {eliminarCliente.isPending ? 'Eliminando…' : 'Eliminar cliente'}
+            </Button>
+          </div>
+          {eliminarCliente.isError && (
+            <p className="mt-2 text-xs text-red-700">
+              {(eliminarCliente.error as any)?.response?.data?.message ?? 'No se pudo eliminar'}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Bitácora ── */}
       <NotasCliente clienteId={c.id} notas={c.notas_ ?? []} />

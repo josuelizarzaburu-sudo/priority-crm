@@ -132,6 +132,20 @@ export class ClientesController {
     )
   }
 
+  @Post('recalcular-revisar')
+  @ApiOperation({ summary: 'Actualiza la marca "datos por revisar" en todos los clientes' })
+  recalcularRevisar(@Req() req: any) {
+    return this.clientesService.recalcularRevisar(req.user.organizationId, req.user.role)
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Elimina un cliente con sus pólizas y dependientes. Solo SUPER_ADMIN.',
+  })
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.clientesService.remove(id, req.user.organizationId, req.user.role)
+  }
+
   @Delete(':id/dependientes/:dependienteId')
   @ApiOperation({ summary: 'Eliminar un dependiente' })
   eliminarDependiente(

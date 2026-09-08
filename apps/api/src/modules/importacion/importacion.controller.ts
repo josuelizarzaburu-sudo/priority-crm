@@ -26,6 +26,14 @@ export class ImportacionController {
     return this.service.importar(body?.filas ?? [], req.user.organizationId, req.user.role)
   }
 
+  @Post('clientes/reenlazar')
+  @ApiOperation({
+    summary: 'Enlaza ejecutivas y agentes que quedaron solo con nombre, sin usuario',
+  })
+  reenlazar(@Req() req: any) {
+    return this.service.reenlazarUsuarios(req.user.organizationId, req.user.role)
+  }
+
   @Post('clientes/vaciar')
   @ApiOperation({ summary: 'Borra todos los clientes — irreversible, exige confirmación escrita' })
   vaciar(@Body() body: { confirmacion: string }, @Req() req: any) {

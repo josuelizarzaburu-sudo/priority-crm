@@ -1,12 +1,12 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AlertTriangle, Check, FileSpreadsheet, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, Check, FileSpreadsheet, Trash2, Upload, Users } from 'lucide-react'
 
 const NAVY = '#0C2057'
 const VERDE = '#15803d'
@@ -100,6 +100,11 @@ export function ImportarClientes() {
 
   const [confirmacionBorrado, setConfirmacionBorrado] = useState('')
   const [borrando, setBorrando] = useState(false)
+
+  const reenlazar = useMutation({
+    mutationFn: () => api.post('/importacion/clientes/reenlazar').then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes'] }),
+  })
   const [resultadoBorrado, setResultadoBorrado] = useState<any>(null)
 
   async function leerArchivo(f: File) {
@@ -469,6 +474,44 @@ export function ImportarClientes() {
           )}
         </div>
       )}
+
+      {/* Reparar enlaces: la importacion exigia el nombre completo identico, asi
+          que los clientes de "CAROLINA TERNEUS" no se enlazaron a "Carolina
+          Terneus Toledo" y ella no veia ninguno al entrar. */}
+      <div className="rounded-xl border p-4">
+        <p className="text-sm font-semibold" style={{ color: NAVY }}>
+          Reparar ejecutivas y agentes
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Enlaza los clientes que tienen el nombre de su ejecutiva o agente pero no quedaron
+          conectados a su usuario. Sin ese enlace, la ejecutiva no ve sus clientes al entrar.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-3"
+          onClick={() => reenlazar.mutate()}
+          disabled={reenlazar.isPending}
+        >
+          <Users className="mr-1.5 h-4 w-4" />
+          {reenlazar.isPending ? 'Reparando…' : 'Reparar enlaces'}
+        </Button>
+
+        {reenlazar.data && (
+          <div className="mt-3 space-y-1 text-xs">
+            <p style={{ color: VERDE }}>
+              <strong>{reenlazar.data.ejecutivasEnlazadas}</strong> clientes enlazados a su
+              ejecutiva · <strong>{reenlazar.data.agentesEnlazados}</strong> a su agente ·{' '}
+              <strong>{reenlazar.data.polizasEnlazadas}</strong> pólizas
+            </p>
+            {reenlazar.data.sinUsuarioEnElCrm?.length > 0 && (
+              <p className="text-muted-foreground">
+                Sin usuario en el CRM (se quedan con el nombre):{' '}
+                {reenlazar.data.sinUsuarioEnElCrm.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Vaciar ── */}
       <div className="rounded-xl border-2 border-red-200 bg-red-50/40 p-4">

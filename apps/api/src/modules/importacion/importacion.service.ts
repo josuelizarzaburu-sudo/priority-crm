@@ -233,6 +233,32 @@ export class ImportacionService {
     )
 
     /**
+     * Busca al usuario por nombre, aceptando que falte el segundo apellido.
+     *
+     * El Excel trae "CAROLINA TERNEUS" y en el CRM esta como "Carolina Terneus
+     * Toledo". Exigiendo el nombre completo identico no coincidian, y sus
+     * clientes quedaban sin ejecutiva enlazada: al entrar, no veia ninguno.
+     *
+     * Se compara por las DOS primeras palabras —nombre y primer apellido— que en
+     * la practica identifican a la persona dentro de un equipo pequeño. Si esas
+     * dos coinciden con mas de un usuario, no se arriesga: se deja sin enlazar y
+     * se avisa, porque asignar los clientes a la persona equivocada es peor que
+     * dejarlos sin asignar.
+     */
+    const buscarUsuario = (texto: string) => {
+      if (!texto) return undefined
+      const exacto = porClave.get(claveNombre(texto))
+      if (exacto) return exacto
+
+      const dosPrimeras = (v: string) => claveNombre(v).split(' ').slice(0, 2).join(' ')
+      const buscado = dosPrimeras(texto)
+      if (!buscado || buscado.split(' ').length < 2) return undefined
+
+      const posibles = usuarios.filter((u) => dosPrimeras(u.name) === buscado)
+      return posibles.length === 1 ? posibles[0] : undefined
+    }
+
+    /**
      * Agrupa por contrato: las filas del mismo N DE CONTRATO son una familia.
      *
      * Si una fila no trae contrato se agrupa por la cédula del titular, y si
@@ -305,11 +331,11 @@ export class ImportacionService {
       const identificacion = cedula || `SIN-CED-${contrato}`.slice(0, 20)
 
       const agenteTexto = mayus(d.agente)
-      const agenteUsuario = agenteTexto ? porClave.get(claveNombre(agenteTexto)) : undefined
+      const agenteUsuario = buscarUsuario(agenteTexto)
       if (agenteTexto && !agenteUsuario) resumen.agentesSinUsuario.add(agenteTexto)
 
       const ejecutivaTexto = mayus(d.ejecutiva)
-      const ejecutivaUsuario = ejecutivaTexto ? porClave.get(claveNombre(ejecutivaTexto)) : undefined
+      const ejecutivaUsuario = buscarUsuario(ejecutivaTexto)
       if (ejecutivaTexto && !ejecutivaUsuario) resumen.ejecutivasSinUsuario.add(ejecutivaTexto)
 
       const cliente = {
@@ -673,6 +699,106 @@ export class ImportacionService {
    * Exige una frase de confirmación escrita a mano. Es irreversible, y un botón
    * suelto que borra 1.500 clientes es demasiado fácil de pulsar por error.
    */
+  /**
+   * Enlaza los clientes que tienen NOMBRE de ejecutiva o agente pero no su id.
+   *
+   * Hace falta porque la importacion exigia el nombre completo identico: los
+   * clientes de "CAROLINA TERNEUS" no se enlazaron a "Carolina Terneus Toledo",
+   * y al entrar ella no veia ninguno.
+   *
+   * No pisa lo que ya este puesto: si alguien reasigno un cliente a mano, esa
+   * decision manda sobre lo que diga el Excel.
+   */
+  async reenlazarUsuarios(organizationId: string, role: string) {
+    this.exigirAdmin(role)
+
+    const usuarios = await this.prisma.user.findMany({
+      where: { organizationId },
+      select: { id: true, name: true },
+    })
+
+    const dosPrimeras = (v: string) => claveNombre(v).split(' ').slice(0, 2).join(' ')
+
+    const buscar = (texto: string | null) => {
+      if (!texto) return undefined
+      const exacto = usuarios.find((u) => claveNombre(u.name) === claveNombre(texto))
+      if (exacto) return exacto
+      const buscado = dosPrimeras(texto)
+      if (!buscado || buscado.split(' ').length < 2) return undefined
+      const posibles = usuarios.filter((u) => dosPrimeras(u.name) === buscado)
+      return posibles.length === 1 ? posibles[0] : undefined
+    }
+
+    const clientes = await this.prisma.cliente.findMany({
+      where: {
+        organizationId,
+        OR: [
+          { ejecutivoId: null, ejecutivoNombre: { not: null } },
+          { agenteId: null, agenteNombre: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        ejecutivoId: true,
+        ejecutivoNombre: true,
+        agenteId: true,
+        agenteNombre: true,
+      },
+    })
+
+    let ejecutivas = 0
+    let agentes = 0
+    const sinEnlazar = new Set<string>()
+
+    for (const c of clientes) {
+      const cambios: Record<string, string> = {}
+
+      if (!c.ejecutivoId && c.ejecutivoNombre) {
+        const u = buscar(c.ejecutivoNombre)
+        if (u) {
+          cambios.ejecutivoId = u.id
+          ejecutivas++
+        } else sinEnlazar.add(c.ejecutivoNombre)
+      }
+
+      if (!c.agenteId && c.agenteNombre) {
+        const u = buscar(c.agenteNombre)
+        if (u) {
+          cambios.agenteId = u.id
+          agentes++
+        } else sinEnlazar.add(c.agenteNombre)
+      }
+
+      if (Object.keys(cambios).length) {
+        await this.prisma.cliente.update({ where: { id: c.id }, data: cambios })
+      }
+    }
+
+    // Las polizas guardan su propio agente: se enlazan igual.
+    const polizas = await this.prisma.poliza.findMany({
+      where: { organizationId, agenteId: null, agenteNombre: { not: null } },
+      select: { id: true, agenteNombre: true },
+    })
+    let polizasEnlazadas = 0
+    for (const p of polizas) {
+      const u = buscar(p.agenteNombre)
+      if (u) {
+        await this.prisma.poliza.update({ where: { id: p.id }, data: { agenteId: u.id } })
+        polizasEnlazadas++
+      }
+    }
+
+    return {
+      revisados: clientes.length,
+      ejecutivasEnlazadas: ejecutivas,
+      agentesEnlazados: agentes,
+      polizasEnlazadas,
+      // Los que no coinciden con nadie: vendedores externos, o nombres que hay
+      // que corregir a mano.
+      sinUsuarioEnElCrm: [...sinEnlazar],
+    }
+  }
+
   async vaciarClientes(organizationId: string, role: string, confirmacion: string) {
     this.exigirAdmin(role)
     if (t(confirmacion) !== 'BORRAR TODOS LOS CLIENTES') {

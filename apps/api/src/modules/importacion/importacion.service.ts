@@ -52,6 +52,49 @@ const t = (v: unknown): string =>
 const mayus = (v: unknown): string => t(v).toLocaleUpperCase('es-EC')
 
 /**
+ * Cuantas letras hay que cambiar para pasar de una palabra a otra.
+ *
+ * Sirve para reconocer el mismo nombre escrito con erratas: "STEPHANY",
+ * "STEPHANIE" y "STHEPANY" son la misma persona, y en el Excel aparecen las
+ * tres.
+ */
+function distancia(a: string, b: string): number {
+  if (a === b) return 0
+  const m = a.length
+  const n = b.length
+  if (!m || !n) return Math.max(m, n)
+
+  let previa = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    const actual = [i]
+    for (let j = 1; j <= n; j++) {
+      actual[j] = Math.min(
+        previa[j] + 1,
+        actual[j - 1] + 1,
+        previa[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    }
+    previa = actual
+  }
+  return previa[n]
+}
+
+/**
+ * ¿Son la misma palabra, aceptando erratas?
+ *
+ * La tolerancia crece con la longitud: en una palabra corta un cambio de letra
+ * suele ser otro nombre ("ANA" y "ANE"), mientras que en una larga casi siempre
+ * es una errata.
+ */
+function mismaPalabra(a: string, b: string): boolean {
+  if (a === b) return true
+  const largo = Math.min(a.length, b.length)
+  if (largo <= 4) return false
+  const tope = largo <= 6 ? 1 : 2
+  return distancia(a, b) <= tope
+}
+
+/**
  * Nombre para comparar: sin tildes, sin dobles espacios y con la Z tratada como
  * S.
  *
@@ -261,11 +304,21 @@ export class ImportacionService {
       const buscadas = palabras(texto)
       if (buscadas.length < 2) return undefined
 
-      const posibles = usuarios.filter((u) => {
+      // Primero se intenta la coincidencia exacta de palabras; solo si nadie
+      // encaja se aceptan erratas. Asi un nombre bien escrito nunca se desvia
+      // hacia otro parecido.
+      const exactos = usuarios.filter((u) => {
         const suyas = palabras(u.name)
         return buscadas.every((p) => suyas.includes(p))
       })
-      return posibles.length === 1 ? posibles[0] : undefined
+      if (exactos.length === 1) return exactos[0]
+      if (exactos.length > 1) return undefined
+
+      const conErratas = usuarios.filter((u) => {
+        const suyas = palabras(u.name)
+        return buscadas.every((p) => suyas.some((q) => mismaPalabra(p, q)))
+      })
+      return conErratas.length === 1 ? conErratas[0] : undefined
     }
 
     /**
@@ -738,11 +791,19 @@ export class ImportacionService {
       if (exacto) return exacto
       const buscadas = palabras(texto)
       if (buscadas.length < 2) return undefined
-      const posibles = usuarios.filter((u) => {
+      const exactos = usuarios.filter((u) => {
         const suyas = palabras(u.name)
         return buscadas.every((p) => suyas.includes(p))
       })
-      return posibles.length === 1 ? posibles[0] : undefined
+      if (exactos.length === 1) return exactos[0]
+      if (exactos.length > 1) return undefined
+
+      // Con erratas: "STEPHANIE SOSA" encuentra a "Stephany Sosa".
+      const conErratas = usuarios.filter((u) => {
+        const suyas = palabras(u.name)
+        return buscadas.every((p) => suyas.some((q) => mismaPalabra(p, q)))
+      })
+      return conErratas.length === 1 ? conErratas[0] : undefined
     }
 
     const clientes = await this.prisma.cliente.findMany({

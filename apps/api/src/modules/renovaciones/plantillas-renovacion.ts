@@ -49,11 +49,30 @@ function bloqueDescuentoBmi(primaConDescuento?: string | null): string {
   return `Puede acceder a un descuento del 5% si se paga el valor total anual diferido a 12 meses sin intereses con tarjetas de crédito Visa o MasterCard de Produbanco, Banco Guayaquil, Internacional, Bolivariano, Machala, Amazonas y Solidario, la prima mensual se reduce a USD ${primaConDescuento}.`
 }
 
-function cuerpoSalud(d: DatosRenovacion, descripcionPlan: string, beneficios: string): string {
+/**
+ * Como se nombra cada forma de pago en el guion oficial.
+ *
+ * Las plantillas de BMI vienen en version diferido y mensual, y la unica
+ * diferencia entre ellas es esta frase. Se fija en la plantilla para poder
+ * elegirla directo, sin depender de lo que tenga cargada la poliza.
+ */
+export const FORMA_DIFERIDO = 'diferido a 12 meses sin intereses con tarjeta de crédito'
+export const FORMA_MENSUAL = 'débito mensual'
+
+function cuerpoSalud(
+  d: DatosRenovacion,
+  descripcionPlan: string,
+  beneficios: string,
+  /** Forma de pago fija de la plantilla. Sin ella se usa la de la póliza. */
+  formaPagoFija?: string,
+  /** "la prima mensual" o "la prima" — Hospicare usa la segunda. */
+  comoLlamarPrima = 'la prima mensual',
+): string {
+  const forma = formaPagoFija ?? d.formaPago
   return [
     `${d.saludo}`,
     APERTURA_SALUD,
-    `Seguimos comprometidos con nuestro acompañamiento permanente, ${descripcionPlan} con deducible de ${d.deducible} que mantiene con ${d.aseguradora} se renueva automáticamente el ${d.fechaRenovacion}, con forma de pago ${d.formaPago}, la prima a partir de la renovación es de USD ${d.prima}.`,
+    `Seguimos comprometidos con nuestro acompañamiento permanente, ${descripcionPlan} con deducible de ${d.deducible} que mantiene con ${d.aseguradora} se renueva automáticamente el ${d.fechaRenovacion}, con forma de pago ${forma}, ${comoLlamarPrima} a partir de la renovación es de USD ${d.prima}.`,
     beneficios,
     bloqueDescuentoBmi(d.primaConDescuento),
     `Si desea realizar algún cambio a la renovación por favor nos confirma a través de este medio hasta el ${d.fechaLimite}.`,
@@ -74,50 +93,78 @@ export const PLANTILLAS: Record<
   string,
   { etiqueta: string; armar: (d: DatosRenovacion) => string }
 > = {
-  'BMI:SIGMA': {
-    etiqueta: 'BMI — Sigma',
+  'BMI:SIGMA:DIFERIDO': {
+    etiqueta: 'BMI — Sigma (diferido)',
     armar: (d) =>
       cuerpoSalud(
         d,
         'su Plan Sigma',
         'A partir de la renovación el plan cuenta con nuevos beneficios que se detallan en el documento adjunto.',
+        FORMA_DIFERIDO,
       ),
   },
-  'BMI:INNOVA': {
-    etiqueta: 'BMI — Innova',
+  'BMI:SIGMA:MENSUAL': {
+    etiqueta: 'BMI — Sigma (débito mensual)',
+    armar: (d) =>
+      cuerpoSalud(
+        d,
+        'su Plan Sigma',
+        'A partir de la renovación el plan cuenta con nuevos beneficios que se detallan en el documento adjunto.',
+        FORMA_MENSUAL,
+      ),
+  },
+  'BMI:INNOVA:DIFERIDO': {
+    etiqueta: 'BMI — Innova (diferido)',
     armar: (d) =>
       cuerpoSalud(
         d,
         'su Plan Innova',
         'A partir de la renovación el plan incrementa la cobertura a 120.000 por incapacidad por persona al año, adicional cuenta con nuevos beneficios que se detallan en el documento adjunto.',
+        FORMA_DIFERIDO,
       ),
   },
-  'BMI:GMM': {
-    etiqueta: 'BMI — Gastos Médicos Mayores',
+  'BMI:INNOVA:MENSUAL': {
+    etiqueta: 'BMI — Innova (débito mensual)',
+    armar: (d) =>
+      cuerpoSalud(
+        d,
+        'su Plan Innova',
+        'A partir de la renovación el plan incrementa la cobertura a 120.000 por incapacidad por persona al año, adicional cuenta con nuevos beneficios que se detallan en el documento adjunto.',
+        FORMA_MENSUAL,
+      ),
+  },
+  'BMI:GMM:DIFERIDO': {
+    etiqueta: 'BMI — Gastos Médicos Mayores (diferido)',
     armar: (d) =>
       cuerpoSalud(
         d,
         'su Plan de Gastos Médicos Mayores',
         'A partir de la renovación el plan cuenta con un nuevo beneficio; el acceso en la Clínica Universidad de Navarra en España para cobertura hospitalaria.',
+        FORMA_DIFERIDO,
       ),
   },
-  'BMI:HOSPICARE': {
-    etiqueta: 'BMI — Hospicare',
+  'BMI:GMM:MENSUAL': {
+    etiqueta: 'BMI — Gastos Médicos Mayores (débito mensual)',
+    armar: (d) =>
+      cuerpoSalud(
+        d,
+        'su Plan de Gastos Médicos Mayores',
+        'A partir de la renovación el plan cuenta con un nuevo beneficio; el acceso en la Clínica Universidad de Navarra en España para cobertura hospitalaria.',
+        FORMA_MENSUAL,
+      ),
+  },
+  'BMI:HOSPICARE:MENSUAL': {
+    etiqueta: 'BMI — Hospicare (débito mensual)',
     armar: (d) =>
       cuerpoSalud(
         d,
         'su Plan Hospicare',
         'La cobertura en el plan Hospicare es Hospitalaria al 80% y Ambulatoria incluido medicinas al 50%, el plan cuenta con nuevos beneficios que se detallan en el documento adjunto.',
+        FORMA_MENSUAL,
+        // El guion de Hospicare dice "la prima", no "la prima mensual".
+        'la prima',
       ),
   },
-  /**
-   * BUPA no ofrece el descuento del 5% de BMI, asi que su guion no lo menciona:
-   * el bloque solo aparece cuando hay prima con descuento, y a BUPA no se le
-   * calcula.
-   *
-   * Tampoco lleva parrafo de beneficios nuevos: el guion oficial va directo de
-   * la renovacion a la fecha limite de cambios.
-   */
   BUPA: {
     etiqueta: 'BUPA',
     armar: (d) => cuerpoSalud(d, `su Plan ${d.plan}`, ''),
@@ -176,6 +223,8 @@ export function elegirPlantilla(
   aseguradora: string | null,
   plan: string | null,
   tipoPoliza: string | null,
+  /** Como paga el cliente, para proponer la variante diferido o mensual. */
+  formaPago?: string | null,
 ): string | null {
   const a = (aseguradora ?? '').toUpperCase()
   const p = (plan ?? '').toUpperCase()
@@ -187,11 +236,20 @@ export function elegirPlantilla(
   if (a.includes('BMI')) {
     // El orden importa: 'GASTOS MEDICOS MAYORES' y 'GMM' son el mismo plan, y
     // hay que reconocer ambas formas porque el Excel usa la larga.
-    if (p.includes('SIGMA')) return 'BMI:SIGMA'
-    if (p.includes('INNOVA')) return 'BMI:INNOVA'
-    if (p.includes('HOSPICARE')) return 'BMI:HOSPICARE'
+    /**
+     * Se propone la variante segun como paga el cliente, para que la ejecutiva
+     * no tenga que elegirla casi nunca. Igual puede cambiarla en el desplegable:
+     * la forma de pago cargada en la poliza no siempre esta al dia.
+     */
+    const esDiferido = (formaPago ?? '').toUpperCase().includes('DIFERIDO')
+    const variante = esDiferido ? 'DIFERIDO' : 'MENSUAL'
+
+    if (p.includes('SIGMA')) return `BMI:SIGMA:${variante}`
+    if (p.includes('INNOVA')) return `BMI:INNOVA:${variante}`
+    // Hospicare solo tiene version mensual en el guion oficial.
+    if (p.includes('HOSPICARE')) return 'BMI:HOSPICARE:MENSUAL'
     if (p.includes('GMM') || p.includes('GASTOS MEDICOS') || p.includes('GASTOS MÉDICOS')) {
-      return 'BMI:GMM'
+      return `BMI:GMM:${variante}`
     }
     return null
   }

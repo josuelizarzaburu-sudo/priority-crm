@@ -398,7 +398,13 @@ export class RenovacionesService {
     const plantillaId =
       (plantillaPedida && PLANTILLAS[plantillaPedida] ? plantillaPedida : null) ??
       r.correoPlantilla ??
-      elegirPlantilla(r.poliza?.aseguradora, r.poliza?.plan, r.poliza?.tipo)
+      elegirPlantilla(
+        r.poliza?.aseguradora,
+        r.poliza?.plan,
+        r.poliza?.tipo,
+        // Para proponer la variante diferido o mensual segun como paga.
+        r.poliza?.formaPago,
+      )
 
     const datos = this.armarDatos(r, cliente)
     const textoGenerado = plantillaId && PLANTILLAS[plantillaId]

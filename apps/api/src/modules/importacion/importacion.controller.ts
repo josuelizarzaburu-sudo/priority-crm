@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { ImportacionService, type FilaExcel } from './importacion.service'
@@ -32,6 +32,22 @@ export class ImportacionController {
   })
   reenlazar(@Req() req: any) {
     return this.service.reenlazarUsuarios(req.user.organizationId, req.user.role)
+  }
+
+  @Get('agentes/parecidos')
+  @ApiOperation({ summary: 'Nombres de agente que podrían ser la misma persona' })
+  agentesParecidos(@Req() req: any) {
+    return this.service.agentesParecidos(req.user.organizationId, req.user.role)
+  }
+
+  @Post('agentes/unificar')
+  @ApiOperation({ summary: 'Deja una sola forma escrita para el mismo agente' })
+  unificarAgentes(@Body() body: { pares: { de: string; a: string }[] }, @Req() req: any) {
+    return this.service.unificarAgentes(
+      req.user.organizationId,
+      req.user.role,
+      body?.pares ?? [],
+    )
   }
 
   @Post('clientes/vaciar')

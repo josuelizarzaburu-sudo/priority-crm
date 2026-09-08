@@ -902,6 +902,96 @@ export class ImportacionService {
     }
   }
 
+  /**
+   * Unifica los nombres de agente que son la misma persona escrita distinto.
+   *
+   * En la base historica el mismo vendedor aparece con erratas —"ANDRES
+   * MERIZALDE" y "ANDRES MIRIZALDE"— o con el nombre completo y el corto —
+   * "FERNANDA BENITEZ" y "MARIA FERNANDA BENITEZ". Son agentes externos sin
+   * usuario en el CRM, asi que no hay a quien enlazarlos: lo que se puede hacer
+   * es dejar UNA sola forma escrita, para que los reportes no los cuenten como
+   * dos personas.
+   *
+   * Recibe los pares a unificar en vez de decidirlos sola: dos nombres parecidos
+   * pueden ser hermanos, y fusionar a dos vendedores distintos no se puede
+   * deshacer.
+   */
+  async unificarAgentes(
+    organizationId: string,
+    role: string,
+    pares: { de: string; a: string }[],
+  ) {
+    this.exigirAdmin(role)
+    if (!pares?.length) throw new BadRequestException('No se indicó qué unificar')
+
+    const hechos: { de: string; a: string; clientes: number; polizas: number }[] = []
+
+    for (const { de, a } of pares) {
+      const origen = mayus(de)
+      const destino = mayus(a)
+      if (!origen || !destino || origen === destino) continue
+
+      const [clientes, polizas] = await this.prisma.$transaction([
+        this.prisma.cliente.updateMany({
+          where: { organizationId, agenteNombre: origen },
+          data: { agenteNombre: destino },
+        }),
+        this.prisma.poliza.updateMany({
+          where: { organizationId, agenteNombre: origen },
+          data: { agenteNombre: destino },
+        }),
+      ])
+
+      hechos.push({ de: origen, a: destino, clientes: clientes.count, polizas: polizas.count })
+      this.logger.log(`[importacion] agente unificado: ${origen} -> ${destino}`)
+    }
+
+    return { unificados: hechos }
+  }
+
+  /**
+   * Nombres de agente que se parecen entre si, para revisarlos.
+   *
+   * Solo PROPONE: quien decide si son la misma persona es quien conoce al
+   * equipo.
+   */
+  async agentesParecidos(organizationId: string, role: string) {
+    this.exigirAdmin(role)
+
+    const grupos = await this.prisma.cliente.groupBy({
+      by: ['agenteNombre'],
+      where: { organizationId, agenteNombre: { not: null }, agenteId: null },
+      _count: { _all: true },
+    })
+
+    const lista = grupos
+      .map((g) => ({ nombre: g.agenteNombre ?? '', clientes: g._count._all }))
+      .filter((g) => g.nombre)
+
+    const parecidos: { a: string; b: string; clientesA: number; clientesB: number }[] = []
+    for (let i = 0; i < lista.length; i++) {
+      for (let j = i + 1; j < lista.length; j++) {
+        const x = claveNombre(lista[i].nombre)
+        const y = claveNombre(lista[j].nombre)
+        // Erratas, o uno contenido en el otro ("FERNANDA BENITEZ" dentro de
+        // "MARIA FERNANDA BENITEZ").
+        const unoDentroDelOtro =
+          x.split(' ').every((p) => y.split(' ').includes(p)) ||
+          y.split(' ').every((p) => x.split(' ').includes(p))
+        if (unoDentroDelOtro || distancia(x, y) <= 2) {
+          parecidos.push({
+            a: lista[i].nombre,
+            b: lista[j].nombre,
+            clientesA: lista[i].clientes,
+            clientesB: lista[j].clientes,
+          })
+        }
+      }
+    }
+
+    return { agentes: lista.sort((p, q) => q.clientes - p.clientes), parecidos }
+  }
+
   async vaciarClientes(organizationId: string, role: string, confirmacion: string) {
     this.exigirAdmin(role)
     if (t(confirmacion) !== 'BORRAR TODOS LOS CLIENTES') {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -100,6 +100,28 @@ export function ImportarClientes() {
 
   const [confirmacionBorrado, setConfirmacionBorrado] = useState('')
   const [borrando, setBorrando] = useState(false)
+
+  /** Pares de agentes que se van a unificar: clave "de" -> valor "a". */
+  const [aUnificar, setAUnificar] = useState<Record<string, string>>({})
+
+  const { data: parecidos, refetch: buscarParecidos } = useQuery<{
+    agentes: { nombre: string; clientes: number }[]
+    parecidos: { a: string; b: string; clientesA: number; clientesB: number }[]
+  }>({
+    queryKey: ['agentes-parecidos'],
+    queryFn: () => api.get('/importacion/agentes/parecidos').then((r) => r.data),
+    enabled: false,
+  })
+
+  const unificar = useMutation({
+    mutationFn: (pares: { de: string; a: string }[]) =>
+      api.post('/importacion/agentes/unificar', { pares }).then((r) => r.data),
+    onSuccess: () => {
+      setAUnificar({})
+      buscarParecidos()
+      qc.invalidateQueries({ queryKey: ['clientes'] })
+    },
+  })
 
   const reenlazar = useMutation({
     mutationFn: () => api.post('/importacion/clientes/reenlazar').then((r) => r.data),
@@ -523,6 +545,102 @@ export function ImportarClientes() {
                 Sin usuario en el CRM (se quedan con el nombre):{' '}
                 {reenlazar.data.sinUsuarioEnElCrm.join(', ')}
               </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Unificar agentes: el mismo vendedor externo aparece escrito de varias
+          formas en la base historica, y los reportes lo cuentan como dos. */}
+      <div className="rounded-xl border p-4">
+        <p className="text-sm font-semibold" style={{ color: NAVY }}>
+          Unificar nombres de agente
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Busca vendedores que aparecen escritos de varias formas. Tú decides cuál se queda: dos
+          nombres parecidos también pueden ser dos personas.
+        </p>
+        <Button variant="outline" className="mt-3" onClick={() => buscarParecidos()}>
+          <Users className="mr-1.5 h-4 w-4" /> Buscar parecidos
+        </Button>
+
+        {parecidos && (
+          <div className="mt-3 space-y-2">
+            {parecidos.parecidos.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No se encontraron nombres parecidos.
+              </p>
+            ) : (
+              <>
+                {parecidos.parecidos.map((p, i) => {
+                  const elegido = aUnificar[p.a] ?? aUnificar[p.b] ?? ''
+                  return (
+                    <div key={i} className="rounded-lg border p-2.5 text-xs">
+                      <p className="mb-1.5 text-muted-foreground">¿Son la misma persona?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { n: p.a, c: p.clientesA, otro: p.b },
+                          { n: p.b, c: p.clientesB, otro: p.a },
+                        ].map((op) => (
+                          <button
+                            key={op.n}
+                            type="button"
+                            onClick={() =>
+                              setAUnificar((v) => {
+                                const nuevo = { ...v }
+                                delete nuevo[p.a]
+                                delete nuevo[p.b]
+                                // Se guarda "el otro pasa a llamarse este".
+                                if (elegido !== op.n) nuevo[op.otro] = op.n
+                                return nuevo
+                              })
+                            }
+                            className="rounded-full border px-2.5 py-1 transition-colors"
+                            style={
+                              elegido === op.n
+                                ? { borderColor: VERDE, backgroundColor: '#f0fdf4', color: VERDE }
+                                : undefined
+                            }
+                          >
+                            {op.n} ({op.c})
+                          </button>
+                        ))}
+                      </div>
+                      {elegido && (
+                        <p className="mt-1.5" style={{ color: VERDE }}>
+                          Se dejará <strong>{elegido}</strong> para los dos.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {Object.keys(aUnificar).length > 0 && (
+                  <Button
+                    onClick={() =>
+                      unificar.mutate(
+                        Object.entries(aUnificar).map(([de, a]) => ({ de, a })),
+                      )
+                    }
+                    disabled={unificar.isPending}
+                    style={{ backgroundColor: NAVY, color: '#fff' }}
+                  >
+                    {unificar.isPending
+                      ? 'Unificando…'
+                      : `Unificar ${Object.keys(aUnificar).length} nombre(s)`}
+                  </Button>
+                )}
+              </>
+            )}
+
+            {unificar.data && (
+              <div className="space-y-0.5 text-xs" style={{ color: VERDE }}>
+                {unificar.data.unificados.map((u: any, i: number) => (
+                  <p key={i}>
+                    {u.de} → {u.a}: {u.clientes} cliente(s) y {u.polizas} póliza(s)
+                  </p>
+                ))}
+              </div>
             )}
           </div>
         )}

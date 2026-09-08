@@ -110,6 +110,18 @@ export const PLANTILLAS: Record<
         'La cobertura en el plan Hospicare es Hospitalaria al 80% y Ambulatoria incluido medicinas al 50%, el plan cuenta con nuevos beneficios que se detallan en el documento adjunto.',
       ),
   },
+  /**
+   * BUPA no ofrece el descuento del 5% de BMI, asi que su guion no lo menciona:
+   * el bloque solo aparece cuando hay prima con descuento, y a BUPA no se le
+   * calcula.
+   *
+   * Tampoco lleva parrafo de beneficios nuevos: el guion oficial va directo de
+   * la renovacion a la fecha limite de cambios.
+   */
+  BUPA: {
+    etiqueta: 'BUPA',
+    armar: (d) => cuerpoSalud(d, `su Plan ${d.plan}`, ''),
+  },
   HUMANA: {
     etiqueta: 'Humana',
     armar: (d) => cuerpoSalud(d, `el Plan ${d.plan}`, ''),
@@ -184,6 +196,9 @@ export function elegirPlantilla(
     return null
   }
 
+  // BUPA antes que el resto: su nombre no choca con ninguno, pero conviene
+  // tenerlo junto a las demas de salud para que se vea que esta cubierta.
+  if (a.includes('BUPA')) return 'BUPA'
   if (a.includes('HUMANA')) return 'HUMANA'
   if (a.includes('CONFIAMED')) return 'CONFIAMED'
   if (a.includes('SALUD')) return 'SALUDSA'

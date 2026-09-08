@@ -503,6 +503,21 @@ export function ImportarClientes() {
               ejecutiva · <strong>{reenlazar.data.agentesEnlazados}</strong> a su agente ·{' '}
               <strong>{reenlazar.data.polizasEnlazadas}</strong> pólizas
             </p>
+            {/* Cuantos quedaron por ejecutiva: si alguna sale con 0 enlazados,
+                su nombre no coincide con ningun usuario y hay que revisarlo. */}
+            {reenlazar.data.resumenPorEjecutiva?.length > 0 && (
+              <div className="mt-2 space-y-0.5">
+                {reenlazar.data.resumenPorEjecutiva.map((e: any) => (
+                  <p
+                    key={e.nombre}
+                    style={{ color: e.enlazados === e.total ? undefined : '#b45309' }}
+                  >
+                    {e.nombre}: {e.enlazados} de {e.total} clientes enlazados
+                    {e.enlazados < e.total && ' — revisar cómo está escrito su nombre'}
+                  </p>
+                ))}
+              </div>
+            )}
             {reenlazar.data.sinUsuarioEnElCrm?.length > 0 && (
               <p className="text-muted-foreground">
                 Sin usuario en el CRM (se quedan con el nombre):{' '}

@@ -233,36 +233,46 @@ export class ImportacionService {
     )
 
     /**
-     * Busca al usuario por nombre, aceptando que falte el segundo apellido.
+     * Busca al usuario por nombre, tolerando que el Excel traiga una version
+     * corta.
      *
-     * El Excel trae "CAROLINA TERNEUS" y en el CRM esta como "Carolina Terneus
-     * Toledo". Exigiendo el nombre completo identico no coincidian, y sus
-     * clientes quedaban sin ejecutiva enlazada: al entrar, no veia ninguno.
+     * El Excel escribe "ERIKA DIAZ" y en el CRM puede estar como "Erika
+     * Alexandra Diaz Mora": nombre de pila y primer apellido, sin el segundo
+     * nombre ni el segundo apellido.
      *
-     * Se compara por las DOS primeras palabras —nombre y primer apellido— que en
-     * la practica identifican a la persona dentro de un equipo pequeño. Si esas
-     * dos coinciden con mas de un usuario, no se arriesga: se deja sin enlazar y
-     * se avisa, porque asignar los clientes a la persona equivocada es peor que
-     * dejarlos sin asignar.
+     * Se comprueba que TODAS las palabras del Excel esten en el nombre del
+     * usuario, en cualquier posicion. Comparar solo las dos primeras fallaba
+     * justo con quien tiene segundo nombre: tomaba "ERIKA ALEXANDRA" en vez de
+     * "ERIKA DIAZ".
+     *
+     * Se exigen al menos DOS palabras y una sola coincidencia. Con "CAROLINA" a
+     * secas, o si dos usuarios encajan, se deja sin enlazar: asignar los
+     * clientes de alguien a la persona equivocada es peor que dejarlos sin
+     * asignar.
      */
+    const palabras = (v: string) => claveNombre(v).split(' ').filter(Boolean)
+
     const buscarUsuario = (texto: string) => {
       if (!texto) return undefined
+
       const exacto = porClave.get(claveNombre(texto))
       if (exacto) return exacto
 
-      const dosPrimeras = (v: string) => claveNombre(v).split(' ').slice(0, 2).join(' ')
-      const buscado = dosPrimeras(texto)
-      if (!buscado || buscado.split(' ').length < 2) return undefined
+      const buscadas = palabras(texto)
+      if (buscadas.length < 2) return undefined
 
-      const posibles = usuarios.filter((u) => dosPrimeras(u.name) === buscado)
+      const posibles = usuarios.filter((u) => {
+        const suyas = palabras(u.name)
+        return buscadas.every((p) => suyas.includes(p))
+      })
       return posibles.length === 1 ? posibles[0] : undefined
     }
 
     /**
      * Agrupa por contrato: las filas del mismo N DE CONTRATO son una familia.
      *
-     * Si una fila no trae contrato se agrupa por la cédula del titular, y si
-     * tampoco, queda sola: es preferible un cliente suelto de más que fusionar
+     * Si una fila no trae contrato se agrupa por la cedula del titular, y si
+     * tampoco, queda sola: es preferible un cliente suelto de mas que fusionar
      * dos familias distintas por error.
      */
     const grupos = new Map<string, { fila: number; datos: FilaExcel }[]>()
@@ -717,15 +727,21 @@ export class ImportacionService {
       select: { id: true, name: true },
     })
 
-    const dosPrimeras = (v: string) => claveNombre(v).split(' ').slice(0, 2).join(' ')
+    // Misma comparacion que en la importacion: todas las palabras del Excel
+    // deben estar en el nombre del usuario, en cualquier posicion. Asi "ERIKA
+    // DIAZ" encuentra a "Erika Alexandra Diaz Mora".
+    const palabras = (v: string) => claveNombre(v).split(' ').filter(Boolean)
 
     const buscar = (texto: string | null) => {
       if (!texto) return undefined
       const exacto = usuarios.find((u) => claveNombre(u.name) === claveNombre(texto))
       if (exacto) return exacto
-      const buscado = dosPrimeras(texto)
-      if (!buscado || buscado.split(' ').length < 2) return undefined
-      const posibles = usuarios.filter((u) => dosPrimeras(u.name) === buscado)
+      const buscadas = palabras(texto)
+      if (buscadas.length < 2) return undefined
+      const posibles = usuarios.filter((u) => {
+        const suyas = palabras(u.name)
+        return buscadas.every((p) => suyas.includes(p))
+      })
       return posibles.length === 1 ? posibles[0] : undefined
     }
 
@@ -788,11 +804,37 @@ export class ImportacionService {
       }
     }
 
+    /**
+     * Cuantos clientes quedan por ejecutiva, para poder comprobar de un vistazo
+     * que cada una tiene los suyos sin entrar con su usuario.
+     */
+    const porEjecutiva = await this.prisma.cliente.groupBy({
+      by: ['ejecutivoNombre'],
+      where: { organizationId, ejecutivoNombre: { not: null } },
+      _count: { _all: true },
+    })
+    const conUsuario = await this.prisma.cliente.groupBy({
+      by: ['ejecutivoNombre'],
+      where: { organizationId, ejecutivoId: { not: null } },
+      _count: { _all: true },
+    })
+    const mapaConUsuario = new Map(
+      conUsuario.map((r) => [r.ejecutivoNombre ?? '', r._count._all]),
+    )
+
     return {
       revisados: clientes.length,
       ejecutivasEnlazadas: ejecutivas,
       agentesEnlazados: agentes,
       polizasEnlazadas,
+      // nombre -> cuantos clientes tiene y cuantos quedaron enlazados
+      resumenPorEjecutiva: porEjecutiva
+        .map((r) => ({
+          nombre: r.ejecutivoNombre ?? '',
+          total: r._count._all,
+          enlazados: mapaConUsuario.get(r.ejecutivoNombre ?? '') ?? 0,
+        }))
+        .sort((a, b) => b.total - a.total),
       // Los que no coinciden con nadie: vendedores externos, o nombres que hay
       // que corregir a mano.
       sinUsuarioEnElCrm: [...sinEnlazar],

@@ -195,7 +195,7 @@ export function TareasPage() {
   const [error, setError] = useState<string | null>(null)
   const [verTodas, setVerTodas] = useState(false)
   /** 'mias' = las que tengo que hacer; 'pedidas' = las que pedí a otros. */
-  const [vista, setVista] = useState<'mias' | 'pedidas'>('mias')
+  const [vista, setVista] = useState<'mias' | 'pedidas' | 'todas'>('mias')
   const [mes, setMes] = useState(() => hoyISO().slice(0, 7))
   /** Día seleccionado en el calendario. null = ver todo. */
   const [diaFiltro, setDiaFiltro] = useState<string | null>(null)
@@ -828,7 +828,11 @@ export function TareasPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold">
-              {vista === 'mias' ? 'Mis tareas' : 'Tareas que pedí'}
+              {vista === 'mias'
+                ? 'Mis tareas'
+                : vista === 'pedidas'
+                  ? 'Tareas que pedí'
+                  : 'Tareas del equipo'}
             </h1>
             <p className="mt-1 text-sm text-slate-300">
               {pendientes === 0
@@ -1051,6 +1055,9 @@ export function TareasPage() {
               [
                 ['mias', 'Asignadas a mí'],
                 ['pedidas', 'Que pedí a otros'],
+                // Solo para quien reparte: sin esta pestaña, un administrador
+                // dejaba de ver las tareas del equipo al filtrar por las suyas.
+                ...(puedeAsignar ? ([['todas', 'Todas del equipo']] as const) : []),
               ] as const
             ).map(([id, label]) => (
               <button

@@ -60,6 +60,8 @@ export class TareasService {
       // Lo que pidio para OTROS: lo que se pidio a si mismo ya sale en "mias".
       return { solicitanteId: userId, NOT: { asignadoId: userId } }
     }
+    // "todas" solo para quien tiene permiso; a los demas les da lo suyo.
+    if (vista === 'todas' && VE_TODAS.includes(role)) return {}
 
     if (VE_TODAS.includes(role)) return {}
     return { OR: [{ asignadoId: userId }, { solicitanteId: userId }] }

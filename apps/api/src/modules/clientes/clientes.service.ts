@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { aMayusculas } from '../../common/texto'
 import { ClientesQueryDto } from './dto/clientes-query.dto'
 import { CreateClienteDto } from './dto/create-cliente.dto'
@@ -14,7 +15,10 @@ const VE_TODO = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES']
 export class ClientesService {
   private readonly logger = new Logger(ClientesService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   /**
    * Construye el filtro base de seguridad. Es el corazón del módulo:
@@ -688,6 +692,25 @@ export class ClientesService {
     if (!cliente.ejecutivoId) {
       await this.crearRequerimientoBienvenida(clienteId, nuevoEjecutivoId, nueva.name, organizationId)
     }
+
+    /**
+     * Se avisa a la ejecutiva que acaba de recibir el cliente.
+     *
+     * Sin esto, el flujo funcionaba en silencio: el requerimiento se abria y se
+     * quedaba esperando a que ella entrara a mirar. La bienvenida es lo primero
+     * que recibe un cliente nuevo, y un dia de retraso se nota.
+     */
+    await this.notificaciones.crear({
+      usuarioId: nuevoEjecutivoId,
+      organizationId,
+      tipo: 'CLIENTE_ASIGNADO',
+      titulo: `Te asignaron a ${cliente.nombres} ${cliente.apellidos ?? ''}`.trim(),
+      detalle: !cliente.ejecutivoId
+        ? 'Cliente nuevo: revisa sus datos y envíale la bienvenida'
+        : `Reasignado por ${autor?.name ?? 'operaciones'}. Motivo: ${razon}`,
+      enlace: `/clientes/${clienteId}`,
+      provocadoPor: userId,
+    })
 
     return actualizado
   }

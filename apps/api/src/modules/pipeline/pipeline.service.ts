@@ -22,6 +22,7 @@ import { creaNegociosPropios, soloVeSusNegocios } from './puede-vender'
 const PUEDEN_PERDER_LEADS_REPARTIDOS = ['SUPER_ADMIN', 'OWNER']
 import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
+import { NotificacionesService } from '../notificaciones/notificaciones.service'
 
 /**
  * Mayusculas con locale español, para que ñ y acentos salgan bien.
@@ -95,6 +96,7 @@ export class PipelineService {
     private readonly gateway: PipelineGateway,
     private readonly notifications: NotificationsService,
     private readonly equipos: EquiposService,
+    private readonly notificaciones: NotificacionesService,
     private readonly clientes: ClientesService,
   ) {}
 
@@ -648,6 +650,31 @@ export class PipelineService {
       )
       await this.migrarDependientes(creado.id, cf)
       await this.crearPolizasYNota(creado.id, cf, organizationId, userId)
+
+      /**
+       * Se avisa a operaciones que llego un cliente nuevo.
+       *
+       * Sin esto quedaba esperando en "nuevos por asignar" hasta que alguien
+       * entrara a revisar la bandeja, y la bienvenida es lo primero que recibe
+       * un cliente recien cerrado.
+       *
+       * No tumba el cierre si falla: la venta ya esta hecha y perderla por un
+       * aviso seria mucho peor.
+       */
+      const jefes = await this.prisma.user.findMany({
+        where: { organizationId, role: 'JEFE_OPERACIONES' as any, activo: true },
+        select: { id: true },
+      })
+      await this.notificaciones
+        .crearParaVarios(jefes.map((j) => j.id), {
+          organizationId,
+          tipo: 'CLIENTE_NUEVO',
+          titulo: 'Llegó un cliente nuevo por asignar',
+          detalle: `${mayus(deal.contact.firstName)} ${mayus(deal.contact.lastName ?? '')} — asígnale una ejecutiva para la bienvenida`.trim(),
+          enlace: '/clientes',
+        })
+        .catch((e) => this.logger.error(`[pipeline] no se pudo avisar del cliente nuevo: ${e}`))
+
       return creado
     } catch (e) {
       // Puede chocar el unique de (organizationId, identificacion) si ya existía

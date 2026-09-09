@@ -644,7 +644,15 @@ export class ClientesService {
 
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: clienteId, organizationId },
-      select: { id: true, ejecutivoId: true, ejecutivo: { select: { name: true } } },
+      // nombres y apellidos se traen para el aviso que se manda a la ejecutiva:
+      // sin ellos el aviso diria "Te asignaron a undefined".
+      select: {
+        id: true,
+        nombres: true,
+        apellidos: true,
+        ejecutivoId: true,
+        ejecutivo: { select: { name: true } },
+      },
     })
     if (!cliente) throw new NotFoundException('Cliente no encontrado')
 

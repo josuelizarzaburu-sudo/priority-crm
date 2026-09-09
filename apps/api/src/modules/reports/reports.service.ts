@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { ForbiddenException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { veSoloSuEquipo } from '../equipos/equipos-scope'
 import { EquiposService } from '../equipos/equipos.service'
@@ -483,6 +483,130 @@ export class ReportsService {
           mediana: mediana(dias),
         }))
         .sort((a, b) => a.promedio - b.promedio),
+    }
+  }
+
+  /**
+   * Renovaciones del mes, para revisarlas ANTES de escribir a los clientes.
+   *
+   * Es el paso que hoy se hace en un Excel a mano: se mira cuanto subio cada
+   * prima y, cuando el alza es fuerte, se prepara una alternativa antes de que
+   * el cliente reciba el correo y llame molesto.
+   *
+   * Por eso la cifra que manda es el PORCENTAJE de incremento, no el total del
+   * mes: una subida del 40% en una prima pequeña importa mas que una del 3% en
+   * una grande.
+   */
+  async renovacionesDelMes(
+    organizationId: string,
+    role: string,
+    query: { mes?: string; tipo?: string },
+  ) {
+    if (!['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES'].includes(role)) {
+      throw new ForbiddenException('No tienes permiso para ver este reporte')
+    }
+
+    const mes = query.mes && /^\d{4}-\d{2}$/.test(query.mes) ? query.mes : null
+    const where: any = { organizationId }
+    if (mes) {
+      const [anio, m] = mes.split('-').map(Number)
+      where.fechaRenovacion = { gte: new Date(anio, m - 1, 1), lt: new Date(anio, m, 1) }
+    }
+
+    const renovaciones = await this.prisma.renovacion.findMany({
+      where,
+      include: {
+        poliza: {
+          include: { cliente: { select: { nombres: true, apellidos: true, email: true } } },
+        },
+      },
+      orderBy: { fechaRenovacion: 'asc' },
+    })
+
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+
+    const filas = renovaciones
+      .map((r) => {
+        const actual = num(r.valorActual)
+        const nueva = num(r.valorRenovacion)
+        // El incremento solo tiene sentido si hay las dos cifras y la anterior
+        // no es cero: dividir por cero daria infinito y ensuciaria el reporte.
+        const incremento =
+          actual && nueva && actual > 0 ? ((nueva - actual) / actual) * 100 : null
+
+        return {
+          id: r.id,
+          cliente: r.poliza?.cliente
+            ? `${r.poliza.cliente.nombres} ${r.poliza.cliente.apellidos ?? ''}`.trim()
+            : '(sin cliente)',
+          email: r.poliza?.cliente?.email ?? null,
+          tipo: r.poliza?.tipo ?? 'SALUD',
+          aseguradora: r.poliza?.aseguradora ?? null,
+          plan: r.poliza?.plan ?? null,
+          deducible: r.poliza?.deducible ?? null,
+          formaPago: r.poliza?.formaPago ?? null,
+          fechaRenovacion: r.fechaRenovacion,
+          agente: r.ejecutivoNombre ?? null,
+          primaActual: actual,
+          primaRenovacion: nueva,
+          incremento: incremento === null ? null : Math.round(incremento * 100) / 100,
+          diferidoEspecial: num(r.diferidoEspecial),
+          estado: r.estado,
+          envio: r.envio,
+          comentario: r.notas ?? null,
+        }
+      })
+      .filter((f) => (query.tipo ? f.tipo === query.tipo : true))
+
+    const conIncremento = filas.filter((f) => f.incremento !== null)
+
+    /**
+     * Tramos de incremento.
+     *
+     * El corte del 10% no es arbitrario: por encima de ahi es cuando el cliente
+     * suele preguntar, y por encima del 20% cuando conviene llevar una
+     * alternativa preparada a la conversacion.
+     */
+    const tramos = [
+      { rango: 'Baja o igual', min: -Infinity, max: 0 },
+      { rango: 'Sube hasta 10%', min: 0.01, max: 10 },
+      { rango: 'Sube 10-20%', min: 10.01, max: 20 },
+      { rango: 'Sube más de 20%', min: 20.01, max: Infinity },
+    ].map((t) => ({
+      rango: t.rango,
+      cantidad: conIncremento.filter((f) => f.incremento! >= t.min && f.incremento! <= t.max)
+        .length,
+    }))
+
+    const suma = (campo: 'primaActual' | 'primaRenovacion') =>
+      filas.reduce((s, f) => s + (f[campo] ?? 0), 0)
+
+    const totalActual = suma('primaActual')
+    const totalNueva = suma('primaRenovacion')
+
+    return {
+      mes,
+      filas,
+      resumen: {
+        total: filas.length,
+        conPrimaNueva: conIncremento.length,
+        // Sin prima nueva cargada no se puede avisar al cliente: es lo primero
+        // que hay que completar antes de la reunion mensual.
+        sinPrimaNueva: filas.length - conIncremento.length,
+        primaActualTotal: Math.round(totalActual * 100) / 100,
+        primaNuevaTotal: Math.round(totalNueva * 100) / 100,
+        incrementoPromedio: conIncremento.length
+          ? Math.round(
+              (conIncremento.reduce((s, f) => s + f.incremento!, 0) / conIncremento.length) * 100,
+            ) / 100
+          : null,
+        yaEnviadas: filas.filter((f) => f.envio !== 'NO_ENVIADO').length,
+      },
+      tramos,
+      // Las que mas suben primero: son las que hay que mirar antes de enviar.
+      mayoresAlzas: [...conIncremento]
+        .sort((a, b) => b.incremento! - a.incremento!)
+        .slice(0, 15),
     }
   }
 

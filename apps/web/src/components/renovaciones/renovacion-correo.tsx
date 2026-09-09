@@ -227,7 +227,8 @@ export function RenovacionCorreo({
             ['Forma de pago', data.datos.formaPago],
             ['Prima', data.datos.prima ? `USD ${data.datos.prima}` : null],
             ['Con descuento 5%', data.datos.primaConDescuento ? `USD ${data.datos.primaConDescuento}` : null],
-            ['Confirmar hasta', data.datos.fechaLimite],
+            // Ya no se muestra "Confirmar hasta": el plazo lo decide la
+            // ejecutiva segun el caso y lo escribe en el texto del correo.
           ]
             .filter(([, v]) => v)
             .map(([k, v]) => (
@@ -335,6 +336,14 @@ export function RenovacionCorreo({
         <p className="mt-1 text-[11px] text-muted-foreground">
           Se envía tal como se ve aquí. Los saltos de línea se convierten en párrafos.
         </p>
+        {/* El texto trae "(colocar fecha)" a proposito, porque el plazo depende
+            de cada caso. Se avisa para que no salga asi al cliente. */}
+        {texto.includes('(colocar fecha)') && (
+          <p className="mt-1 text-[11px] font-medium text-amber-700">
+            Falta poner la fecha límite para confirmar cambios: busca
+            &quot;(colocar fecha)&quot; en el texto y reemplázala.
+          </p>
+        )}
       </div>
 
       {!enviado && (

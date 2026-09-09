@@ -27,6 +27,12 @@ export class ReportsController {
     )
   }
 
+  @Get('renovaciones')
+  @ApiOperation({ summary: 'Renovaciones del mes con el incremento de cada prima' })
+  renovaciones(@Req() req: any, @Query('mes') mes?: string, @Query('tipo') tipo?: string) {
+    return this.service.renovacionesDelMes(req.user.organizationId, req.user.role, { mes, tipo })
+  }
+
   @Get('embudo')
   @ApiOperation({ summary: 'Leads por etapa, con conversión y motivos de pérdida' })
   embudo(

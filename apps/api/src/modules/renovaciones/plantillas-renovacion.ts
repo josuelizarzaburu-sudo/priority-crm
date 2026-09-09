@@ -75,7 +75,11 @@ function cuerpoSalud(
     `Seguimos comprometidos con nuestro acompañamiento permanente, ${descripcionPlan} con deducible de ${d.deducible} que mantiene con ${d.aseguradora} se renueva automáticamente el ${d.fechaRenovacion}, con forma de pago ${forma}, ${comoLlamarPrima} a partir de la renovación es de USD ${d.prima}.`,
     beneficios,
     bloqueDescuentoBmi(d.primaConDescuento),
-    `Si desea realizar algún cambio a la renovación por favor nos confirma a través de este medio hasta el ${d.fechaLimite}.`,
+    // La fecha se deja EN BLANCO a proposito, para que la ejecutiva la escriba.
+    // El plazo depende de cada caso —de la aseguradora, de si hay que pedir
+    // documentos, de cuando se contacto al cliente— y calcularlo solo llevaba a
+    // poner fechas que despues no se podian cumplir.
+    `Si desea realizar algún cambio a la renovación por favor nos confirma a través de este medio hasta el (colocar fecha).`,
     CIERRE,
     'Saludos cordiales,',
   ]

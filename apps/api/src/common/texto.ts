@@ -128,8 +128,20 @@ export function paraMostrarAlCliente(texto: string | null | undefined): string {
  * completo de la cedula queda largo y suena a tramite. Para una carta, el primer
  * nombre y el primer apellido es lo natural.
  */
-export function nombreCorto(nombres: string, apellidos: string): string {
-  const primerNombre = (nombres ?? '').trim().split(/\s+/)[0] ?? ''
+export function nombreCorto(
+  nombres: string,
+  apellidos: string,
+  /**
+   * Nombre preferido del cliente. Si lo tiene, manda sobre el de la cedula:
+   * quien se presenta como "Pepe" prefiere verse asi en el asunto del correo,
+   * no como "Jose Luis".
+   */
+  nombrePreferido?: string | null,
+): string {
+  const preferido = (nombrePreferido ?? '').trim()
+  const primerNombre = preferido
+    ? preferido.split(/\s+/)[0]
+    : ((nombres ?? '').trim().split(/\s+/)[0] ?? '')
 
   // El primer apellido puede empezar con particula: "DE LA TORRE PEREZ" tiene
   // como primer apellido "DE LA TORRE", no "DE". Se arrastran las particulas

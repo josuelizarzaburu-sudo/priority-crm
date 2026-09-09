@@ -85,6 +85,8 @@ export class TareasController {
     @Req() req: any,
     @Query('asignadoId') asignadoId?: string,
     @Query('incluirCompletadas') incluirCompletadas?: string,
+    /** 'mias' (asignadas a mi) o 'pedidas' (las que pedi a otros). */
+    @Query('vista') vista?: string,
   ) {
     return this.service.findAll(req.user.organizationId, req.user.id, req.user.role, {
       asignadoId,

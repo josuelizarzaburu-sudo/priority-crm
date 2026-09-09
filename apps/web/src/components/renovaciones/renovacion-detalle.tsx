@@ -191,19 +191,38 @@ export function RenovacionDetalle({ id, onCerrar }: { id: string; onCerrar: () =
               onChange={(e) => set('fechaRenovacion', e.target.value)}
             />
           </Campo>
-          <Campo label="Valor actual (USD)">
+          {/* Los valores se cargan ANUALES —es como llegan de la aseguradora—
+              y debajo se muestra la mensualidad, que es lo que el cliente ve
+              salir de su cuenta y con lo que razona cuando pregunta. */}
+          <Campo label="Valor actual (USD anual)">
             <Input
               inputMode="decimal"
               value={form.valorActual ?? ''}
               onChange={(e) => set('valorActual', e.target.value)}
             />
+            {actual > 0 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Mensual: <strong style={{ color: NAVY }}>${(actual / 12).toFixed(2)}</strong>
+              </p>
+            )}
           </Campo>
-          <Campo label="Valor de renovación (USD)">
+          <Campo label="Valor de renovación (USD anual)">
             <Input
               inputMode="decimal"
               value={form.valorRenovacion ?? ''}
               onChange={(e) => set('valorRenovacion', e.target.value)}
             />
+            {nuevo > 0 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Mensual: <strong style={{ color: NAVY }}>${(nuevo / 12).toFixed(2)}</strong>
+                {actual > 0 && (
+                  <>
+                    {' '}
+                    · sube ${((nuevo - actual) / 12).toFixed(2)} al mes
+                  </>
+                )}
+              </p>
+            )}
           </Campo>
           <Campo label="% de incremento">
             {/* Calculado, no editable: sale de los dos valores de arriba. */}

@@ -45,7 +45,22 @@ export class TareasService {
    * se lo pasa a Carolina, Roxana tiene que seguir viendo su pedido para saber
    * si se cumplio. Si solo viera lo asignado a ella, su pedido desapareceria.
    */
-  private alcance(userId: string, role: string) {
+  private alcance(userId: string, role: string, vista?: string) {
+    /**
+     * Vista "mias" o "pedidas": separa lo que uno TIENE QUE HACER de lo que
+     * PIDIO y esta esperando.
+     *
+     * Son dos trabajos distintos. Mezcladas, quien reparte tareas ve su lista
+     * llena de cosas que no le tocan a el, y las suyas se pierden entre medio.
+     * Es el caso que planteo Josue: Pablo pide algo, Carolina lo hace, y Pablo
+     * necesita seguir viendolo sin que le estorbe en su propia lista.
+     */
+    if (vista === 'mias') return { asignadoId: userId }
+    if (vista === 'pedidas') {
+      // Lo que pidio para OTROS: lo que se pidio a si mismo ya sale en "mias".
+      return { solicitanteId: userId, NOT: { asignadoId: userId } }
+    }
+
     if (VE_TODAS.includes(role)) return {}
     return { OR: [{ asignadoId: userId }, { solicitanteId: userId }] }
   }
@@ -54,14 +69,14 @@ export class TareasService {
     organizationId: string,
     userId: string,
     role: string,
-    query: { asignadoId?: string; incluirCompletadas?: string },
+    query: { asignadoId?: string; incluirCompletadas?: string; vista?: string },
   ) {
     // Las condiciones se acumulan en AND para que no se pisen entre si. Con
     // varios OR sueltos en el mismo nivel, el ultimo gana y se podrian filtrar
     // mal las tareas de otras personas.
     const condiciones: any[] = []
 
-    const alcance = this.alcance(userId, role)
+    const alcance = this.alcance(userId, role, query.vista)
     if (alcance.OR) condiciones.push({ OR: alcance.OR })
 
     // Filtrar por persona solo tiene sentido para quien ve todas.

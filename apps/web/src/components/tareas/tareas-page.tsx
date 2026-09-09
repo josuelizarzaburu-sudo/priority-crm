@@ -144,6 +144,8 @@ export function TareasPage() {
   const [pasos, setPasos] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verTodas, setVerTodas] = useState(false)
+  /** 'mias' = las que tengo que hacer; 'pedidas' = las que pedí a otros. */
+  const [vista, setVista] = useState<'mias' | 'pedidas'>('mias')
   const [mes, setMes] = useState(() => hoyISO().slice(0, 7))
   /** Día seleccionado en el calendario. null = ver todo. */
   const [diaFiltro, setDiaFiltro] = useState<string | null>(null)
@@ -153,9 +155,13 @@ export function TareasPage() {
   const [filtroPersona, setFiltroPersona] = useState('')
 
   const { data: tareas = [], isLoading } = useQuery<Tarea[]>({
-    queryKey: ['tareas', verTodas],
+    queryKey: ['tareas', verTodas, vista],
     queryFn: () =>
-      api.get(`/tareas${verTodas ? '?incluirCompletadas=true' : ''}`).then((r) => r.data),
+      api
+        .get('/tareas', {
+          params: { vista, ...(verTodas ? { incluirCompletadas: 'true' } : {}) },
+        })
+        .then((r) => r.data),
   })
 
   const { data: equipo = [] } = useQuery<Persona[]>({
@@ -800,7 +806,9 @@ export function TareasPage() {
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold">Mis tareas</h1>
+            <h1 className="text-xl font-bold">
+              {vista === 'mias' ? 'Mis tareas' : 'Tareas que pedí'}
+            </h1>
             <p className="mt-1 text-sm text-slate-300">
               {pendientes === 0
                 ? '¡Todo al día!'
@@ -1013,6 +1021,32 @@ export function TareasPage() {
           )}
         </div>
       )}
+
+          {/* Dos vistas: lo que tengo que hacer y lo que pedi y estoy esperando.
+              Son dos trabajos distintos, y mezcladas quien reparte tareas ve su
+              lista llena de cosas que no le tocan. */}
+          <div className="mb-3 flex gap-1.5">
+            {(
+              [
+                ['mias', 'Asignadas a mí'],
+                ['pedidas', 'Que pedí a otros'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setVista(id)}
+                className="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                style={
+                  vista === id
+                    ? { backgroundColor: NAVY, color: '#fff', borderColor: NAVY }
+                    : undefined
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
           <button
             type="button"

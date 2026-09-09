@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificationsService } from '../notifications/notifications.service'
-import { nombreCompletoFormal, paraMostrarAlCliente, primerNombre } from '../../common/texto'
+import { nombreCompletoFormal, nombreCorto, paraMostrarAlCliente, primerNombre } from '../../common/texto'
 import { RequerimientosQueryDto } from './dto/requerimientos-query.dto'
 import { CreateRequerimientoDto } from './dto/create-requerimiento.dto'
 import {
@@ -246,7 +246,7 @@ export class RequerimientosService {
   private async datosParaCarta(req: any, organizationId: string) {
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: req.clienteId, organizationId },
-      select: { nombres: true, apellidos: true, email: true, genero: true },
+      select: { nombres: true, apellidos: true, email: true, genero: true, nombrePreferido: true },
     })
     if (!cliente?.email) {
       throw new ForbiddenException(
@@ -293,7 +293,11 @@ export class RequerimientosService {
       // Asunto: apellidos y nombres completos, como en la cedula, para poder
       // identificar el correo sin ambiguedad en la bandeja.
       // "Bienvenido a Priority sus Asesores de Seguros - Cadena Huertas Hugo Eduardo"
-      nombreParaAsunto: nombreCompletoFormal(cliente.nombres, cliente.apellidos),
+      // Si el cliente tiene nombre preferido, ese va en el asunto: "Bienvenido
+      // a Priority - Pepe Andrade" antes que el nombre completo de la cedula.
+      nombreParaAsunto: (cliente as any).nombrePreferido?.trim()
+        ? nombreCorto(cliente.nombres, cliente.apellidos, (cliente as any).nombrePreferido)
+        : nombreCompletoFormal(cliente.nombres, cliente.apellidos),
       // Vigencia del plan, que es la fecha de emision de la poliza.
       vigenciaDesde: poliza.fechaEmision
         ? new Date(poliza.fechaEmision).toLocaleDateString('es-EC', {

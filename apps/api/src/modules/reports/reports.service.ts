@@ -534,6 +534,16 @@ export class ReportsService {
         const incremento =
           actual && nueva && actual > 0 ? ((nueva - actual) / actual) * 100 : null
 
+        /**
+         * Los valores llegan ANUALES pero el cliente razona en mensualidades:
+         * es lo que ve salir de su cuenta cada mes. Se muestran las dos cifras.
+         *
+         * La tasa sale igual con anuales o con mensuales —dividir ambos para 12
+         * no cambia la proporcion— asi que se calcula una sola vez.
+         */
+        const actualMensual = actual === null ? null : Math.round((actual / 12) * 100) / 100
+        const nuevaMensual = nueva === null ? null : Math.round((nueva / 12) * 100) / 100
+
         return {
           id: r.id,
           cliente: r.poliza?.cliente
@@ -549,6 +559,8 @@ export class ReportsService {
           agente: r.ejecutivoNombre ?? null,
           primaActual: actual,
           primaRenovacion: nueva,
+          primaActualMensual: actualMensual,
+          primaRenovacionMensual: nuevaMensual,
           incremento: incremento === null ? null : Math.round(incremento * 100) / 100,
           diferidoEspecial: num(r.diferidoEspecial),
           estado: r.estado,

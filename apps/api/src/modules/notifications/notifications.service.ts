@@ -302,10 +302,8 @@ export class NotificationsService {
              </p>`
           : ''
       }
-      <p style="margin:20px 0 0;">
-        <img src="https://priority.ec/img/firma-priority.png" alt="Priority Asesores de Seguros"
-             style="max-width:340px;width:100%;height:auto;display:block;border:0;" />
-      </p>
+      <!-- La bienvenida NO lleva la firma de Fidelizacion: la envia la
+           ejecutiva de cuenta del cliente, cuyo nombre ya va arriba. -->
     </div>
   </div>
 </body>`

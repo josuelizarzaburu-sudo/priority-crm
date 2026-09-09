@@ -40,6 +40,8 @@ interface Fila {
   agente: string | null
   primaActual: number | null
   primaRenovacion: number | null
+  primaActualMensual: number | null
+  primaRenovacionMensual: number | null
   incremento: number | null
   diferidoEspecial: number | null
   estado: string
@@ -91,6 +93,8 @@ export function ReporteRenovaciones() {
         'Agente': f.agente ?? '',
         'Prima actual': f.primaActual ?? '',
         'Prima renovación': f.primaRenovacion ?? '',
+        'Actual mensual': f.primaActualMensual ?? '',
+        'Renovación mensual': f.primaRenovacionMensual ?? '',
         '%': f.incremento === null ? '' : f.incremento / 100,
         'Diferido especial': f.diferidoEspecial ?? '',
         'Comentario': f.comentario ?? '',
@@ -98,7 +102,8 @@ export function ReporteRenovaciones() {
     )
     ws['!cols'] = [
       { wch: 30 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 18 },
-      { wch: 13 }, { wch: 15 }, { wch: 9 }, { wch: 16 }, { wch: 30 },
+      { wch: 13 }, { wch: 15 }, { wch: 15 }, { wch: 17 }, { wch: 9 },
+      { wch: 16 }, { wch: 30 },
     ]
     XLSX.utils.book_append_sheet(wb, ws, 'Renovaciones')
     XLSX.writeFile(wb, `Renovaciones ${mes}.xlsx`)
@@ -224,7 +229,7 @@ export function ReporteRenovaciones() {
                   >
                     <span className="min-w-0 flex-1 truncate">{f.cliente}</span>
                     <span className="shrink-0 text-muted-foreground">
-                      {money(f.primaActual)} → {money(f.primaRenovacion)}
+                      {money(f.primaActualMensual)} → {money(f.primaRenovacionMensual)} /mes
                     </span>
                     <span
                       className="w-14 shrink-0 text-right font-bold"
@@ -257,8 +262,10 @@ export function ReporteRenovaciones() {
                     <th className="p-2 font-medium">Forma de pago</th>
                     <th className="p-2 font-medium">Fecha</th>
                     <th className="p-2 font-medium">Agente</th>
-                    <th className="p-2 text-right font-medium">Actual</th>
-                    <th className="p-2 text-right font-medium">Renovación</th>
+                    <th className="p-2 text-right font-medium">Actual anual</th>
+                    <th className="p-2 text-right font-medium">Renov. anual</th>
+                    <th className="p-2 text-right font-medium">Actual /mes</th>
+                    <th className="p-2 text-right font-medium">Renov. /mes</th>
                     <th className="p-2 text-right font-medium">%</th>
                   </tr>
                 </thead>
@@ -279,6 +286,14 @@ export function ReporteRenovaciones() {
                       <td className="p-2">{f.agente ?? '—'}</td>
                       <td className="p-2 text-right">{money(f.primaActual)}</td>
                       <td className="p-2 text-right">{money(f.primaRenovacion)}</td>
+                      {/* Mensualizado: es lo que el cliente ve salir de su
+                          cuenta, y con lo que razona cuando pregunta. */}
+                      <td className="p-2 text-right text-muted-foreground">
+                        {money(f.primaActualMensual)}
+                      </td>
+                      <td className="p-2 text-right text-muted-foreground">
+                        {money(f.primaRenovacionMensual)}
+                      </td>
                       <td
                         className="p-2 text-right font-semibold"
                         style={{ color: colorIncremento(f.incremento) }}

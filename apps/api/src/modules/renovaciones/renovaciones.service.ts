@@ -563,6 +563,9 @@ export class RenovacionesService {
       asunto: `Renovación Plan Médico - ${nombreCorto(
         r.poliza?.cliente?.nombres ?? '',
         r.poliza?.cliente?.apellidos ?? '',
+        // El nombre preferido manda: quien se presenta como "Pepe" prefiere
+        // verse asi en el asunto, no como "Jose Luis".
+        r.poliza?.cliente?.nombrePreferido,
       )}`,
       texto: dto.texto,
       /**

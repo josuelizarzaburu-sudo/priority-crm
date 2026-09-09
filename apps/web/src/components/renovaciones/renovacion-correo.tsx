@@ -225,8 +225,13 @@ export function RenovacionCorreo({
             ['Deducible', data.datos.deducible],
             ['Renovación', data.datos.fechaRenovacion],
             ['Forma de pago', data.datos.formaPago],
-            ['Prima', data.datos.prima ? `USD ${data.datos.prima}` : null],
-            ['Con descuento 5%', data.datos.primaConDescuento ? `USD ${data.datos.primaConDescuento}` : null],
+            // Mensual, no anual: es la cifra que va en el correo y la que el
+            // cliente reconoce como lo que paga.
+            ['Prima mensual', data.datos.prima ? `USD ${data.datos.prima}` : null],
+            [
+              'Con descuento 5%',
+              data.datos.primaConDescuento ? `USD ${data.datos.primaConDescuento} /mes` : null,
+            ],
             // Ya no se muestra "Confirmar hasta": el plazo lo decide la
             // ejecutiva segun el caso y lo escribe en el texto del correo.
           ]

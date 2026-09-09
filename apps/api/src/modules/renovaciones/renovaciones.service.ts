@@ -471,12 +471,27 @@ export class RenovacionesService {
     const limite = r.fechaRenovacion ? new Date(r.fechaRenovacion) : null
     if (limite) limite.setUTCDate(limite.getUTCDate() - 7)
 
-    const prima = money(r.valorRenovacion)
+    /**
+     * En el correo va la MENSUALIDAD, no la prima anual.
+     *
+     * El valor se carga anual —es como llega de la aseguradora— pero el cliente
+     * razona en lo que le sale cada mes: leer "USD 900" asusta y "USD 75" es la
+     * cifra real de su presupuesto.
+     */
+    const anual = r.valorRenovacion ? Number(r.valorRenovacion) : null
+    const mensual = anual === null ? null : anual / 12
+
+    const prima = mensual === null ? '' : mensual.toFixed(2)
+
     // El 5% solo lo ofrece BMI. Incluirlo en otra aseguradora sería prometerle
     // al cliente algo que no existe.
+    //
+    // El descuento se calcula sobre la mensualidad, para que las dos cifras del
+    // correo estén en la misma unidad: sin esto se compararía una prima mensual
+    // con un descuento anual.
     const conDescuento =
-      ofreceDescuento(r.poliza?.aseguradora) && r.valorRenovacion
-        ? (Number(r.valorRenovacion) * 0.95).toFixed(2)
+      ofreceDescuento(r.poliza?.aseguradora) && mensual !== null
+        ? (mensual * 0.95).toFixed(2)
         : null
 
     return {

@@ -565,7 +565,18 @@ export class RenovacionesService {
         r.poliza?.cliente?.apellidos ?? '',
       )}`,
       texto: dto.texto,
-      ejecutivaNombre: ejecutiva?.name ?? null,
+      /**
+       * En renovaciones NO va el nombre de quien envia.
+       *
+       * El correo lo firma Fidelizacion, y la firma de imagen del pie ya dice
+       * Gianella Pozo. Poner arriba "Pablo Carrillo" o "Roxana Aviles" —quien
+       * haya pulsado enviar— contradice la firma de abajo y confunde al cliente
+       * sobre a quien responderle.
+       *
+       * Quien envio queda registrado en la nota de la renovacion, que es donde
+       * hace falta para el control interno.
+       */
+      ejecutivaNombre: null,
       // Copias del correo.
       //
       // Siempre va comercial@priority.ec: es la constancia de la empresa de que

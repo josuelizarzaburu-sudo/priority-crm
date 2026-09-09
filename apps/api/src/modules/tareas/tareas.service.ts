@@ -76,8 +76,15 @@ export class TareasService {
     // mal las tareas de otras personas.
     const condiciones: any[] = []
 
+    /**
+     * El alcance se agrega COMPLETO, no solo su OR.
+     *
+     * Antes se miraba unicamente `alcance.OR`, asi que las vistas "mias" y
+     * "pedidas" —que devuelven asignadoId o solicitanteId, sin OR— se ignoraban
+     * y las dos pestañas mostraban lo mismo.
+     */
     const alcance = this.alcance(userId, role, query.vista)
-    if (alcance.OR) condiciones.push({ OR: alcance.OR })
+    if (Object.keys(alcance).length) condiciones.push(alcance)
 
     // Filtrar por persona solo tiene sentido para quien ve todas.
     if (query.asignadoId && VE_TODAS.includes(role)) {

@@ -125,6 +125,56 @@ function moverMes(ancla: string, delta: number): string {
 
 const DIAS_SEMANA = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
+/**
+ * Campo para comentar una tarea.
+ *
+ * Va en su PROPIO componente con su propio estado. Antes el texto vivia en el
+ * estado de la pagina, asi que cada letra volvia a dibujar toda la lista y el
+ * campo perdia el foco: habia que hacer clic despues de cada caracter.
+ */
+function CampoComentario({
+  onEnviar,
+  enviando,
+}: {
+  onEnviar: (texto: string) => void
+  enviando: boolean
+}) {
+  const [texto, setTexto] = useState('')
+
+  const enviar = () => {
+    const t = texto.trim()
+    if (!t) return
+    onEnviar(t)
+    setTexto('')
+  }
+
+  return (
+    <div className="flex gap-1.5">
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            enviar()
+          }
+        }}
+        placeholder="Escribe un comentario…"
+        className="h-7 flex-1 rounded-md border bg-background px-2 text-xs"
+      />
+      <button
+        type="button"
+        onClick={enviar}
+        disabled={!texto.trim() || enviando}
+        className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
+        style={{ color: NAVY }}
+      >
+        Enviar
+      </button>
+    </div>
+  )
+}
+
 export function TareasPage() {
   const qc = useQueryClient()
   const { data: session } = useSession()
@@ -261,16 +311,10 @@ export function TareasPage() {
     onError: fallo,
   })
 
-  /** Comentario que se está escribiendo, por tarea. */
-  const [comentando, setComentando] = useState<Record<string, string>>({})
-
   const comentar = useMutation({
     mutationFn: ({ id, texto }: { id: string; texto: string }) =>
       api.post(`/tareas/${id}/comentarios`, { texto }),
-    onSuccess: (_d, v) => {
-      setComentando((c) => ({ ...c, [v.id]: '' }))
-      refrescar()
-    },
+    onSuccess: () => refrescar(),
     onError: fallo,
   })
 
@@ -438,33 +482,10 @@ export function TareasPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-1.5">
-                <input
-                  value={comentando[t.id] ?? ''}
-                  onChange={(e) => setComentando((c) => ({ ...c, [t.id]: e.target.value }))}
-                  onKeyDown={(e) => {
-                    // Enter envía: escribir un comentario y tener que buscar el
-                    // botón con el ratón rompe el ritmo.
-                    if (e.key === 'Enter' && (comentando[t.id] ?? '').trim()) {
-                      comentar.mutate({ id: t.id, texto: comentando[t.id] })
-                    }
-                  }}
-                  placeholder="Escribe un comentario…"
-                  className="h-7 flex-1 rounded-md border bg-background px-2 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    (comentando[t.id] ?? '').trim() &&
-                    comentar.mutate({ id: t.id, texto: comentando[t.id] })
-                  }
-                  disabled={!(comentando[t.id] ?? '').trim() || comentar.isPending}
-                  className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
-                  style={{ color: NAVY }}
-                >
-                  Enviar
-                </button>
-              </div>
+              <CampoComentario
+                enviando={comentar.isPending}
+                onEnviar={(texto) => comentar.mutate({ id: t.id, texto })}
+              />
             </div>
           )}
 

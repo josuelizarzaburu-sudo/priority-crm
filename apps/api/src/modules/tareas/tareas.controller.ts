@@ -91,6 +91,7 @@ export class TareasController {
     return this.service.findAll(req.user.organizationId, req.user.id, req.user.role, {
       asignadoId,
       incluirCompletadas,
+      vista,
     })
   }
 

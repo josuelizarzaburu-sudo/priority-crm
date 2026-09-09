@@ -988,9 +988,25 @@ export function TareasPage() {
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : tareas.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-12 text-center">
+        /* Se dice POR QUE esta vacia y donde mirar: un "no hay nada" a secas
+           hace pensar que se perdieron las tareas. */
+        <div className="rounded-xl border border-dashed px-6 py-12 text-center">
           <Inbox className="mx-auto h-8 w-8 text-muted-foreground/40" />
-          <p className="mt-3 text-sm text-muted-foreground">No tienes tareas pendientes.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {vista === 'mias'
+              ? 'No tienes tareas asignadas a ti.'
+              : vista === 'pedidas'
+                ? 'No has pedido tareas a otras personas.'
+                : 'No hay tareas pendientes en el equipo.'}
+          </p>
+          {vista !== 'todas' && (
+            <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground">
+              {vista === 'mias'
+                ? 'Las que pediste a otros están en «Que pedí a otros».'
+                : 'Las que te asignaron están en «Asignadas a mí».'}
+              {puedeAsignar && ' Para ver todo el equipo, usa «Todas del equipo».'}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-5">

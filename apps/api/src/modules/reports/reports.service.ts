@@ -553,7 +553,9 @@ export class ReportsService {
           diferidoEspecial: num(r.diferidoEspecial),
           estado: r.estado,
           envio: r.envio,
-          comentario: r.notas ?? null,
+          // El comentario suelto de la renovacion se llama "comentarios".
+          // "notas" es la lista de notas con autor y fecha, que es otra cosa.
+          comentario: r.comentarios ?? null,
         }
       })
       .filter((f) => (query.tipo ? f.tipo === query.tipo : true))

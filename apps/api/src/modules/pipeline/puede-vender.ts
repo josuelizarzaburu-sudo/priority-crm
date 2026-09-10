@@ -24,6 +24,15 @@
 export const ROLES_OPERACIONES = ['OPERACIONES', 'JEFE_OPERACIONES']
 
 /**
+ * Gerencia: reparte leads Y vende.
+ *
+ * No entra en soloVeSusNegocios —siguen viendo todo el pipeline— pero si en
+ * creaNegociosPropios: lo que crean sin asignar a nadie es suyo, y necesitan
+ * "Mi Pipeline" para llevar su propia cartera.
+ */
+export const GERENCIA = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
+/**
  * ¿Este usuario esta limitado a sus propios negocios?
  *
  * Ojo con el orden: si el rol no es de Operaciones, `puedeVender` se ignora a
@@ -50,6 +59,11 @@ export function soloVeSusNegocios(role: string, puedeVender?: boolean): boolean 
 export function creaNegociosPropios(role: string, puedeVender?: boolean): boolean {
   if (role === 'SALES_REP') return true
   if (role === 'JEFE_EQUIPO') return true
+  // Gerencia tambien vende: Josue y Pablo llevan sus propios clientes ademas de
+  // repartir. Lo que crean sin elegir vendedor es suyo, igual que a un jefe de
+  // equipo, y no por eso pierden la vista completa del pipeline —eso lo decide
+  // soloVeSusNegocios, que es otra pregunta.
+  if (GERENCIA.includes(role)) return true
   if (puedeVender === true && ROLES_OPERACIONES.includes(role)) return true
   return false
 }

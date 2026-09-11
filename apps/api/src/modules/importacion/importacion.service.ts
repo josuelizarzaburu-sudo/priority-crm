@@ -15,6 +15,13 @@ import { revisarIdentificacion } from '../../common/identificacion'
 
 /** Una fila del Excel, ya con los nombres de columna normalizados. */
 export interface FilaExcel {
+  /** Campos del vehiculo: solo vienen en las polizas de auto. */
+  placa?: string
+  marca?: string
+  modelo?: string
+  anioVehiculo?: string | number
+  sumaAsegurada?: string | number
+
   compania?: string
   numeroContrato?: string
   tipoSeguro?: string
@@ -43,6 +50,7 @@ export interface FilaExcel {
   formaPago?: string
   frecuenciaPago?: string
   origen?: string
+  vieneDeOtroSeguro?: string
 }
 
 const t = (v: unknown): string =>
@@ -365,7 +373,24 @@ export class ImportacionService {
 
       const dependientes = miembros.filter((m) => m !== titular)
       const d = titular.datos
-      const { nombres, apellidos } = partirNombre(d.nombreCompleto ?? '')
+
+      /**
+       * Empresas: el nombre va COMPLETO en nombres, sin partir.
+       *
+       * "BIO RESEARCH S.A." no tiene nombres y apellidos que separar, y partirlo
+       * daria "S.A." como apellido. Se detecta por el tipo de cliente o por el
+       * RUC —13 digitos terminados en 001— que es como se identifica a una
+       * empresa en Ecuador.
+       */
+      const cedulaCruda = t(d.cedula)
+      const esEmpresa =
+        mayus(d.tipoCliente) === 'CORPORATIVO' ||
+        /^\d{13}$/.test(cedulaCruda) ||
+        /\b(S\.?A\.?|CIA|LTDA|C\.?L\.?|CORP|COMPANIA)\b/.test(mayus(d.nombreCompleto))
+
+      const { nombres, apellidos } = esEmpresa
+        ? { nombres: mayus(d.nombreCompleto), apellidos: '' }
+        : partirNombre(d.nombreCompleto ?? '')
 
       if (!nombres && !apellidos) {
         avisos.push({ fila: titular.fila, nivel: 'error', texto: 'Sin nombre: la fila se omite' })
@@ -413,9 +438,12 @@ export class ImportacionService {
         direccion: mayus(d.direccion) || null,
         genero: mayus(d.genero).startsWith('F') ? 'FEMENINO' : mayus(d.genero).startsWith('M') ? 'MASCULINO' : null,
         fechaNacimiento: fecha(d.fechaNacimiento),
-        empresa: mayus(d.empresa) || null,
-        tipoCliente: mayus(d.tipoCliente) || null,
+        // En una empresa, la razon social va tambien en el campo empresa: es
+        // por donde se busca.
+        empresa: mayus(d.empresa) || (esEmpresa ? mayus(d.nombreCompleto) : null),
+        tipoCliente: mayus(d.tipoCliente) || (esEmpresa ? 'CORPORATIVO' : 'INDIVIDUAL'),
         referidoDe: mayus(d.referidoDe) || null,
+        vieneDeOtroSeguro: mayus(d.vieneDeOtroSeguro) || null,
         contactoSugerido: mayus(d.personaContacto) || null,
         agenteNombre: agenteTexto || null,
         agenteId: agenteUsuario?.id ?? null,
@@ -451,6 +479,13 @@ export class ImportacionService {
         agenteNombre: agenteTexto || null,
         agenteId: agenteUsuario?.id ?? null,
         fechaEmision: fecha(d.fechaEmision),
+        // Datos del vehiculo. Solo se guardan si vienen: en una poliza de salud
+        // no existen y dejarlos en blanco es lo correcto.
+        ...(t(d.placa) ? { placa: mayus(d.placa) } : {}),
+        ...(t(d.marca) ? { marca: mayus(d.marca) } : {}),
+        ...(t(d.modelo) ? { modelo: mayus(d.modelo) } : {}),
+        ...(numero(d.anioVehiculo) ? { anio: numero(d.anioVehiculo) } : {}),
+        ...(numero(d.sumaAsegurada) ? { sumaAsegurada: numero(d.sumaAsegurada) } : {}),
         // El enum EstadoPoliza no tiene "VIGENTE": sus valores son NUEVO,
         // RENOVADO, CARTA_DE_NOMBRAMIENTO y CANCELADA. La base historica son
         // polizas que ya venian de antes, asi que entran como RENOVADO.

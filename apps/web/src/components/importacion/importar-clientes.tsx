@@ -47,6 +47,33 @@ const COLUMNAS: Record<string, string> = {
   'FORMA DE PAGO': 'formaPago',
   'FRECUENCIA DE PAGO': 'frecuenciaPago',
   'ORIGEN - AGENTE PROPIO - PRIORITY - PRIORITY HEALTH': 'origen',
+
+  /**
+   * Nombres alternativos, del archivo de vehiculos y hogar.
+   *
+   * Cada aseguradora exporta con sus propios encabezados. En vez de pedir que
+   * los renombren a mano antes de subir —que se olvida y se equivoca— se
+   * reconocen las dos formas.
+   */
+  'NOMBRE ASEGURADO': 'nombreCompleto',
+  'N CONTRATO': 'numeroContrato',
+  'PRIMA EMITIDA': 'primaAnual',
+  'FECHA VIGENCIA': 'fechaEmision',
+  'ASEGURADO DESDE': 'fechaEmision',
+  CUDAD: 'ciudad', // asi viene escrito en el archivo de Atlantida
+  CORREO: 'correo',
+  ORIGEN: 'origen',
+
+  ASEGURADORA: 'compania',
+  'FECHA DE NACIMIENTO': 'fechaNacimiento',
+  'VIENE DE OTRO SEGURO': 'vieneDeOtroSeguro',
+
+  // Datos del vehiculo.
+  PLACA: 'placa',
+  MARCA: 'marca',
+  MODELO: 'modelo',
+  'AÑO VEHICULO': 'anioVehiculo',
+  'SUMA ASEGURADA': 'sumaAsegurada',
 }
 
 const normalizar = (s: string) =>

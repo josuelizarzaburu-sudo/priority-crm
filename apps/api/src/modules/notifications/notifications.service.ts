@@ -285,13 +285,11 @@ export class NotificationsService {
     return `
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
-    <div style="background:#0C2057;padding:32px 24px;text-align:center;">
-      <!-- Mas grande que antes (era 20px): es el titulo del correo y lo primero
-           que ve el cliente al abrirlo. -->
-      <p style="margin:0;color:#DBAA59;font-size:30px;font-weight:bold;letter-spacing:0.3px;">
-        Bienvenido a Priority
-      </p>
-    </div>
+    <!-- Cabecera de emision, de la plantilla de Canva: "¡Gracias por confiar en
+         nosotros!". Solo la imagen; el texto va en HTML debajo. -->
+    <img src="https://priority.ec/img/correo-emision.png"
+         alt="Priority Asesores de Seguros — Siempre contigo"
+         style="width:100%;height:auto;display:block;border:0;" />
     <div style="padding:28px 26px;">
       ${cuerpo}
       ${
@@ -302,9 +300,10 @@ export class NotificationsService {
              </p>`
           : ''
       }
-      <!-- La bienvenida NO lleva la firma de Fidelizacion: la envia la
-           ejecutiva de cuenta del cliente, cuyo nombre ya va arriba. -->
     </div>
+    <img src="https://priority.ec/img/correo-pie.png"
+         alt="Av. de los Shyris N35-174 y Suecia, Edificio Renazzo Plaza, oficina 905 — www.priority.ec"
+         style="width:100%;height:auto;display:block;border:0;" />
   </div>
 </body>`
   }
@@ -330,11 +329,9 @@ export class NotificationsService {
     const html = `
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
-    <div style="background:#0C2057;padding:32px 24px;text-align:center;">
-      <p style="margin:0;color:#DBAA59;font-size:30px;font-weight:bold;letter-spacing:0.3px;">
-        Bienvenido a Priority
-      </p>
-    </div>
+    <img src="https://priority.ec/img/correo-emision.png"
+         alt="Priority Asesores de Seguros — Siempre contigo"
+         style="width:100%;height:auto;display:block;border:0;" />
     <div style="padding:28px 26px;color:#25324b;font-size:15px;line-height:1.7;">
       <p style="margin:0 0 16px;">Estimad${data.tratamiento === 'Sra.' ? 'a' : 'o'} ${e(data.tratamiento)} ${e(data.nombreCompleto)},</p>
 
@@ -455,14 +452,14 @@ export class NotificationsService {
     const html = `
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
-    <div style="background:#0C2057;padding:22px 24px;text-align:center;">
-      <!-- Va el mismo texto del asunto —"Renovación Plan Médico - Nombre
-           Apellido"— en vez de un titulo generico: asi la cabecera del correo
-           dice de quien es, igual que en la bandeja de entrada. -->
-      <p style="margin:0;color:#DBAA59;font-size:22px;font-weight:bold;">${this.escape(
-        data.asunto,
-      )}</p>
-    </div>
+    <!-- Cabecera de la plantilla de Canva.
+         Solo la cabecera y el pie son imagen: el texto del medio va en HTML para
+         que el cliente pueda copiar su numero de poliza, se lea aunque tenga las
+         imagenes bloqueadas —que muchos clientes de correo hacen por defecto— y
+         no se marque como promocion. -->
+    <img src="https://priority.ec/img/correo-renovacion.png"
+         alt="Priority Asesores de Seguros — Siempre contigo"
+         style="width:100%;height:auto;display:block;border:0;" />
     <div style="padding:28px 26px;color:#25324b;font-size:15px;line-height:1.7;">
       ${parrafos}
       ${
@@ -476,11 +473,10 @@ export class NotificationsService {
       <!-- Firma institucional. Se referencia por URL y no se adjunta: incrustarla
            haria el correo mucho mas pesado y algunos clientes de correo la
            mostrarian como archivo adjunto en vez de como imagen. -->
-      <p style="margin:20px 0 0;">
-        <img src="https://priority.ec/img/firma-priority.png" alt="Priority Asesores de Seguros"
-             style="max-width:340px;width:100%;height:auto;display:block;border:0;" />
-      </p>
     </div>
+    <img src="https://priority.ec/img/correo-pie.png"
+         alt="Av. de los Shyris N35-174 y Suecia, Edificio Renazzo Plaza, oficina 905 — www.priority.ec"
+         style="width:100%;height:auto;display:block;border:0;" />
   </div>
 </body>`
 

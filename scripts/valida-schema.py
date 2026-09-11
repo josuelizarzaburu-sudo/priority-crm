@@ -40,12 +40,27 @@ for n, c in modelos.items():
         nombradas.setdefault(destino, []).append((n, nombre))
 
 for n, c in modelos.items():
+    # Relaciones CON NOMBRE: la inversa se busca por ese nombre.
     for tipo, nombre in re.findall(r'^\s*\w+\s+(\w+)\[?\]?\??\s+@relation\("(\w+)"', c, re.M):
         if tipo not in modelos:
             continue
-        # el otro modelo debe declarar una relacion con el mismo nombre
         if f'@relation("{nombre}"' not in modelos[tipo]:
             err.append(f'{n}: la relacion "{nombre}" hacia {tipo} no tiene inversa en {tipo}')
+
+    # Relaciones SIN nombre: el otro modelo tiene que declarar este tipo.
+    #
+    # Esto es lo que fallo con Emision -> Poliza: la relacion no lleva nombre, y
+    # la comprobacion anterior solo miraba las nombradas.
+    for campo, tipo in re.findall(
+        r'^\s*(\w+)\s+(\w+)\??\s+@relation\(fields:', c, re.M
+    ):
+        if tipo not in modelos:
+            continue
+        # en el otro modelo debe haber un campo de este tipo (lista o singular)
+        if not re.search(rf'^\s*\w+\s+{n}(\[\]|\?)?\s', modelos[tipo], re.M):
+            err.append(
+                f'{n}: la relacion "{campo}" hacia {tipo} no tiene inversa en {tipo}'
+            )
 
 if err:
     print('SCHEMA CON ERRORES:')

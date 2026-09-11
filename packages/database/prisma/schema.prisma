@@ -1334,6 +1334,7 @@ model Poliza {
   dependientes    PolizaDependiente[]
 
   renovaciones    Renovacion[]
+  emision         Emision?
 
   @@index([clienteId])
   @@index([organizationId, aseguradora])

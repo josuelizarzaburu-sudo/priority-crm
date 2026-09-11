@@ -38,6 +38,7 @@ import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+import { BloqueInspeccion } from './bloque-inspeccion'
 import { LeadOriginBadge } from './lead-origin-badge'
 import { WhatsappChat } from './whatsapp-chat'
 
@@ -593,6 +594,22 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   const additionalContacts = (deal?.customFields?.additionalContacts as AdditionalContact[]) ?? []
   const complementaryNotesUpdatedAt = deal?.customFields?.complementaryNotesUpdatedAt as string | undefined
   const insuranceEntries = toInsuranceEntries(deal?.customFields?.insuranceData)
+
+  /**
+   * ¿Es un negocio de vehículos?
+   *
+   * Se mira el ramo de los datos del seguro y, si todavía no se capturaron, el
+   * interés que se anotó al crear el lead: la inspección se pide ANTES de tener
+   * la póliza armada, así que esperar a los datos del seguro llegaría tarde.
+   */
+  const esVehiculo = ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(
+    String((deal?.customFields as any)?.insuranceType ?? '').toUpperCase(),
+  )
+
+  /** Fidelización y gerencia registran el resultado; el comercial solo envía. */
+  const puedeResolverInspeccion = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES', 'OPERACIONES'].includes(
+    userRole,
+  )
 
   return (
     <>
@@ -1534,6 +1551,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                       </SelectContent>
                     </Select>
                   </div>
+                </>
+              )}
+
+              {/* Inspeccion: SOLO en vehiculos. En salud este paso no existe y
+                  mostrarlo seria ruido para quien vende planes medicos. */}
+              {esVehiculo && dealId && (
+                <>
+                  <Separator />
+                  <BloqueInspeccion dealId={dealId} puedeResolver={puedeResolverInspeccion} />
                 </>
               )}
 

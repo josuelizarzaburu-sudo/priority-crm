@@ -46,6 +46,37 @@ export class InspeccionesService {
     private readonly notificaciones: NotificacionesService,
   ) {}
 
+  /**
+   * Todas las inspecciones, para la bandeja de Fidelización.
+   *
+   * Hacía falta: el bloque del panel sirve al comercial, pero Gianella no anda
+   * por el pipeline abriendo negocios ajenos. Necesita su propia lista de lo que
+   * tiene pendiente.
+   */
+  async listar(organizationId: string, role: string, estado?: string) {
+    if (!PUEDE_RESOLVER.includes(role)) {
+      throw new ForbiddenException('No tienes acceso a las inspecciones')
+    }
+
+    return this.prisma.inspeccion.findMany({
+      where: { organizationId, ...(estado ? { estado } : {}) },
+      include: {
+        deal: {
+          select: {
+            id: true,
+            title: true,
+            contact: { select: { firstName: true, lastName: true, phone: true } },
+            assignedTo: { select: { name: true } },
+          },
+        },
+        notas: { orderBy: { createdAt: 'desc' }, take: 3 },
+      },
+      // Las que están de inspección primero: es la bandeja de trabajo.
+      orderBy: [{ estado: 'asc' }, { enviadaEn: 'desc' }],
+      take: 200,
+    })
+  }
+
   /** La inspección de un deal, si existe. */
   async porDeal(dealId: string, organizationId: string) {
     return this.prisma.inspeccion.findFirst({

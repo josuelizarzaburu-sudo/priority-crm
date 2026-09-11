@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { InspeccionesService, type EstadoInspeccion } from './inspecciones.service'
@@ -9,6 +9,12 @@ import { InspeccionesService, type EstadoInspeccion } from './inspecciones.servi
 @Controller('inspecciones')
 export class InspeccionesController {
   constructor(private readonly service: InspeccionesService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Bandeja de inspecciones. Solo Fidelización.' })
+  listar(@Req() req: any, @Query('estado') estado?: string) {
+    return this.service.listar(req.user.organizationId, req.user.role, estado)
+  }
 
   @Get('deal/:dealId')
   @ApiOperation({ summary: 'Inspección de un negocio, con su bitácora' })

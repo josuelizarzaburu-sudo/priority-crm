@@ -419,6 +419,11 @@ export function MyPipelineBoard() {
       />
 
       <WonDealModal
+        // El ramo del lead preselecciona el del cierre.
+        ramoDelLead={
+          (localDeals.find((d: any) => d.id === pendingMove?.dealId) as any)?.customFields
+            ?.insuranceType
+        }
         open={showWonModal}
         onConfirm={handleWonConfirm}
         onCancel={() => { setShowWonModal(false); setPendingMove(null) }}

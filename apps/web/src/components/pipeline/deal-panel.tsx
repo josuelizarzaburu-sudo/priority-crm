@@ -684,6 +684,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           onCancel={() => setShowWonModal(false)}
           loading={moveStage.isPending}
           datosIniciales={insuranceEntries as any}
+          // El ramo del lead preselecciona el del cierre: sin esto el modal
+          // arrancaba en Salud y un auto se cerraba como salud.
+          ramoDelLead={(deal?.customFields as any)?.insuranceType}
           // Datos del contacto que tambien viajan a la ficha del cliente. Se
           // piden dentro del modal para no obligar a salir, llenarlos en el
           // panel y volver.

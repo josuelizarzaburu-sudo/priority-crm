@@ -117,6 +117,14 @@ interface WonDealModalProps {
    * Se piden AQUI y no en el panel del lead para no obligar a salir del modal,
    * llenarlos y volver. El comercial completa todo de una vez.
    */
+  /**
+   * Ramo del lead, elegido al crearlo.
+   *
+   * El modal arrancaba SIEMPRE en Salud, asi que un lead de vehiculo se cerraba
+   * como salud si nadie tocaba el desplegable: el sistema no sabia que era un
+   * auto y no exigia la inspeccion.
+   */
+  ramoDelLead?: string | null
   contacto?: {
     email?: string
     direccion?: string
@@ -141,6 +149,7 @@ export function WonDealModal({
   loading,
   modo = 'cerrar',
   datosIniciales,
+  ramoDelLead,
   contacto,
   onGuardarContacto,
 }: WonDealModalProps) {
@@ -158,6 +167,15 @@ export function WonDealModal({
     if (!open) return
     // Se precargan los datos que ya tenga el contacto: si el correo ya estaba,
     // no hay que volver a escribirlo.
+    // El ramo del lead manda sobre el valor por defecto.
+    const ramoInicial = ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(
+      String(ramoDelLead ?? '').toUpperCase(),
+    )
+      ? 'AUTO'
+      : ['VIDA', 'HOGAR'].includes(String(ramoDelLead ?? '').toUpperCase())
+        ? (String(ramoDelLead).toUpperCase() as RamoId)
+        : 'SALUD'
+
     setEmail(contacto?.email ?? '')
     setDireccion(contacto?.direccion ?? '')
     setFechaNacimiento(contacto?.fechaNacimiento?.slice(0, 10) ?? '')
@@ -186,7 +204,7 @@ export function WonDealModal({
       )
       setNotaOperaciones(previos.map((d) => d.notaOperaciones).find(Boolean) ?? '')
     } else {
-      setEntries([emptyEntry()])
+      setEntries([{ ...emptyEntry(), ramo: ramoInicial }])
       setNotaOperaciones('')
     }
     // Se recarga solo al abrir, para no pisar lo que el usuario esta escribiendo.

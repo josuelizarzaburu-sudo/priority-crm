@@ -306,14 +306,32 @@ export class InspeccionesService {
    * venta que después se cae.
    */
   async puedeCerrar(dealId: string, organizationId: string) {
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: dealId, organizationId },
+      select: { customFields: true, createdAt: true },
+    })
+    const ramo = String((deal?.customFields as any)?.insuranceType ?? '').toUpperCase()
+    const esVehiculo = ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(ramo)
+
     const inspeccion = await this.prisma.inspeccion.findFirst({
       where: { dealId, organizationId },
       select: { estado: true, observacion: true },
     })
 
-    // Sin inspección registrada no se bloquea: puede ser un deal de salud, o de
-    // auto cargado antes de que existiera este flujo.
-    if (!inspeccion) return { puede: true as const }
+    if (!inspeccion) {
+      // Un vehículo SIN inspección tampoco se puede cerrar: la aseguradora no
+      // emite sin ella, y dejarlo pasar era el hueco que permitía ganar el deal
+      // sin haberla pedido nunca.
+      if (esVehiculo) {
+        return {
+          puede: false as const,
+          motivo:
+            'Este negocio es de vehículo y todavía no se ha enviado la inspección. Envíala desde el panel del negocio.',
+        }
+      }
+      // En los demás ramos no aplica.
+      return { puede: true as const }
+    }
 
     if (inspeccion.estado === 'APROBADO') return { puede: true as const }
 

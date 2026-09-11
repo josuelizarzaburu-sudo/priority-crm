@@ -1007,6 +1007,20 @@ export class PipelineService {
 
     // Belt-and-suspenders: if value is missing, sync from insuranceData (array or object) or prima
     const cfPrima     = (deal.customFields as any)?.prima
+    /**
+     * En vehiculos, la inspeccion tiene que estar aprobada.
+     *
+     * Va tambien aqui y no solo en moveStage: son DOS caminos distintos para
+     * ganar un deal —el boton "Ganado" del panel y arrastrar la tarjeta— y
+     * validarlo en uno solo deja el otro abierto, que es lo que paso.
+     */
+    if (dto.status === 'WON') {
+      const inspeccion = await this.inspecciones.puedeCerrar(id, organizationId)
+      if (!inspeccion.puede) {
+        throw new ForbiddenException(inspeccion.motivo)
+      }
+    }
+
     const rawIns      = (deal.customFields as any)?.insuranceData
     let cfNetPremium: number | undefined
     if (Array.isArray(rawIns)) {

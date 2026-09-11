@@ -42,6 +42,7 @@ model Organization {
   tareas         Tarea[]
   cursos         Curso[]
   notificaciones  Notificacion[]
+  inspecciones    Inspeccion[]
 
   @@map("organizations")
 }
@@ -463,6 +464,60 @@ model Tarea {
   @@map("tareas")
 }
 
+/// Inspeccion de un vehiculo, previa al cierre de la venta.
+///
+/// En autos el proceso es distinto al de salud: el vehiculo tiene que pasar una
+/// inspeccion ANTES de poder ganar el deal. No es trabajo posterior como la
+/// bienvenida, es un requisito del cierre.
+model Inspeccion {
+  id          String  @id @default(cuid())
+  dealId      String  @unique
+  /// DE_INSPECCION, APROBADO, RECHAZADO_DEFINITIVO, RECHAZADO_OBSERVACION
+  estado      String  @default("DE_INSPECCION")
+  aseguradora String?
+
+  marca  String?
+  modelo String?
+  anio   Int?
+  placa  String?
+
+  enviadaEn    DateTime?
+  enviadaPorId String?
+
+  resueltaEn  DateTime?
+  /// Por que se rechazo, o que hay que reparar para reinspeccionar.
+  observacion String?
+  /// Cuantas veces se inspecciono. Se cuenta aqui en vez de crear filas nuevas,
+  /// para que el historial quede en un solo sitio.
+  intentos    Int       @default(1)
+
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  deal         Deal            @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notas        InspeccionNota[]
+
+  @@index([organizationId, estado])
+  @@map("inspecciones")
+}
+
+/// Bitacora de la inspeccion: cada envio y cada respuesta.
+model InspeccionNota {
+  id           String   @id @default(cuid())
+  inspeccionId String
+  texto        String
+  autorId      String?
+  autorNombre  String?
+  createdAt    DateTime @default(now())
+
+  inspeccion Inspeccion @relation(fields: [inspeccionId], references: [id], onDelete: Cascade)
+
+  @@index([inspeccionId, createdAt])
+  @@map("inspeccion_notas")
+}
+
 /// Un comentario en una tarea.
 ///
 /// Mismo patron que NotaRequerimiento y NotaRenovacion: quien escribio, que y
@@ -649,6 +704,7 @@ model Deal {
   equipo           Equipo?          @relation("EquipoDeals", fields: [equipoId], references: [id], onDelete: SetNull)
   activities       Activity[]
   whatsappMessages WhatsappMessage[]
+  inspeccion      Inspeccion?
 
   @@index([organizationId])
   @@index([stageId, position])

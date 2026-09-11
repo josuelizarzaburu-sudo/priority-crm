@@ -23,6 +23,7 @@ const PUEDEN_PERDER_LEADS_REPARTIDOS = ['SUPER_ADMIN', 'OWNER']
 import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 import { NotificacionesService } from '../notificaciones/notificaciones.service'
+import { InspeccionesService } from '../inspecciones/inspecciones.service'
 
 /**
  * Mayusculas con locale español, para que ñ y acentos salgan bien.
@@ -97,6 +98,7 @@ export class PipelineService {
     private readonly notifications: NotificationsService,
     private readonly equipos: EquiposService,
     private readonly notificaciones: NotificacionesService,
+    private readonly inspecciones: InspeccionesService,
     private readonly clientes: ClientesService,
   ) {}
 
@@ -1261,6 +1263,18 @@ export class PipelineService {
           problemas.push(`${texto(e.holderName) || `Cliente ${i + 1}`}: ${faltan.join(', ')}`)
         }
       })
+      /**
+       * En vehiculos, la inspeccion tiene que estar aprobada.
+       *
+       * La aseguradora no emite la poliza sin ella, asi que dar el deal por
+       * ganado antes solo adelanta una venta que despues se cae. Se comprueba
+       * aqui, donde ya se validan los demas datos del cierre.
+       */
+      const inspeccion = await this.inspecciones.puedeCerrar(id, organizationId)
+      if (!inspeccion.puede) {
+        throw new ForbiddenException(inspeccion.motivo)
+      }
+
       if (problemas.length) {
         throw new ForbiddenException(
           `Faltan datos para cerrar la venta — ${problemas.join(' · ')}`,

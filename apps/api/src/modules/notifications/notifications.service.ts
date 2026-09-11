@@ -502,7 +502,13 @@ export class NotificationsService {
     email: string
     asunto: string
     mensaje: string
-  }): Promise<void> {
+    /**
+     * Adjuntos. Viajan en el correo y no se guardan: el CRM no almacena
+     * archivos, y para una solicitud de inspeccion basta con que lleguen.
+     */
+    adjuntos?: { filename: string; content: string }[]
+    // Devuelve si salio, para poder avisar cuando no.
+  }): Promise<{ ok: boolean; id?: string; error?: string }> {
     const html = `
 <body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
@@ -514,7 +520,7 @@ export class NotificationsService {
     )}</div>
   </div>
 </body>`
-    await this.sendEmail(data.email, data.asunto, html)
+    return this.sendEmail(data.email, data.asunto, html, FROM, undefined, data.adjuntos)
   }
 
   async enviarCorreoCumpleanos(data: { email: string; saludo: string }): Promise<void> {

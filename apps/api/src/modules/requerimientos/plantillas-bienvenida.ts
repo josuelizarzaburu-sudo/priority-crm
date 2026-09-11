@@ -12,6 +12,13 @@
  * plantilla ahorra escribir, no impone lo que se manda.
  */
 
+import {
+  construirCorreoVehiculo,
+  formaPagoVehiculo,
+  type DatosVehiculo,
+  type FormaPagoVehiculo,
+} from './plantillas-vehiculos'
+
 export interface DatosBienvenida {
   /** Cómo se saluda al cliente: nombre preferido, o nada si no se sabe cuál usar. */
   saludo: string
@@ -24,6 +31,12 @@ export interface DatosBienvenida {
   /** Diagnósticos ya declarados, uno por línea. */
   preexistencias?: string | null
   vigenciaDesde?: string | null
+  /** Forma de pago de la póliza, para proponer la variante en vehículos. */
+  formaPago?: string | null
+  /** Datos del vehículo, para las viñetas de la cobertura. */
+  marca?: string | null
+  modelo?: string | null
+  placa?: string | null
 }
 
 export interface PlantillaBienvenida {
@@ -95,7 +108,44 @@ function apertura(d: DatosBienvenida): string {
 
 const CIERRE = 'Priority, siempre contigo.'
 
+/** Adapta los datos a lo que esperan las plantillas de vehículos. */
+function datosVeh(d: DatosBienvenida, formaPago: FormaPagoVehiculo): DatosVehiculo {
+  return {
+    saludo: d.saludo,
+    aseguradora: d.aseguradora ?? '',
+    plan: d.plan ?? null,
+    vehiculo: [d.marca, d.modelo].filter(Boolean).join(' ') || null,
+    placa: d.placa ?? null,
+    vigencia: d.vigenciaDesde ?? null,
+    formaPago,
+  }
+}
+
 export const PLANTILLAS_BIENVENIDA: PlantillaBienvenida[] = [
+  /**
+   * Emisión de vehículos, con el diseño de Canva.
+   *
+   * Tres variantes por forma de pago, que es lo único que cambia entre ellas.
+   * Van primero porque en autos hay una sola ejecutiva y es su caso de siempre.
+   */
+  {
+    id: 'vehiculo-contado',
+    label: 'Vehículo — pago de contado',
+    descripcion: 'Con las cuentas bancarias de la aseguradora',
+    construir: (d) => construirCorreoVehiculo('EMISION', datosVeh(d, 'CONTADO')),
+  },
+  {
+    id: 'vehiculo-tarjeta',
+    label: 'Vehículo — pago con tarjeta',
+    descripcion: 'Con el enlace de pago de la aseguradora',
+    construir: (d) => construirCorreoVehiculo('EMISION', datosVeh(d, 'TARJETA')),
+  },
+  {
+    id: 'vehiculo-debito',
+    label: 'Vehículo — débito bancario',
+    descripcion: 'Débito mensual a cuotas',
+    construir: (d) => construirCorreoVehiculo('EMISION', datosVeh(d, 'DEBITO')),
+  },
   {
     id: 'sin-preexistencias',
     label: 'Sin preexistencias',
@@ -161,13 +211,27 @@ export const PLANTILLAS_BIENVENIDA: PlantillaBienvenida[] = [
  * Si tiene preexistencias cargadas se propone esa; si no, la simple. Es una
  * propuesta, no una decisión: la ejecutiva puede cambiarla.
  */
-export function plantillaSugerida(d: DatosBienvenida): string {
+export function plantillaSugerida(d: DatosBienvenida, tipoPoliza?: string | null): string {
+  // En vehiculos se propone la variante segun como pague, para no tener que
+  // elegirla casi nunca.
+  if (tipoPoliza === 'AUTO' || tipoPoliza === 'VEHICULO') {
+    const f = formaPagoVehiculo(d.formaPago ?? null)
+    return f === 'TARJETA'
+      ? 'vehiculo-tarjeta'
+      : f === 'DEBITO'
+        ? 'vehiculo-debito'
+        : 'vehiculo-contado'
+  }
   return d.preexistencias?.trim() ? 'con-preexistencias' : 'sin-preexistencias'
 }
 
-export function construirTextoBienvenida(plantillaId: string, d: DatosBienvenida): string {
+export function construirTextoBienvenida(
+  plantillaId: string,
+  d: DatosBienvenida,
+  tipoPoliza?: string | null,
+): string {
   const p =
     PLANTILLAS_BIENVENIDA.find((x) => x.id === plantillaId) ??
-    PLANTILLAS_BIENVENIDA.find((x) => x.id === plantillaSugerida(d))!
+    PLANTILLAS_BIENVENIDA.find((x) => x.id === plantillaSugerida(d, tipoPoliza))!
   return p.construir(d)
 }

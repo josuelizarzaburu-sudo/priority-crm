@@ -8,6 +8,12 @@
  * justamente lo que se quiere evitar.
  */
 
+import {
+  construirCorreoVehiculo,
+  type DatosVehiculo,
+  type FormaPagoVehiculo,
+} from '../requerimientos/plantillas-vehiculos'
+
 export interface DatosRenovacion {
   saludo: string
   plan: string
@@ -93,6 +99,26 @@ function cuerpoSalud(
  * La clave combina aseguradora y plan porque BMI tiene cuatro guiones distintos,
  * uno por plan, y cada uno menciona beneficios propios que no se pueden mezclar.
  */
+/**
+ * Adapta los datos de la renovacion a lo que esperan las plantillas de Canva.
+ *
+ * Los datos de la aseguradora —cuentas, enlace de pago, telefonos de
+ * emergencia— quedan como marcadores para que la ejecutiva los pegue: cambian
+ * por compania y tenerlos fijos en el codigo obligaria a un despliegue cada vez
+ * que una cambie una cuenta.
+ */
+function datosVehiculo(d: DatosRenovacion, formaPago: FormaPagoVehiculo): DatosVehiculo {
+  return {
+    saludo: d.saludo.replace(/,$/, ''),
+    aseguradora: d.aseguradora ?? '',
+    plan: d.plan ?? null,
+    vehiculo: [d.marca, d.modelo].filter(Boolean).join(' ') || null,
+    placa: d.placa ?? null,
+    vigencia: d.fechaRenovacion ?? null,
+    formaPago,
+  }
+}
+
 export const PLANTILLAS: Record<
   string,
   { etiqueta: string; armar: (d: DatosRenovacion) => string }
@@ -200,6 +226,28 @@ export const PLANTILLAS: Record<
       ]
         .filter(Boolean)
         .join('\n\n'),
+  },
+  /**
+   * Confirmacion de que la poliza YA se renovo, con el diseño de Canva.
+   *
+   * Distinta de las dos de arriba, que son el aviso PREVIO pidiendo confirmar
+   * el avaluo. Aqui la renovacion ya ocurrio y se le pasan al cliente los datos
+   * de su cobertura y como pagar.
+   *
+   * Tres variantes segun como pague: son los tres bloques de texto que existen.
+   */
+  'AUTO:RENOVADO:CONTADO': {
+    etiqueta: 'Vehículos renovado — pago de contado',
+    armar: (d) =>
+      construirCorreoVehiculo('RENOVACION', datosVehiculo(d, 'CONTADO')),
+  },
+  'AUTO:RENOVADO:TARJETA': {
+    etiqueta: 'Vehículos renovado — pago con tarjeta',
+    armar: (d) => construirCorreoVehiculo('RENOVACION', datosVehiculo(d, 'TARJETA')),
+  },
+  'AUTO:RENOVADO:DEBITO': {
+    etiqueta: 'Vehículos renovado — débito bancario',
+    armar: (d) => construirCorreoVehiculo('RENOVACION', datosVehiculo(d, 'DEBITO')),
   },
   'AUTO:ZURICH': {
     etiqueta: 'Vehículos — Zurich',

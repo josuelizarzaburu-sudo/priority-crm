@@ -315,6 +315,14 @@ export class RequerimientosService {
       ejecutivaEmail: ejecutiva.email,
       ejecutivaCelular: formatearCelular(ejecutiva.phone),
       preexistencias: req.preexistencias,
+      // Para elegir la plantilla: el tipo decide si es de vehiculos, y la forma
+      // de pago cual de las tres variantes.
+      tipoPoliza: poliza.tipo,
+      formaPago: poliza.formaPago,
+      // Datos del vehiculo, que van en las vinetas de la cobertura.
+      marca: poliza.marca,
+      modelo: poliza.modelo,
+      placa: poliza.placa,
     }
   }
 
@@ -345,14 +353,16 @@ export class RequerimientosService {
     // El texto se arma desde una plantilla y viaja EDITABLE, igual que en
     // renovaciones: la plantilla ahorra escribir, no impone lo que se manda.
     const datosPlantilla = this.paraPlantilla(datos, req)
-    const elegida = plantillaId ?? plantillaSugerida(datosPlantilla)
+    // El tipo de poliza decide si se proponen las plantillas de vehiculos.
+    const tipoPoliza = (datos as any).tipoPoliza ?? null
+    const elegida = plantillaId ?? plantillaSugerida(datosPlantilla, tipoPoliza)
 
     return {
       para: datos.email,
       copiaA: datos.ejecutivaEmail,
       asunto: this.notifications.asuntoBienvenida(datos.nombreParaAsunto),
       // Texto plano editable. El html se arma al enviar, con lo que quede aqui.
-      texto: construirTextoBienvenida(elegida, datosPlantilla),
+      texto: construirTextoBienvenida(elegida, datosPlantilla, tipoPoliza),
       plantilla: elegida,
       plantillas: PLANTILLAS_BIENVENIDA.map((p) => ({
         id: p.id,
@@ -384,6 +394,10 @@ export class RequerimientosService {
       ejecutivaCelular: datos.ejecutivaCelular ?? null,
       preexistencias: req?.preexistencias ?? null,
       vigenciaDesde: datos.vigenciaDesde ?? null,
+      formaPago: datos.formaPago ?? null,
+      marca: datos.marca ?? null,
+      modelo: datos.modelo ?? null,
+      placa: datos.placa ?? null,
     }
   }
 

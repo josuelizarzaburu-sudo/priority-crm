@@ -21,6 +21,7 @@ model Organization {
   settings  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  emisiones       Emision[]
 
   users       User[]
   registrosAcceso RegistroAcceso[]
@@ -462,6 +463,39 @@ model Tarea {
   @@index([solicitanteId])
   @@index([clienteId])
   @@map("tareas")
+}
+
+/// Emision de una poliza de vehiculo.
+///
+/// Modulo aparte de Requerimientos a proposito: las emisiones de auto las manda
+/// Gianella y las bienvenidas de salud las ejecutivas de cuenta. Mezclarlas
+/// llenaria la bandeja de cada una con trabajo que no le toca.
+model Emision {
+  id       String  @id @default(cuid())
+  clienteId String
+  polizaId String? @unique
+  /// PENDIENTE o ENVIADA. Dos estados bastan: se manda una vez y se acabo.
+  estado   String  @default("PENDIENTE")
+
+  enviadaEn    DateTime?
+  enviadaPorId String?
+
+  /// Lo que se envio, tal cual: es la constancia de lo que se le dijo al
+  /// cliente, que es lo que hace falta cuando despues pregunta.
+  correoTexto        String?
+  correoDestinatario String?
+  correoPlantilla    String?
+
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  poliza       Poliza?      @relation(fields: [polizaId], references: [id], onDelete: SetNull)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, estado])
+  @@map("emisiones")
 }
 
 /// Inspeccion de un vehiculo, previa al cierre de la venta.
@@ -1231,6 +1265,7 @@ model Cliente {
   agente          User?         @relation("ClienteAgente", fields: [agenteId], references: [id], onDelete: SetNull)
   createdBy       User?         @relation("ClienteCreatedBy", fields: [createdById], references: [id])
   contact         Contact?      @relation(fields: [contactId], references: [id])
+  emisiones       Emision[]
   polizas         Poliza[]
   dependientes    Dependiente[]
   notas_          NotaCliente[]

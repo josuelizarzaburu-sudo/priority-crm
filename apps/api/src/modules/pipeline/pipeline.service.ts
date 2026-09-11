@@ -24,6 +24,7 @@ import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { InspeccionesService } from '../inspecciones/inspecciones.service'
+import { EmisionesService } from '../emisiones/emisiones.service'
 
 /**
  * Mayusculas con locale español, para que ñ y acentos salgan bien.
@@ -99,6 +100,7 @@ export class PipelineService {
     private readonly equipos: EquiposService,
     private readonly notificaciones: NotificacionesService,
     private readonly inspecciones: InspeccionesService,
+    private readonly emisiones: EmisionesService,
     private readonly clientes: ClientesService,
   ) {}
 
@@ -796,7 +798,7 @@ export class PipelineService {
       try {
         const tipo = RAMOS_VALIDOS.includes(e?.ramo) ? e.ramo : 'SALUD'
         const anio = parseInt(e?.anio, 10)
-        await this.prisma.poliza.create({
+        const polizaCreada = await this.prisma.poliza.create({
           data: {
             tipo: tipo as any,
             clienteId,
@@ -823,6 +825,26 @@ export class PipelineService {
               'Datos capturados por el comercial al cerrar el deal. Confirmar contra la póliza emitida.',
           },
         })
+
+        /**
+         * En vehiculos se abre la EMISION, no el requerimiento de bienvenida.
+         *
+         * Son dos mundos: la emision de auto la manda Gianella desde su propio
+         * modulo, y la bienvenida de salud la ejecutiva de cuenta. Abrir la que
+         * no toca llenaria la bandeja de alguien con trabajo ajeno.
+         */
+        if (tipo === 'AUTO') {
+          const cliente = await this.prisma.cliente.findUnique({
+            where: { id: clienteId },
+            select: { nombres: true, apellidos: true },
+          })
+          await this.emisiones.crearParaPoliza(
+            clienteId,
+            polizaCreada.id,
+            organizationId,
+            `${cliente?.nombres ?? ''} ${cliente?.apellidos ?? ''}`.trim(),
+          )
+        }
       } catch (err) {
         // Una poliza que falle no debe tumbar las demas ni el cliente.
         this.logger.error(

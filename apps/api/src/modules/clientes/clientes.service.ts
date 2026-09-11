@@ -748,8 +748,17 @@ export class ClientesService {
       const poliza = await this.prisma.poliza.findFirst({
         where: { clienteId, organizationId },
         orderBy: { createdAt: 'desc' },
-        select: { id: true },
+        select: { id: true, tipo: true },
       })
+
+      /**
+       * En vehiculos NO se abre bienvenida: ese cliente recibe la EMISION, que
+       * manda Gianella desde su modulo.
+       *
+       * Abrir las dos dejaria al cliente recibiendo dos correos parecidos y a
+       * dos personas trabajando sobre lo mismo.
+       */
+      if (poliza?.tipo === 'AUTO') return
 
       // No se duplica la de esta misma poliza.
       const yaExiste = await this.prisma.requerimiento.findFirst({

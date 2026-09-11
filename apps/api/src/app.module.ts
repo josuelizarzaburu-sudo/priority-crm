@@ -34,6 +34,7 @@ import { ReportsModule } from './modules/reports/reports.module'
 import { ImportacionModule } from './modules/importacion/importacion.module'
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module'
 import { InspeccionesModule } from './modules/inspecciones/inspecciones.module'
+import { EmisionesModule } from './modules/emisiones/emisiones.module'
 
 @Module({
   imports: [
@@ -113,6 +114,7 @@ import { InspeccionesModule } from './modules/inspecciones/inspecciones.module'
     ImportacionModule,
     NotificacionesModule,
     InspeccionesModule,
+    EmisionesModule,
   ],
   providers: [
     // El ThrottlerModule estaba configurado pero NUNCA se aplicaba: sin este

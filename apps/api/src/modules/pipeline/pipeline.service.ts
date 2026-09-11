@@ -1015,7 +1015,12 @@ export class PipelineService {
      * validarlo en uno solo deja el otro abierto, que es lo que paso.
      */
     if (dto.status === 'WON') {
-      const inspeccion = await this.inspecciones.puedeCerrar(id, organizationId)
+      const yaCapturados = (deal.customFields as any)?.insuranceData
+      const inspeccion = await this.inspecciones.puedeCerrar(
+        id,
+        organizationId,
+        Array.isArray(yaCapturados) ? yaCapturados.map((e: any) => e?.ramo) : [],
+      )
       if (!inspeccion.puede) {
         throw new ForbiddenException(inspeccion.motivo)
       }
@@ -1306,7 +1311,13 @@ export class PipelineService {
        * ganado antes solo adelanta una venta que despues se cae. Se comprueba
        * aqui, donde ya se validan los demas datos del cierre.
        */
-      const inspeccion = await this.inspecciones.puedeCerrar(id, organizationId)
+      const inspeccion = await this.inspecciones.puedeCerrar(
+        id,
+        organizationId,
+        // El ramo que se esta cerrando: es lo unico que identifica un auto en
+        // los leads creados antes de que existiera el selector de tipo.
+        entradas.map((e: any) => e?.ramo),
+      )
       if (!inspeccion.puede) {
         throw new ForbiddenException(inspeccion.motivo)
       }

@@ -602,9 +602,19 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
    * interés que se anotó al crear el lead: la inspección se pide ANTES de tener
    * la póliza armada, así que esperar a los datos del seguro llegaría tarde.
    */
-  const esVehiculo = ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(
-    String((deal?.customFields as any)?.insuranceType ?? '').toUpperCase(),
-  )
+  /**
+   * ¿Es un negocio de vehículos?
+   *
+   * Se mira el tipo elegido al crear el lead y también el ramo de los datos del
+   * seguro: los leads creados antes de que existiera el selector no tienen tipo,
+   * y sin esto el bloque de inspección no aparecería nunca en ellos.
+   */
+  const esAuto = (v: unknown) =>
+    ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(String(v ?? '').toUpperCase())
+
+  const esVehiculo =
+    esAuto((deal?.customFields as any)?.insuranceType) ||
+    insuranceEntries.some((e) => esAuto((e as any).ramo))
 
   /** Fidelización y gerencia registran el resultado; el comercial solo envía. */
   const puedeResolverInspeccion = ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES', 'OPERACIONES'].includes(

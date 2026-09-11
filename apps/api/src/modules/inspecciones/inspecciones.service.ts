@@ -305,13 +305,34 @@ export class InspeccionesService {
    * emite la póliza. Bloquearlo aquí evita que el comercial dé por cerrada una
    * venta que después se cae.
    */
-  async puedeCerrar(dealId: string, organizationId: string) {
+  async puedeCerrar(
+    dealId: string,
+    organizationId: string,
+    /**
+     * Ramos de las entradas que se están cerrando.
+     *
+     * Hace falta porque los leads creados ANTES de que existiera el selector de
+     * tipo de seguro no tienen ese dato: la única forma de saber que son de auto
+     * es el ramo que el comercial elige en el modal de cierre.
+     */
+    ramosDelCierre?: (string | null | undefined)[],
+  ) {
     const deal = await this.prisma.deal.findFirst({
       where: { id: dealId, organizationId },
-      select: { customFields: true, createdAt: true },
+      select: { customFields: true },
     })
-    const ramo = String((deal?.customFields as any)?.insuranceType ?? '').toUpperCase()
-    const esVehiculo = ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(ramo)
+
+    const esAuto = (v: unknown) =>
+      ['AUTO', 'VEHICULO', 'VEHICULOS'].includes(String(v ?? '').toUpperCase())
+
+    const cf = (deal?.customFields ?? {}) as any
+    const esVehiculo =
+      // El tipo del lead, cuando se eligió al crearlo.
+      esAuto(cf.insuranceType) ||
+      // El ramo que se está cerrando ahora mismo.
+      (ramosDelCierre ?? []).some(esAuto) ||
+      // O el de los datos del seguro ya capturados.
+      (Array.isArray(cf.insuranceData) && cf.insuranceData.some((e: any) => esAuto(e?.ramo)))
 
     const inspeccion = await this.prisma.inspeccion.findFirst({
       where: { dealId, organizationId },
@@ -323,10 +344,15 @@ export class InspeccionesService {
       // emite sin ella, y dejarlo pasar era el hueco que permitía ganar el deal
       // sin haberla pedido nunca.
       if (esVehiculo) {
+        // El mensaje dice QUÉ hacer y en qué orden: en un lead antiguo el bloque
+        // de inspección solo aparece cuando los datos del seguro ya dicen que es
+        // de auto, y sin esa explicación quedaría atascado.
         return {
           puede: false as const,
           motivo:
-            'Este negocio es de vehículo y todavía no se ha enviado la inspección. Envíala desde el panel del negocio.',
+            'Este negocio es de vehículo y todavía no se ha enviado la inspección. ' +
+            'Guarda primero los datos del seguro con ramo Auto —sin cerrar— y el bloque de ' +
+            'inspección aparecerá en el panel para enviarla.',
         }
       }
       // En los demás ramos no aplica.

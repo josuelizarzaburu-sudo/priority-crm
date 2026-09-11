@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import { DealStatus } from '@priority-crm/shared'
 import type { PipelineStage } from '@priority-crm/shared'
@@ -107,6 +108,7 @@ export function MyPipelineBoard() {
     ((session?.user as any)?.puedeVender === true &&
       ['OPERACIONES', 'JEFE_OPERACIONES'].includes(userRole))
   const queryClient = useQueryClient()
+  const { toast } = useToast()
 
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
   const [pendingMove, setPendingMove] = useState<{ dealId: string; stageId: string; position: number } | null>(null)
@@ -199,7 +201,21 @@ export function MyPipelineBoard() {
       setShowWonModal(false)
       setPendingMove(null)
     },
-    onError: () => {
+    /**
+     * Se dice POR QUE no se pudo mover.
+     *
+     * Antes se descartaba el motivo y la tarjeta volvia a su sitio sin
+     * explicacion: parecia un fallo de la pantalla, cuando el servidor estaba
+     * bloqueando el cierre por algo concreto —la inspeccion sin aprobar, datos
+     * que faltan.
+     */
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      toast({
+        title: 'No se pudo mover el negocio',
+        description: Array.isArray(m) ? m.join(', ') : (m ?? 'Inténtalo de nuevo'),
+        variant: 'destructive',
+      })
       queryClient.invalidateQueries({ queryKey: ['pipeline', 'my-deals'] })
       setShowWonModal(false)
       setPendingMove(null)

@@ -412,6 +412,22 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
       toast({ title: vars.insuranceData ? '🏆 ¡Deal ganado!' : 'Etapa actualizada' })
       setShowWonModal(false)
     },
+    /**
+     * Sin esto, un rechazo del servidor pasaba desapercibido.
+     *
+     * El servidor bloqueaba el cierre —por la inspección, por datos que faltan—
+     * pero la pantalla no decía nada y parecía que había funcionado. El modal
+     * se queda abierto a proposito: el motivo suele ser algo que se corrige ahi
+     * mismo.
+     */
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      toast({
+        title: 'No se pudo cerrar el negocio',
+        description: Array.isArray(m) ? m.join(', ') : (m ?? 'Inténtalo de nuevo'),
+        variant: 'destructive',
+      })
+    },
   })
 
   const updateContact = useMutation({

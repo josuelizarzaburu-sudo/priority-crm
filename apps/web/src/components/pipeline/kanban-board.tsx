@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePipelineStore } from '@/store'
 import { api } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Deal, PipelineStage } from '@priority-crm/shared'
 import { DealStatus } from '@priority-crm/shared'
@@ -63,6 +64,7 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
    */
   const [verPerdidos, setVerPerdidos] = useState(false)
   const queryClient = useQueryClient()
+  const { toast } = useToast()
 
   const moveDealMutation = useMutation({
     mutationFn: ({ dealId, stageId, position, insuranceData }: {
@@ -73,7 +75,21 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
       setShowWonModal(false)
       setPendingMove(null)
     },
-    onError: () => {
+    /**
+     * Se dice POR QUE no se pudo mover.
+     *
+     * Antes se descartaba el motivo y la tarjeta volvia a su sitio sin
+     * explicacion: parecia que la pantalla habia fallado, cuando en realidad el
+     * servidor estaba bloqueando el cierre por algo concreto —la inspeccion sin
+     * aprobar, datos que faltan.
+     */
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      toast({
+        title: 'No se pudo mover el negocio',
+        description: Array.isArray(m) ? m.join(', ') : (m ?? 'Inténtalo de nuevo'),
+        variant: 'destructive',
+      })
       queryClient.invalidateQueries({ queryKey: ['pipeline'] })
       setShowWonModal(false)
       setPendingMove(null)

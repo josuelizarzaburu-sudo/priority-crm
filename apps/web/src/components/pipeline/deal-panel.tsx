@@ -687,6 +687,8 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
           // El ramo del lead preselecciona el del cierre: sin esto el modal
           // arrancaba en Salud y un auto se cerraba como salud.
           ramoDelLead={(deal?.customFields as any)?.insuranceType}
+          // Para consultar la inspeccion y bloquear el boton si no esta aprobada.
+          dealId={dealId}
           // Datos del contacto que tambien viajan a la ficha del cliente. Se
           // piden dentro del modal para no obligar a salir, llenarlos en el
           // panel y volver.
@@ -1588,7 +1590,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
               {esVehiculo && dealId && (
                 <>
                   <Separator />
-                  <BloqueInspeccion dealId={dealId} puedeResolver={puedeResolverInspeccion} />
+                  <BloqueInspeccion
+                    dealId={dealId}
+                    puedeResolver={puedeResolverInspeccion}
+                    cedulaActual={(deal?.customFields as any)?.identificacion}
+                    correoActual={deal?.contact?.email}
+                    // La cedula se guarda en el deal, que es de donde la lee la
+                    // solicitud de inspeccion.
+                    onGuardarCedula={(cedula) => patchCustomFields.mutate({ identificacion: cedula })}
+                  />
                 </>
               )}
 

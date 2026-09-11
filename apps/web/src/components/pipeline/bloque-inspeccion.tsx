@@ -55,10 +55,17 @@ interface Inspeccion {
 export function BloqueInspeccion({
   dealId,
   puedeResolver,
+  cedulaActual,
+  correoActual,
+  onGuardarCedula,
 }: {
   dealId: string
   /** Fidelización y gerencia registran el resultado; el comercial solo envía. */
   puedeResolver: boolean
+  /** Cédula y correo del cliente: la aseguradora los exige para la inspección. */
+  cedulaActual?: string | null
+  correoActual?: string | null
+  onGuardarCedula?: (cedula: string) => void
 }) {
   const qc = useQueryClient()
   const archivoRef = useRef<HTMLInputElement>(null)
@@ -67,6 +74,7 @@ export function BloqueInspeccion({
   const [nota, setNota] = useState('')
   const [adjuntos, setAdjuntos] = useState<{ filename: string; content: string; size: number }[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [cedula, setCedula] = useState('')
   const [observacion, setObservacion] = useState('')
   const [resolviendo, setResolviendo] = useState<Estado | null>(null)
 
@@ -207,6 +215,30 @@ export function BloqueInspeccion({
           poder reinspeccionar. */}
       {(!insp || estado === 'RECHAZADO_OBSERVACION') && (
         <div className="space-y-2.5">
+          {/* La cédula se pide AQUÍ porque la aseguradora la exige para abrir
+              el trámite, y hasta ahora no había dónde ponerla antes de cerrar:
+              solo aparecía en el modal de cierre, que es un paso posterior. */}
+          {!cedulaActual && (
+            <div>
+              <Input
+                placeholder="Cédula o RUC del cliente"
+                value={cedula}
+                onChange={(e) => setCedula(e.target.value)}
+                onBlur={() => cedula.trim() && onGuardarCedula?.(cedula.trim())}
+                className="h-9 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                La aseguradora la necesita para la inspección.
+              </p>
+            </div>
+          )}
+
+          {!correoActual && (
+            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+              Falta el correo del cliente. Cárgalo arriba, en los datos del contacto.
+            </p>
+          )}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
               placeholder="Aseguradora"

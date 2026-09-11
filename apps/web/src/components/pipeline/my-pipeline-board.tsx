@@ -420,6 +420,7 @@ export function MyPipelineBoard() {
 
       <WonDealModal
         // El ramo del lead preselecciona el del cierre.
+        dealId={pendingMove?.dealId}
         ramoDelLead={
           (localDeals.find((d: any) => d.id === pendingMove?.dealId) as any)?.customFields
             ?.insuranceType

@@ -339,6 +339,7 @@ export function KanbanBoard({ viewMode, filterUserId, originFilter, insuranceFil
 
       <WonDealModal
         // El ramo del lead preselecciona el del cierre.
+        dealId={pendingMove?.dealId}
         ramoDelLead={
           (deals.find((d: any) => d.id === pendingMove?.dealId) as any)?.customFields
             ?.insuranceType

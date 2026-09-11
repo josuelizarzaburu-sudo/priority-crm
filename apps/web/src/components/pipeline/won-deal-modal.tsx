@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import {
   Dialog,
   DialogContent,
@@ -125,6 +127,8 @@ interface WonDealModalProps {
    * auto y no exigia la inspeccion.
    */
   ramoDelLead?: string | null
+  /** Id del negocio, para consultar el estado de la inspección. */
+  dealId?: string | null
   contacto?: {
     email?: string
     direccion?: string
@@ -150,6 +154,7 @@ export function WonDealModal({
   modo = 'cerrar',
   datosIniciales,
   ramoDelLead,
+  dealId,
   contacto,
   onGuardarContacto,
 }: WonDealModalProps) {
@@ -239,6 +244,36 @@ export function WonDealModal({
     return faltan
   }
 
+  /**
+   * Estado de la inspección, cuando se está cerrando un vehículo.
+   *
+   * Se consulta aquí y no solo en el servidor para poder BLOQUEAR EL BOTÓN y
+   * decir por qué antes de pulsarlo. Confiar solo en el rechazo del servidor
+   * hacía que la tarjeta se moviera un instante y el aviso pasara desapercibido.
+   */
+  const cierraVehiculo = entries.some((e) => e.ramo === 'AUTO')
+
+  const { data: inspeccion } = useQuery<{ estado: string; observacion: string | null } | null>({
+    queryKey: ['inspeccion', dealId],
+    queryFn: () => api.get(`/inspecciones/deal/${dealId}`).then((r) => r.data),
+    enabled: open && modo === 'cerrar' && cierraVehiculo && !!dealId,
+  })
+
+  /** Lo que impide cerrar por la inspección, si es que impide algo. */
+  const trabaInspeccion = !cierraVehiculo
+    ? null
+    : !inspeccion
+      ? 'Todavía no se ha enviado la inspección del vehículo. Ciérrala desde el bloque «Inspección del vehículo» del negocio.'
+      : inspeccion.estado === 'APROBADO'
+        ? null
+        : inspeccion.estado === 'DE_INSPECCION'
+          ? 'La inspección está en curso. Espera a que Fidelización registre el resultado.'
+          : inspeccion.estado === 'RECHAZADO_DEFINITIVO'
+            ? 'La inspección fue rechazada en definitivo. No se puede emitir esta póliza.'
+            : `La inspección fue rechazada con observación${
+                inspeccion.observacion ? `: ${inspeccion.observacion}` : ''
+              }. Corrígelo y vuelve a enviarla.`
+
   const faltantesPorEntrada = entries.map(faltantesDe)
 
   /**
@@ -265,7 +300,8 @@ export function WonDealModal({
   const canConfirm =
     entries.length > 0 &&
     faltantesPorEntrada.every((f) => f.length === 0) &&
-    faltantesContacto.length === 0
+    faltantesContacto.length === 0 &&
+    !trabaInspeccion
 
   function updateEntry(idx: number, field: keyof EntryDraft, value: string) {
     setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e)))
@@ -644,6 +680,15 @@ export function WonDealModal({
         )}
 
         </div>
+
+        {/* La inspección va en su propio aviso y en rojo: no es un dato que
+            falte llenar, es un paso del proceso que todavía no ocurrió. */}
+        {trabaInspeccion && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+            <p className="font-medium">No se puede cerrar todavía</p>
+            <p className="mt-0.5">{trabaInspeccion}</p>
+          </div>
+        )}
 
         {/* Se dice QUE falta, no solo que el boton esta apagado. Con varios
             clientes en la lista, un boton deshabilitado sin explicacion obliga a

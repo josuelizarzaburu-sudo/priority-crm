@@ -71,6 +71,14 @@ export function CreateDealDialog({
   const [doSport, setDoSport]     = useState<boolean | null>(null)
   const [hasInsurance, setHasInsurance] = useState<boolean | null>(null)
   const [leadOrigin, setLeadOrigin] = useState<LeadOrigin>(defaultOrigin)
+  /**
+   * Ramo del lead.
+   *
+   * Decide el camino que sigue el negocio: un auto necesita inspeccion antes de
+   * cerrar y salud no. Sin este dato el CRM no sabe cual aplicar, asi que se
+   * pide desde el principio.
+   */
+  const [insuranceType, setInsuranceType] = useState('SALUD')
 
   const queryClient = useQueryClient()
 
@@ -93,6 +101,7 @@ export function CreateDealDialog({
     setDoSport(null)
     setHasInsurance(null)
     setLeadOrigin(defaultOrigin)
+    setInsuranceType('SALUD')
   }
 
   async function handleCreate() {
@@ -118,6 +127,7 @@ export function CreateDealDialog({
         stageId: leadStage.id,
         contactId: contact.id,
         customFields: {
+          insuranceType,
           profileType,
           sport: doSport,
           insured: hasInsurance,
@@ -169,6 +179,30 @@ export function CreateDealDialog({
               </Select>
             </div>
           )}
+
+          {/* Ramo: decide el camino del negocio. Un auto necesita inspeccion
+              antes de cerrar y salud no, asi que se pregunta desde el inicio. */}
+          <div className="space-y-1.5">
+            <Label>
+              Tipo de seguro <span className="text-red-500">*</span>
+            </Label>
+            <Select value={insuranceType} onValueChange={setInsuranceType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALUD">Salud</SelectItem>
+                <SelectItem value="AUTO">Vehículo</SelectItem>
+                <SelectItem value="VIDA">Vida</SelectItem>
+                <SelectItem value="HOGAR">Hogar</SelectItem>
+              </SelectContent>
+            </Select>
+            {insuranceType === 'AUTO' && (
+              <p className="text-[11px] text-muted-foreground">
+                En vehículos hay que enviar la inspección antes de poder cerrar la venta.
+              </p>
+            )}
+          </div>
 
           {/* Name row */}
           <div className="grid grid-cols-2 gap-3">

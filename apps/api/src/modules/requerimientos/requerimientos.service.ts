@@ -353,16 +353,14 @@ export class RequerimientosService {
     // El texto se arma desde una plantilla y viaja EDITABLE, igual que en
     // renovaciones: la plantilla ahorra escribir, no impone lo que se manda.
     const datosPlantilla = this.paraPlantilla(datos, req)
-    // El tipo de poliza decide si se proponen las plantillas de vehiculos.
-    const tipoPoliza = (datos as any).tipoPoliza ?? null
-    const elegida = plantillaId ?? plantillaSugerida(datosPlantilla, tipoPoliza)
+    const elegida = plantillaId ?? plantillaSugerida(datosPlantilla)
 
     return {
       para: datos.email,
       copiaA: datos.ejecutivaEmail,
       asunto: this.notifications.asuntoBienvenida(datos.nombreParaAsunto),
       // Texto plano editable. El html se arma al enviar, con lo que quede aqui.
-      texto: construirTextoBienvenida(elegida, datosPlantilla, tipoPoliza),
+      texto: construirTextoBienvenida(elegida, datosPlantilla),
       plantilla: elegida,
       plantillas: PLANTILLAS_BIENVENIDA.map((p) => ({
         id: p.id,

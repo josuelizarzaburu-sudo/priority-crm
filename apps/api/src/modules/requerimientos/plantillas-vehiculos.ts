@@ -41,6 +41,59 @@ export interface DatosVehiculo {
   rucAseguradora?: string | null
 }
 
+/**
+ * Datos fijos por aseguradora: cuentas, enlace de pago y emergencias.
+ *
+ * Solo se guardan los que NO cambian. Atlántida es el caso: sus cuentas y su
+ * portal de pagos son siempre los mismos, así que el correo sale completo sin
+ * que nadie escriba nada.
+ *
+ * Las demás —AIG, Sweaden, Zurich— varían según el caso, y ahí el texto deja el
+ * marcador para pegar lo que corresponda. Aun así TODO es editable: estos datos
+ * son un punto de partida, no algo cerrado.
+ *
+ * Si una aseguradora cambia una cuenta, se corrige aquí y vale para todos los
+ * correos siguientes.
+ */
+const DATOS_ASEGURADORA: Record<
+  string,
+  {
+    ruc?: string
+    cuentas?: { banco: string; tipo: string; numero: string }[]
+    enlacePago?: string
+    whatsapp?: string
+    telefono?: string
+  }
+> = {
+  ATLANTIDA: {
+    ruc: '1790093808001',
+    cuentas: [
+      { banco: 'Pichincha', tipo: 'Cuenta corriente', numero: '3020978804' },
+      { banco: 'Internacional', tipo: 'Cuenta corriente', numero: '629345' },
+      { banco: 'Produbanco', tipo: 'Cuenta corriente', numero: '2005009207' },
+    ],
+    enlacePago: 'https://portal-pagos.segurosatlantida.ec/',
+    whatsapp: '0984900754',
+    telefono: '1 800 542378 opción 1-2-2',
+  },
+  ZURICH: {
+    whatsapp: '096 298 7987',
+    telefono: '099 938 2238 / 1800-987-000',
+  },
+}
+
+/** Busca los datos de una aseguradora por su nombre, como venga escrito. */
+export function datosDeAseguradora(nombre: string | null | undefined) {
+  const n = (nombre ?? '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  for (const [clave, datos] of Object.entries(DATOS_ASEGURADORA)) {
+    if (n.includes(clave)) return datos
+  }
+  return null
+}
+
 /** Contacto de Gianella: es la ejecutiva de vehículos y de fidelización. */
 const CONTACTO_PRIORITY = {
   nombre: 'Gianella Pozo',
@@ -130,8 +183,24 @@ function bloqueContacto(d: DatosVehiculo): string {
 
 export function construirCorreoVehiculo(
   tipo: TipoCorreoVehiculo,
-  d: DatosVehiculo,
+  datos: DatosVehiculo,
 ): string {
+  /**
+   * Se completan los datos que la aseguradora tenga guardados.
+   *
+   * Lo que venga ya puesto manda: si alguien escribio un enlace distinto, no se
+   * pisa con el de la lista.
+   */
+  const fijos = datosDeAseguradora(datos.aseguradora)
+  const d: DatosVehiculo = {
+    ...datos,
+    cuentas: datos.cuentas ?? fijos?.cuentas,
+    rucAseguradora: datos.rucAseguradora ?? fijos?.ruc ?? null,
+    enlacePago: datos.enlacePago ?? fijos?.enlacePago ?? null,
+    emergenciaWhatsapp: datos.emergenciaWhatsapp ?? fijos?.whatsapp ?? null,
+    emergenciaTelefono: datos.emergenciaTelefono ?? fijos?.telefono ?? null,
+  }
+
   const emitidaORenovada =
     tipo === 'EMISION' ? 'ha sido emitida' : 'ha sido renovada'
 

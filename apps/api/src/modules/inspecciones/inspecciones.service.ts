@@ -339,6 +339,15 @@ export class InspeccionesService {
       select: { estado: true, observacion: true },
     })
 
+    // Queda registrado que se comprobo, para poder ver en los registros del
+    // servidor si esta validacion corrio y con que datos: sin esto, un "me deja
+    // cerrar igual" no se puede diagnosticar sin adivinar.
+    this.logger.log(
+      `[inspecciones] cierre de ${dealId}: esVehiculo=${esVehiculo} ` +
+        `tipo=${cf.insuranceType ?? '-'} ramos=${JSON.stringify(ramosDelCierre ?? [])} ` +
+        `inspeccion=${inspeccion?.estado ?? 'ninguna'}`,
+    )
+
     if (!inspeccion) {
       // Un vehículo SIN inspección tampoco se puede cerrar: la aseguradora no
       // emite sin ella, y dejarlo pasar era el hueco que permitía ganar el deal

@@ -101,6 +101,9 @@ export class InspeccionesService {
       modelo?: string
       anio?: number
       placa?: string
+      plan?: string
+      formaPago?: string
+      direccion?: string
       nota?: string
       adjuntos?: { filename: string; content: string }[]
     },
@@ -124,6 +127,16 @@ export class InspeccionesService {
     const faltan = [
       !cedula ? 'cédula' : '',
       !deal.contact?.email ? 'correo del cliente' : '',
+      !dto.aseguradora?.trim() ? 'aseguradora' : '',
+      !dto.plan?.trim() ? 'plan' : '',
+      !dto.formaPago?.trim() ? 'forma de pago' : '',
+      !dto.placa?.trim() ? 'placa' : '',
+      !dto.marca?.trim() ? 'marca' : '',
+      !dto.modelo?.trim() ? 'modelo' : '',
+      !dto.anio ? 'año del vehículo' : '',
+      // La cotización y la matrícula son lo que la aseguradora mira: sin ellas
+      // la solicitud no sirve de nada.
+      !dto.adjuntos?.length ? 'la cotización y la matrícula' : '',
     ].filter(Boolean)
     if (faltan.length) {
       throw new BadRequestException(
@@ -170,6 +183,37 @@ export class InspeccionesService {
           data: { ...datos, dealId, organizationId },
         })
 
+    /**
+     * Los datos del vehículo se guardan TAMBIÉN en el negocio.
+     *
+     * Así al cerrar la venta ya están capturados —no hay que volver a
+     * escribirlos— y quien abra el deal ve de qué vehículo se trata sin entrar a
+     * la inspección.
+     */
+    await this.prisma.deal
+      .update({
+        where: { id: dealId },
+        data: {
+          customFields: {
+            ...((deal.customFields as any) ?? {}),
+            insuranceType: 'AUTO',
+            identificacion: cedula,
+            direccion: dto.direccion?.trim() || (deal.customFields as any)?.direccion,
+            autoData: {
+              ...(((deal.customFields as any)?.autoData as any) ?? {}),
+              aseguradora: datos.aseguradora,
+              plan: dto.plan?.trim() || null,
+              formaPago: dto.formaPago?.trim() || null,
+              marca: datos.marca,
+              modelo: datos.modelo,
+              anio: datos.anio,
+              placa: datos.placa,
+            },
+          },
+        },
+      })
+      .catch((e) => this.logger.error(`[inspecciones] no se pudo actualizar el negocio: ${e}`))
+
     const cliente = `${deal.contact?.firstName ?? ''} ${deal.contact?.lastName ?? ''}`.trim()
     const vehiculo = [datos.marca, datos.modelo, datos.anio].filter(Boolean).join(' ')
     const reintento = existente ? ` (reinspección · intento ${inspeccion.intentos})` : ''
@@ -197,6 +241,9 @@ export class InspeccionesService {
         deal.contact?.phone ? `Celular: ${deal.contact.phone}` : '',
         '',
         datos.aseguradora ? `Aseguradora: ${datos.aseguradora}` : '',
+        dto.plan?.trim() ? `Plan: ${dto.plan.trim()}` : '',
+        dto.formaPago?.trim() ? `Forma de pago: ${dto.formaPago.trim()}` : '',
+        dto.direccion?.trim() ? `Dirección: ${dto.direccion.trim()}` : '',
         vehiculo ? `Vehículo: ${vehiculo}` : '',
         datos.placa ? `Placa: ${datos.placa}` : '',
         '',

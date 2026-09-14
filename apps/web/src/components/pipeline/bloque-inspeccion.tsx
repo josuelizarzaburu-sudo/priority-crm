@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Car, Check, Paperclip, Send, TriangleAlert, X } from 'lucide-react'
+import { ASEGURADORAS_VEHICULO, FORMAS_PAGO_VEHICULO, planesDe } from './planes-vehiculo'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -75,6 +76,28 @@ export function BloqueInspeccion({
   const [adjuntos, setAdjuntos] = useState<{ filename: string; content: string; size: number }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [cedula, setCedula] = useState('')
+
+  /**
+   * Lo que la aseguradora exige para abrir el trámite.
+   *
+   * Se comprueba ANTES de enviar y no después: mandar una solicitud incompleta
+   * hace que Gianella tenga que volver a pedir los datos, y eso son días.
+   */
+  const faltan = [
+    !(cedulaActual ?? cedula).trim() ? 'cédula' : '',
+    !correoActual?.trim() ? 'correo' : '',
+    !form.direccion?.trim() ? 'dirección' : '',
+    !form.aseguradora?.trim() ? 'aseguradora' : '',
+    !form.plan?.trim() ? 'plan' : '',
+    !form.formaPago?.trim() ? 'forma de pago' : '',
+    !form.placa?.trim() ? 'placa' : '',
+    !form.marca?.trim() ? 'marca' : '',
+    !form.modelo?.trim() ? 'modelo' : '',
+    !form.anio?.trim() ? 'año' : '',
+    adjuntos.length === 0 ? 'la cotización o la matrícula' : '',
+  ].filter(Boolean)
+
+  const planesDisponibles = planesDe(form.aseguradora)
   const [observacion, setObservacion] = useState('')
   const [resolviendo, setResolviendo] = useState<Estado | null>(null)
 
@@ -239,13 +262,82 @@ export function BloqueInspeccion({
             </p>
           )}
 
+          <Input
+            placeholder="Dirección del cliente"
+            value={form.direccion ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
+            className="h-9 text-sm"
+          />
+
           <div className="grid gap-2 sm:grid-cols-2">
-            <Input
-              placeholder="Aseguradora"
+            <select
               value={form.aseguradora ?? insp?.aseguradora ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, aseguradora: e.target.value }))}
-              className="h-9 text-sm"
-            />
+              onChange={(e) =>
+                // Al cambiar de aseguradora se limpia el plan: los planes de una
+                // no existen en la otra.
+                setForm((f) => ({ ...f, aseguradora: e.target.value, plan: '' }))
+              }
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="">Aseguradora…</option>
+              {ASEGURADORAS_VEHICULO.map((a) => (
+                <option key={a.nombre} value={a.nombre}>
+                  {a.nombre}
+                </option>
+              ))}
+            </select>
+
+            {/* El plan sale de la aseguradora elegida. Si no tiene lista —o el
+                plan no está en ella— se escribe: las aseguradoras cambian su
+                oferta y esperar a que se actualice bloquearía una venta. */}
+            {planesDisponibles.length > 0 ? (
+              <select
+                value={form.plan ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+              >
+                <option value="">Plan…</option>
+                {planesDisponibles.map((pl) => (
+                  <option key={pl} value={pl}>
+                    {pl}
+                  </option>
+                ))}
+                <option value="__otro">Otro (escribir)</option>
+              </select>
+            ) : (
+              <Input
+                placeholder="Plan"
+                value={form.plan ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            )}
+
+            {form.plan === '__otro' && (
+              <Input
+                autoFocus
+                placeholder="Escribe el plan"
+                value={form.planLibre ?? ''}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, planLibre: e.target.value, plan: e.target.value }))
+                }
+                className="h-9 text-sm sm:col-span-2"
+              />
+            )}
+
+            <select
+              value={form.formaPago ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, formaPago: e.target.value }))}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="">Forma de pago…</option>
+              {FORMAS_PAGO_VEHICULO.map((fp) => (
+                <option key={fp} value={fp}>
+                  {fp}
+                </option>
+              ))}
+            </select>
+
             <Input
               placeholder="Placa"
               value={form.placa ?? insp?.placa ?? ''}
@@ -327,10 +419,17 @@ export function BloqueInspeccion({
             )}
           </div>
 
+          {/* Se dice QUE falta, no solo que el botón está apagado. */}
+          {faltan.length > 0 && (
+            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+              Falta para poder enviar: {faltan.join(', ')}.
+            </p>
+          )}
+
           <Button
             size="sm"
             onClick={() => enviar.mutate()}
-            disabled={enviar.isPending}
+            disabled={enviar.isPending || faltan.length > 0}
             style={{ backgroundColor: NAVY, color: '#fff' }}
           >
             <Send className="mr-1.5 h-3.5 w-3.5" />

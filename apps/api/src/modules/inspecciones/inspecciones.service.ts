@@ -267,6 +267,20 @@ export class InspeccionesService {
     })
     if (!inspeccion) throw new NotFoundException('Esta inspección no existe')
 
+    /**
+     * Una inspección ya resuelta SE PUEDE cambiar.
+     *
+     * Pasa de verdad: la aseguradora rechaza, se insiste o se manda otra foto y
+     * termina aprobando. Antes solo se podía registrar el resultado una vez, así
+     * que había que dejar la corrección en un comentario suelto y el deal seguía
+     * bloqueado.
+     *
+     * El cambio queda en la bitácora con quién lo hizo, que es lo que importa
+     * para poder revisarlo después.
+     */
+    const cambiaResultado =
+      inspeccion.estado !== 'DE_INSPECCION' && inspeccion.estado !== dto.estado
+
     // Un rechazo con observación necesita decir QUÉ hay que reparar: sin eso el
     // comercial no puede explicarle al cliente ni reinspeccionar.
     if (dto.estado === 'RECHAZADO_OBSERVACION' && !dto.observacion?.trim()) {
@@ -299,19 +313,43 @@ export class InspeccionesService {
     await this.prisma.inspeccionNota.create({
       data: {
         inspeccionId: inspeccion.id,
-        texto: `Inspección ${comoSeLlama[dto.estado]}.${
-          dto.observacion?.trim() ? ` ${dto.observacion.trim()}` : ''
-        }`,
+        texto: `${
+          cambiaResultado
+            ? `Resultado corregido: de ${comoSeLlama[inspeccion.estado as EstadoInspeccion]} a ${comoSeLlama[dto.estado]}`
+            : `Inspección ${comoSeLlama[dto.estado]}`
+        }.${dto.observacion?.trim() ? ` ${dto.observacion.trim()}` : ''}`,
         autorId: userId,
         autorNombre: autor?.name ?? null,
       },
     })
 
+    /**
+     * Queda en la actividad del negocio.
+     *
+     * El resultado de la inspección es parte de la historia de la venta: quien
+     * abra el deal dentro de un mes tiene que poder ver por qué se demoró o por
+     * qué se cayó, sin entrar a otra pantalla.
+     */
+    await this.prisma.activity
+      .create({
+        data: {
+          dealId,
+          organizationId,
+          type: 'NOTE',
+          description: `Inspección ${comoSeLlama[dto.estado]}.${
+            dto.observacion?.trim() ? ` ${dto.observacion.trim()}` : ''
+          }`,
+          userId,
+        },
+      })
+      .catch((e) => this.logger.error(`[inspecciones] no se pudo registrar la actividad: ${e}`))
+
+    const cliente = `${inspeccion.deal?.contact?.firstName ?? ''} ${
+      inspeccion.deal?.contact?.lastName ?? ''
+    }`.trim()
+
     // Se avisa a quien pidió la inspección, que es quien está esperando.
     if (inspeccion.enviadaPorId) {
-      const cliente = `${inspeccion.deal?.contact?.firstName ?? ''} ${
-        inspeccion.deal?.contact?.lastName ?? ''
-      }`.trim()
       await this.notificaciones.crear({
         usuarioId: inspeccion.enviadaPorId,
         organizationId,
@@ -323,6 +361,46 @@ export class InspeccionesService {
         enlace: '/pipeline',
         provocadoPor: userId,
       })
+
+      /**
+       * Y un correo, no solo el aviso en pantalla.
+       *
+       * El vendedor puede estar fuera del CRM —en la calle, con un cliente— y
+       * una inspección aprobada es justo lo que estaba esperando para cerrar.
+       */
+      const vendedor = await this.prisma.user.findUnique({
+        where: { id: inspeccion.enviadaPorId },
+        select: { email: true, name: true },
+      })
+
+      if (vendedor?.email) {
+        const queHacer: Record<EstadoInspeccion, string> = {
+          DE_INSPECCION: 'La inspección sigue en curso.',
+          APROBADO: 'Ya puedes cerrar el negocio como ganado.',
+          RECHAZADO_DEFINITIVO:
+            'No se puede emitir esta póliza. Si vas a intentar con otra aseguradora, déjalo anotado en el negocio.',
+          RECHAZADO_OBSERVACION:
+            'Cuando el cliente lo corrija, vuelve a enviar la inspección desde el negocio.',
+        }
+
+        await this.notifications
+          .enviarAvisoSeguridad({
+            email: vendedor.email,
+            asunto: `Inspección ${comoSeLlama[dto.estado]} — ${cliente || 'vehículo'}`,
+            mensaje: [
+              `${vendedor.name ?? ''},`.trim(),
+              '',
+              `La inspección del vehículo de ${cliente || 'tu cliente'} quedó ${comoSeLlama[dto.estado]}.`,
+              dto.observacion?.trim() ? '' : '',
+              dto.observacion?.trim() ? `Observación: ${dto.observacion.trim()}` : '',
+              '',
+              queHacer[dto.estado],
+            ]
+              .filter((l, i, arr) => l !== '' || arr[i - 1] !== '')
+              .join('\n'),
+          })
+          .catch((e) => this.logger.error(`[inspecciones] no se pudo avisar al vendedor: ${e}`))
+      }
     }
 
     this.logger.log(`[inspecciones] deal ${dealId}: ${dto.estado}`)

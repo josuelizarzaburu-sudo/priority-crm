@@ -175,10 +175,11 @@ export function InspeccionesPage() {
                   </span>
                 </div>
 
-                {/* Los botones solo mientras está en curso: una ya resuelta no se
-                    cambia desde aquí, se reenvía desde el negocio. */}
-                {i.estado === 'DE_INSPECCION' && (
-                  <div className="mt-3 space-y-2 border-t pt-2.5">
+                {/* Los botones salen SIEMPRE, no solo mientras está en curso.
+                    Una aseguradora que rechaza puede terminar aprobando si se
+                    insiste o se manda otra foto, y antes eso obligaba a dejar la
+                    corrección en un comentario suelto con el deal bloqueado. */}
+                <div className="mt-3 space-y-2 border-t pt-2.5">
                     {resolviendo?.id === i.id && resolviendo.estado !== 'APROBADO' && (
                       <Input
                         autoFocus
@@ -194,22 +195,26 @@ export function InspeccionesPage() {
                     )}
 
                     <div className="flex flex-wrap gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-green-300 text-green-700 hover:bg-green-50"
-                        onClick={() => resolver.mutate({ dealId: i.dealId, estado: 'APROBADO' })}
-                        disabled={resolver.isPending}
-                      >
-                        <Check className="mr-1 h-3.5 w-3.5" /> Aprobar
-                      </Button>
+                      {i.estado !== 'APROBADO' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-300 text-green-700 hover:bg-green-50"
+                          onClick={() => resolver.mutate({ dealId: i.dealId, estado: 'APROBADO' })}
+                          disabled={resolver.isPending}
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" /> Aprobar
+                        </Button>
+                      )}
 
                       {(
                         [
                           ['RECHAZADO_OBSERVACION', 'Con observación'],
                           ['RECHAZADO_DEFINITIVO', 'Rechazar'],
                         ] as const
-                      ).map(([e, label]) => (
+                      )
+                        .filter(([e]) => e !== i.estado)
+                        .map(([e, label]) => (
                         <Button
                           key={e}
                           size="sm"
@@ -233,8 +238,14 @@ export function InspeccionesPage() {
                         </Button>
                       ))}
                     </div>
-                  </div>
-                )}
+
+                    {i.estado !== 'DE_INSPECCION' && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Puedes corregir el resultado si la aseguradora cambia de decisión. El
+                        cambio queda en el historial.
+                      </p>
+                    )}
+                </div>
 
                 {i.notas.length > 0 && (
                   <details className="mt-2">

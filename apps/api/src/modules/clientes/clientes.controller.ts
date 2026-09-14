@@ -132,6 +132,22 @@ export class ClientesController {
     )
   }
 
+  @Patch(':id/estado')
+  @ApiOperation({ summary: 'Marca un cliente como cancelado o lo reactiva' })
+  cambiarEstado(
+    @Param('id') id: string,
+    @Body() body: { estado: 'ACTIVO' | 'CANCELADO'; motivo?: string },
+    @Req() req: any,
+  ) {
+    return this.clientesService.cambiarEstado(
+      id,
+      body,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Post('recalcular-revisar')
   @ApiOperation({ summary: 'Actualiza la marca "datos por revisar" en todos los clientes' })
   recalcularRevisar(@Req() req: any) {

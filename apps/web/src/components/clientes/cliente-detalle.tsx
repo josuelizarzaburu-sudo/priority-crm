@@ -174,6 +174,19 @@ export function ClienteDetalle({ id }: { id: string }) {
   const rol = (session?.user as any)?.role ?? ''
   /** Confirmación escrita antes de borrar. */
   const [confirmarBorrado, setConfirmarBorrado] = useState('')
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [cancelando, setCancelando] = useState(false)
+
+  const cambiarEstado = useMutation({
+    mutationFn: (datos: { estado: 'ACTIVO' | 'CANCELADO'; motivo?: string }) =>
+      api.patch(`/clientes/${id}/estado`, datos).then((r) => r.data),
+    onSuccess: () => {
+      setCancelando(false)
+      setMotivoCancelacion('')
+      qc.invalidateQueries({ queryKey: ['cliente', id] })
+      qc.invalidateQueries({ queryKey: ['clientes'] })
+    },
+  })
 
   const eliminarCliente = useMutation({
     mutationFn: () => api.delete(`/clientes/${id}`).then((r) => r.data),
@@ -262,6 +275,39 @@ export function ClienteDetalle({ id }: { id: string }) {
           </p>
         )}
       </div>
+
+      {/* Un cliente cancelado se ve de inmediato: sigue en la base para
+          consultar su historial, pero ya no es cliente activo y quien abra la
+          ficha tiene que saberlo antes de llamarlo. */}
+      {(c as any)?.estado === 'CANCELADO' && (
+        <div className="rounded-xl border-2 border-slate-300 bg-slate-50 p-3.5">
+          <p className="text-sm font-semibold text-slate-700">Cliente cancelado</p>
+          {(c as any)?.motivoCancelacion && (
+            <p className="mt-0.5 text-xs text-slate-600">
+              {(c as any).motivoCancelacion}
+            </p>
+          )}
+          {(c as any)?.canceladoEn && (
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              Desde el{' '}
+              {new Date((c as any).canceladoEn).toLocaleDateString('es-EC', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => cambiarEstado.mutate({ estado: 'ACTIVO' })}
+            disabled={cambiarEstado.isPending}
+          >
+            Reactivar cliente
+          </Button>
+        </div>
+      )}
 
       {/* ── Datos personales ── */}
       <section className="rounded-lg border bg-card p-4">
@@ -492,6 +538,67 @@ export function ClienteDetalle({ id }: { id: string }) {
                 {p.revisar && p.revisarMotivo && (
                   <p className="mt-2 text-xs text-amber-700">{p.revisarMotivo}</p>
                 )}
+
+                {/* Historial de renovaciones de esta póliza.
+                    Es la historia de la relación: cuánto subió cada año y qué se
+                    le dijo al cliente. Antes había que ir a Renovaciones a
+                    buscarlo, siendo justo lo que se consulta al abrir la ficha. */}
+                {(p as any).renovaciones?.length > 0 && (
+                  <details className="mt-2.5 border-t pt-2">
+                    <summary className="cursor-pointer text-[11px] text-muted-foreground">
+                      Renovaciones ({(p as any).renovaciones.length})
+                    </summary>
+                    <div className="mt-1.5 space-y-1.5">
+                      {(p as any).renovaciones.map((r: any) => {
+                        const actual = r.valorActual ? Number(r.valorActual) : null
+                        const nueva = r.valorRenovacion ? Number(r.valorRenovacion) : null
+                        const sube =
+                          actual && nueva && actual > 0
+                            ? Math.round(((nueva - actual) / actual) * 1000) / 10
+                            : null
+                        return (
+                          <div key={r.id} className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-[11px]">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span style={{ color: NAVY }}>
+                                {new Date(r.fechaRenovacion).toLocaleDateString('es-EC', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  timeZone: 'UTC',
+                                })}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {actual !== null && nueva !== null && (
+                                  <>
+                                    ${(actual / 12).toFixed(2)} → ${(nueva / 12).toFixed(2)} /mes
+                                  </>
+                                )}
+                                {sube !== null && (
+                                  <strong
+                                    className="ml-1.5"
+                                    style={{ color: sube > 10 ? '#b45309' : undefined }}
+                                  >
+                                    {sube > 0 ? '+' : ''}
+                                    {sube}%
+                                  </strong>
+                                )}
+                              </span>
+                            </div>
+                            {r.comentarios && (
+                              <p className="mt-0.5 text-muted-foreground">{r.comentarios}</p>
+                            )}
+                            {r.notas?.map((n: any) => (
+                              <p key={n.id} className="mt-0.5 text-muted-foreground">
+                                {n.contenido}
+                                {n.autorNombre && ` — ${n.autorNombre}`}
+                              </p>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </details>
+                )}
               </div>
             ))}
           </div>
@@ -502,6 +609,49 @@ export function ClienteDetalle({ id }: { id: string }) {
           <AgregarPoliza clienteId={c.id} dependientes={c.dependientes} />
         </div>
       </section>
+
+      {/* Cancelar: la salida normal cuando un cliente se va. A diferencia de
+          eliminar, no pierde nada —el historial sigue ahí— y se puede deshacer. */}
+      {(c as any)?.estado !== 'CANCELADO' && (
+        <div className="rounded-xl border p-4">
+          <p className="text-sm font-semibold" style={{ color: NAVY }}>
+            Cancelar cliente
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Deja de aparecer entre los clientes activos, pero se conserva todo su historial y
+            se puede reactivar.
+          </p>
+
+          {cancelando ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                autoFocus
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                placeholder="Motivo de la cancelación"
+                className="h-9 max-w-[320px] flex-1 rounded-md border bg-background px-2 text-sm"
+              />
+              <Button
+                size="sm"
+                disabled={!motivoCancelacion.trim() || cambiarEstado.isPending}
+                onClick={() =>
+                  cambiarEstado.mutate({ estado: 'CANCELADO', motivo: motivoCancelacion })
+                }
+                style={{ backgroundColor: NAVY, color: '#fff' }}
+              >
+                Confirmar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setCancelando(false)}>
+                No
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setCancelando(true)}>
+              Marcar como cancelado
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Eliminar: solo SUPER_ADMIN. Es irreversible y se lleva las polizas,
           dependientes y renovaciones del cliente. Va al final de la ficha, no

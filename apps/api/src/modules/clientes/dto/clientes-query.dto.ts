@@ -41,4 +41,15 @@ export class ClientesQueryDto {
   @Type(() => Number)
   @IsOptional()
   limit?: number = 25
+
+  /**
+   * ACTIVO o CANCELADO.
+   *
+   * Sin este filtro los cancelados no salen: es el sentido de marcarlos, dejar
+   * de verlos entre los clientes activos.
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  estado?: string
 }

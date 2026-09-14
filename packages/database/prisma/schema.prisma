@@ -1234,6 +1234,12 @@ model Cliente {
   revisar         Boolean   @default(false)
   revisarMotivo   String?
 
+  /// ACTIVO o CANCELADO. Un cliente que cancela deja de ser cliente activo pero
+  /// NO se borra: su historial sigue haciendo falta y puede volver.
+  estado            String    @default("ACTIVO")
+  canceladoEn       DateTime?
+  motivoCancelacion String?
+
   organizationId  String
   // Manda en los permisos: un usuario OPERACIONES solo lee clientes donde
   // ejecutivoId == su id. El filtro va en el servidor, nunca solo en la UI.
@@ -1280,6 +1286,7 @@ model Cliente {
   @@index([agenteId])
   @@index([organizationId, apellidos])
   @@index([identificacion])
+  @@index([organizationId, estado])
   @@map("clientes")
 }
 

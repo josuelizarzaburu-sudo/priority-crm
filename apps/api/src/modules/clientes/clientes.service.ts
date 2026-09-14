@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { aMayusculas } from '../../common/texto'
@@ -34,7 +40,7 @@ export class ClientesService {
   }
 
   async findAll(organizationId: string, userId: string, role: string, query: ClientesQueryDto) {
-    const { search, page = 1, limit = 25, revisar, ejecutivoId } = query
+    const { search, page = 1, limit = 25, revisar, ejecutivoId, estado } = query
     const skip = (page - 1) * limit
 
     const where = this.baseWhere(organizationId, userId, role)
@@ -46,6 +52,15 @@ export class ClientesService {
     }
 
     if (revisar === 'true') where.revisar = true
+
+    /**
+     * Los cancelados NO salen salvo que se pidan.
+     *
+     * Es el sentido de marcarlos: dejar de verlos entre los clientes activos.
+     * Siguen buscables con el filtro, para consultar su historial.
+     */
+    if (estado) where.estado = estado
+    else where.estado = { not: 'CANCELADO' }
 
     /**
      * Bandeja de nuevos por asignar.
@@ -151,6 +166,19 @@ export class ClientesService {
           include: {
             dependientes: {
               include: { dependiente: { select: { id: true, nombres: true, apellidos: true } } },
+            },
+            /**
+             * Las renovaciones de cada póliza, con su bitácora.
+             *
+             * Es la historia de la relación: cuánto subió cada año, qué se le
+             * dijo al cliente y cuándo. Hasta ahora había que ir a Renovaciones
+             * y buscarlo, cuando es justo lo que se consulta al abrir la ficha.
+             */
+            renovaciones: {
+              orderBy: { fechaRenovacion: 'desc' },
+              include: {
+                notas: { orderBy: { createdAt: 'desc' }, take: 5 },
+              },
             },
           },
         },
@@ -499,6 +527,72 @@ export class ClientesService {
    * Los requerimientos y reembolsos NO se borran: son el registro de gestiones
    * que ya ocurrieron y pueden hacer falta despues. Quedan sin cliente enlazado.
    */
+  /**
+   * Marca un cliente como cancelado, o lo reactiva.
+   *
+   * No se borra: su historial —polizas, renovaciones, reclamos— sigue haciendo
+   * falta para consultas y reportes, y ademas los clientes vuelven. Eliminar la
+   * ficha perderia años de relacion por un dato que hoy cambio.
+   *
+   * Sale de los listados por defecto, que es lo que se busca: dejar de verlo
+   * entre los clientes activos.
+   */
+  async cambiarEstado(
+    id: string,
+    dto: { estado: 'ACTIVO' | 'CANCELADO'; motivo?: string },
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES', 'OPERACIONES'].includes(role)) {
+      throw new ForbiddenException('No tienes permiso para cambiar el estado de un cliente')
+    }
+    if (!['ACTIVO', 'CANCELADO'].includes(dto.estado)) {
+      throw new BadRequestException('Estado no válido')
+    }
+    // Cancelar sin motivo deja a quien lo lea despues sin saber por que: si fue
+    // precio, servicio o se fue con otro broker.
+    if (dto.estado === 'CANCELADO' && !dto.motivo?.trim()) {
+      throw new BadRequestException('Escribe el motivo de la cancelación')
+    }
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id, organizationId },
+      select: { id: true, nombres: true, apellidos: true, estado: true },
+    })
+    if (!cliente) throw new NotFoundException('Cliente no encontrado')
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const actualizado = await this.prisma.cliente.update({
+      where: { id },
+      data: {
+        estado: dto.estado,
+        canceladoEn: dto.estado === 'CANCELADO' ? new Date() : null,
+        motivoCancelacion: dto.estado === 'CANCELADO' ? dto.motivo!.trim() : null,
+      },
+    })
+
+    // Queda en la bitacora del cliente, que es donde se mira la historia.
+    await this.prisma.notaCliente.create({
+      data: {
+        clienteId: id,
+        contenido:
+          dto.estado === 'CANCELADO'
+            ? `Cliente cancelado. Motivo: ${dto.motivo!.trim()}`
+            : 'Cliente reactivado.',
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+        organizationId,
+      },
+    })
+
+    return actualizado
+  }
+
   async remove(id: string, organizationId: string, role: string) {
     if (role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Solo un administrador puede eliminar clientes')

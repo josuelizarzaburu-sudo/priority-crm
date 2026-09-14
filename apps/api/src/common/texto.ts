@@ -195,7 +195,18 @@ export function nombreParaSaludo(
   const preferido = (nombrePreferido ?? '').trim()
   if (preferido) return paraMostrarAlCliente(preferido)
 
+  /**
+   * Sin nombre preferido se usan TODOS los nombres de pila.
+   *
+   * Antes se dejaba en blanco cuando había dos, para no elegir mal entre "María"
+   * y "Fernanda". El resultado es que casi ningún correo llevaba nombre: la
+   * mayoría de los clientes tiene dos nombres y pocos tienen preferido cargado.
+   *
+   * Usarlos los dos —"María Fernanda,"— es correcto y no se equivoca con
+   * ninguno. Es además lo que hacen las plantillas de Canva: el correo real de
+   * Zurich saluda "José Luis".
+   */
   const partes = (nombres ?? '').trim().split(/\s+/).filter(Boolean)
-  if (partes.length === 1) return paraMostrarAlCliente(partes[0])
-  return ''
+  if (!partes.length) return ''
+  return paraMostrarAlCliente(partes.join(' '))
 }

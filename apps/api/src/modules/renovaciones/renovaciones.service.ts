@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { RenovacionesQueryDto } from './dto/renovaciones-query.dto'
 import { UpdateRenovacionDto } from './dto/update-renovacion.dto'
 import { NotificationsService } from '../notifications/notifications.service'
+import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { nombreCorto, nombreParaSaludo, paraMostrarAlCliente } from '../../common/texto'
 import {
   PLANTILLAS,
@@ -29,6 +30,7 @@ export class RenovacionesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   private verificarAcceso(role: string) {
@@ -632,7 +634,32 @@ export class RenovacionesService {
         })
         enviadas++
       } catch (e) {
+        /**
+         * Si falla, se cancela la programación en vez de reintentar.
+         *
+         * Reintentar cada 10 minutos un correo que rebota no lo va a arreglar
+         * —el problema suele ser el correo del cliente— y dejaría cientos de
+         * intentos en los registros. Se cancela, se avisa a quien la programó, y
+         * esa persona lo revisa.
+         */
+        await this.prisma.renovacion
+          .update({ where: { id: r.id }, data: { programadoPara: null } })
+          .catch(() => undefined)
+
         this.logger.error(`[renovaciones] fallo el envio programado de ${r.id}: ${e}`)
+
+        if (r.programadoPorId) {
+          await this.notificaciones
+            .crear({
+              usuarioId: r.programadoPorId,
+              organizationId: r.organizationId,
+              tipo: 'RENOVACION_FALLIDA',
+              titulo: 'No se pudo enviar una renovación programada',
+              detalle: 'Revisa el correo del cliente y vuelve a enviarla.',
+              enlace: '/renovaciones',
+            })
+            .catch(() => undefined)
+        }
       }
     }
 

@@ -586,7 +586,8 @@ export class ClientesService {
             : 'Cliente reactivado.',
         autorId: userId,
         autorNombre: autor?.name ?? null,
-        organizationId,
+        // NotaCliente no lleva organizationId: la nota pertenece al cliente, y
+        // el cliente ya la tiene.
       },
     })
 

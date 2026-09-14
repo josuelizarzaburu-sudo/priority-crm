@@ -42,6 +42,8 @@ export function RenovacionCorreo({
   const [plantilla, setPlantilla] = useState('')
   /** Copias extra. comercial@priority.ec va siempre, sin escribirlo. */
   const [copias, setCopias] = useState('')
+  /** Fecha y hora del envío programado. Vacío = se manda ahora. */
+  const [cuando, setCuando] = useState('')
   const [error, setError] = useState<string | null>(null)
   /**
    * Adjuntos. Viven solo en esta pantalla: viajan con el envío y se descartan.
@@ -116,6 +118,23 @@ export function RenovacionCorreo({
     }
     setAdjuntos(juntos)
   }
+
+  const programar = useMutation({
+    mutationFn: () =>
+      api.post(`/renovaciones/${renovacionId}/programar`, {
+        cuando: new Date(cuando).toISOString(),
+        texto,
+        ...(copias.trim() ? { copias } : {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['renovaciones'] })
+      onCerrar()
+    },
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      setError(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo programar el envío'))
+    },
+  })
 
   const enviar = useMutation({
     mutationFn: () =>
@@ -407,6 +426,29 @@ export function RenovacionCorreo({
         </div>
       )}
 
+      {/* Programar: la renovación se prepara cuando hay tiempo, pero el correo
+          conviene que llegue en un momento razonable. Vacío = se manda ahora. */}
+      {!enviado && (
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <label className="text-xs text-muted-foreground">Enviar después, el</label>
+          <input
+            type="datetime-local"
+            value={cuando}
+            onChange={(e) => setCuando(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          />
+          {cuando && (
+            <button
+              type="button"
+              onClick={() => setCuando('')}
+              className="text-xs text-muted-foreground underline underline-offset-2"
+            >
+              quitar
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCerrar}>
           Cerrar
@@ -415,13 +457,18 @@ export function RenovacionCorreo({
           <Button
             onClick={() => {
               setError(null)
-              enviar.mutate()
+              // Con fecha se programa; sin ella sale ahora.
+              cuando ? programar.mutate() : enviar.mutate()
             }}
-            disabled={!listo || enviar.isPending}
+            disabled={!listo || enviar.isPending || programar.isPending}
             style={{ backgroundColor: NAVY, color: '#fff' }}
           >
             <Send className="mr-1.5 h-4 w-4" />
-            {enviar.isPending ? 'Enviando…' : 'Enviar correo'}
+            {enviar.isPending || programar.isPending
+              ? 'Guardando…'
+              : cuando
+                ? 'Programar envío'
+                : 'Enviar correo'}
           </Button>
         )}
       </div>

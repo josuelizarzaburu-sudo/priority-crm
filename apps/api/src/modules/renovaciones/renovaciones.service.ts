@@ -526,6 +526,122 @@ export class RenovacionesService {
    * Se manda el texto tal como quedó en pantalla: lo que la ejecutiva revisó es
    * exactamente lo que sale.
    */
+  /**
+   * Deja el correo listo para que salga a una hora concreta.
+   *
+   * La ejecutiva prepara las renovaciones cuando tiene tiempo —muchas veces de
+   * corrido, todas las del mes— pero el correo conviene que llegue en un momento
+   * razonable: ni de madrugada ni un domingo.
+   *
+   * Se guarda el texto tal como quedó, no la plantilla: así sale exactamente lo
+   * que revisó, aunque la plantilla cambie entre medio.
+   */
+  async programar(
+    id: string,
+    dto: { cuando: string; texto?: string; copias?: string },
+    organizationId: string,
+    userId: string,
+  ) {
+    const renovacion = await this.prisma.renovacion.findFirst({
+      where: { id, organizationId },
+      select: { id: true, envio: true },
+    })
+    if (!renovacion) throw new NotFoundException('Renovación no encontrada')
+
+    const cuando = new Date(dto.cuando)
+    if (Number.isNaN(cuando.getTime())) {
+      throw new BadRequestException('La fecha y hora no son válidas')
+    }
+    // Programar para un momento que ya pasó no tiene sentido y el correo saldría
+    // de inmediato, que no es lo que se pidió.
+    if (cuando.getTime() < Date.now()) {
+      throw new BadRequestException('Esa fecha y hora ya pasaron. Elige un momento futuro.')
+    }
+
+    return this.prisma.renovacion.update({
+      where: { id },
+      data: {
+        programadoPara: cuando,
+        textoProgramado: dto.texto?.trim() || null,
+        copiasProgramadas: dto.copias?.trim() || null,
+        programadoPorId: userId,
+      },
+    })
+  }
+
+  /** Cancela un envío programado. */
+  async cancelarProgramado(id: string, organizationId: string) {
+    const renovacion = await this.prisma.renovacion.findFirst({
+      where: { id, organizationId },
+      select: { id: true },
+    })
+    if (!renovacion) throw new NotFoundException('Renovación no encontrada')
+
+    return this.prisma.renovacion.update({
+      where: { id },
+      data: {
+        programadoPara: null,
+        textoProgramado: null,
+        copiasProgramadas: null,
+        programadoPorId: null,
+      },
+    })
+  }
+
+  /**
+   * Envía las renovaciones cuya hora ya llegó.
+   *
+   * Lo llama la tarea programada. Cada una se envía por separado y un fallo no
+   * detiene las demás: si el correo de una rebota, las otras tienen que salir
+   * igual.
+   */
+  async enviarProgramadas() {
+    const pendientes = await this.prisma.renovacion.findMany({
+      where: {
+        programadoPara: { lte: new Date() },
+        // Las ya enviadas se ignoran: alguien pudo mandarla a mano antes de la
+        // hora, y no se le va a mandar dos veces al cliente.
+        envio: 'NO_ENVIADO',
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        textoProgramado: true,
+        copiasProgramadas: true,
+        programadoPorId: true,
+      },
+      take: 50,
+    })
+
+    let enviadas = 0
+    for (const r of pendientes) {
+      try {
+        await this.enviarCorreo(
+          r.id,
+          {
+            texto: r.textoProgramado ?? undefined,
+            copias: r.copiasProgramadas ?? undefined,
+          } as any,
+          r.organizationId,
+          r.programadoPorId ?? '',
+        )
+        // Se limpia la programación para no reintentarla.
+        await this.prisma.renovacion.update({
+          where: { id: r.id },
+          data: { programadoPara: null },
+        })
+        enviadas++
+      } catch (e) {
+        this.logger.error(`[renovaciones] fallo el envio programado de ${r.id}: ${e}`)
+      }
+    }
+
+    if (pendientes.length) {
+      this.logger.log(`[renovaciones] programadas: ${enviadas} de ${pendientes.length}`)
+    }
+    return { revisadas: pendientes.length, enviadas }
+  }
+
   async enviarCorreo(
     id: string,
     dto: {

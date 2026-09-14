@@ -306,6 +306,16 @@ model Renovacion {
   estado         EstadoRenovacion @default(POR_RENOVAR)
   // Control de envíos, para cuando se automatice el correo.
   envio          EstadoEnvio      @default(NO_ENVIADO)
+
+  /// Envio programado: cuando debe salir el correo y con que texto.
+  ///
+  /// La renovacion se prepara cuando la ejecutiva tiene tiempo, pero el correo
+  /// conviene que salga en un momento concreto. Se guarda el texto tal como
+  /// quedo, para que salga exactamente lo que reviso.
+  programadoPara    DateTime?
+  textoProgramado   String?
+  copiasProgramadas String?
+  programadoPorId   String?
   fechaPrimerEnvio DateTime?
 
   /// Texto del correo, ya armado y con los ajustes de la ejecutiva.
@@ -333,6 +343,7 @@ model Renovacion {
   @@unique([polizaId, fechaRenovacion])
   @@index([organizationId, fechaRenovacion])
   @@index([organizationId, estado])
+  @@index([programadoPara])
   @@map("renovaciones")
 }
 

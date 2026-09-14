@@ -175,6 +175,79 @@ function CampoComentario({
   )
 }
 
+/**
+ * Campo para agregar un paso a una tarea que ya existe.
+ *
+ * Va en su propio componente por lo mismo que el de comentarios: con el texto en
+ * el estado de la pagina, cada letra volvia a dibujar la lista entera y el campo
+ * perdia el foco.
+ */
+function AgregarPaso({
+  onAgregar,
+  guardando,
+}: {
+  onAgregar: (texto: string) => void
+  guardando: boolean
+}) {
+  const [texto, setTexto] = useState('')
+  const [abierto, setAbierto] = useState(false)
+
+  const agregar = () => {
+    const t = texto.trim()
+    if (!t) return
+    onAgregar(t)
+    setTexto('')
+    // Se queda abierto: los pasos casi siempre se agregan de a varios.
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground hover:underline"
+      >
+        <Plus className="h-3 w-3" /> Agregar paso
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 flex gap-1.5">
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            agregar()
+          }
+          if (e.key === 'Escape') setAbierto(false)
+        }}
+        placeholder="Nuevo paso…"
+        className="h-7 flex-1 rounded-md border bg-background px-2 text-xs"
+      />
+      <button
+        type="button"
+        onClick={agregar}
+        disabled={!texto.trim() || guardando}
+        className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
+        style={{ color: NAVY }}
+      >
+        Agregar
+      </button>
+      <button
+        type="button"
+        onClick={() => setAbierto(false)}
+        className="px-1 text-xs text-muted-foreground"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
 export function TareasPage() {
   const qc = useQueryClient()
   const { data: session } = useSession()
@@ -311,6 +384,29 @@ export function TareasPage() {
     onError: fallo,
   })
 
+  /**
+   * Agrega un paso conservando los que ya estan.
+   *
+   * El servidor reemplaza la lista completa, asi que se le manda la actual mas
+   * el nuevo. Los pasos ya marcados conservan su estado: eso lo respeta el
+   * servidor comparando por id.
+   */
+  const agregarPaso = useMutation({
+    mutationFn: ({ tarea, texto }: { tarea: Tarea; texto: string }) =>
+      api.put(`/tareas/${tarea.id}/subpuntos`, {
+        subpuntos: [
+          ...(tarea.subpuntos ?? []).map((sp) => ({
+            id: sp.id,
+            texto: sp.texto,
+            hecho: sp.hecho,
+          })),
+          { texto },
+        ],
+      }),
+    onSuccess: refrescar,
+    onError: fallo,
+  })
+
   const comentar = useMutation({
     mutationFn: ({ id, texto }: { id: string; texto: string }) =>
       api.post(`/tareas/${id}/comentarios`, { texto }),
@@ -428,6 +524,15 @@ export function TareasPage() {
 
           {/* Pasos. Sin esto una tarea de cinco pasos se ve igual al 20% que al
               80%: solo hecha o no hecha. */}
+          {/* Sin pasos también se puede agregar: una tarea que se complica
+              después necesita desglosarse, y antes había que crearla de nuevo. */}
+          {!hecha && (!t.subpuntos || t.subpuntos.length === 0) && (
+            <AgregarPaso
+              guardando={agregarPaso.isPending}
+              onAgregar={(texto) => agregarPaso.mutate({ tarea: t, texto })}
+            />
+          )}
+
           {t.subpuntos && t.subpuntos.length > 0 && (
             <div className="mt-2 space-y-1">
               {t.subpuntos.map((sp) => (
@@ -459,6 +564,12 @@ export function TareasPage() {
               <p className="pt-0.5 text-[11px] text-muted-foreground">
                 {t.subpuntos.filter((x) => x.hecho).length} de {t.subpuntos.length} pasos
               </p>
+              {!hecha && (
+                <AgregarPaso
+                  guardando={agregarPaso.isPending}
+                  onAgregar={(texto) => agregarPaso.mutate({ tarea: t, texto })}
+                />
+              )}
             </div>
           )}
 

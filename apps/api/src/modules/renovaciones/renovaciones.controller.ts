@@ -42,6 +42,33 @@ export class RenovacionesController {
     return this.service.prepararCorreo(id, req.user.organizationId, plantilla)
   }
 
+  @Post(':id/programar')
+  @ApiOperation({ summary: 'Deja el correo listo para que salga a una hora concreta' })
+  programar(
+    @Param('id') id: string,
+    @Body() body: { cuando: string; texto?: string; copias?: string },
+    @Req() req: any,
+  ) {
+    return this.service.programar(id, body, req.user.organizationId, req.user.id)
+  }
+
+  @Post(':id/cancelar-programado')
+  @ApiOperation({ summary: 'Cancela un envío programado' })
+  cancelarProgramado(@Param('id') id: string, @Req() req: any) {
+    return this.service.cancelarProgramado(id, req.user.organizationId)
+  }
+
+  @Post('enviar-programadas')
+  @ApiOperation({
+    summary: 'Envía las renovaciones cuya hora ya llegó. Lo dispara la tarea programada.',
+  })
+  enviarProgramadas(@Req() req: any) {
+    // Mismo criterio que el de cumpleaños: solo SUPER_ADMIN puede dispararlo a
+    // mano, porque manda correos de verdad a los clientes.
+    if (req.user.role !== 'SUPER_ADMIN') return { error: 'Solo SUPER_ADMIN' }
+    return this.service.enviarProgramadas()
+  }
+
   @Post(':id/enviar-correo')
   @ApiOperation({ summary: 'Envía el correo de renovación tal como quedó en pantalla' })
   enviarCorreo(

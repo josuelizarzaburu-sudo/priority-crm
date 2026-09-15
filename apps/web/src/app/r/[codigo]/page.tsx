@@ -14,6 +14,15 @@ export const metadata: Metadata = {
  * Pedirle crear una cuenta para mandar un contacto perderia a la mitad antes de
  * empezar.
  */
+/**
+ * Se renderiza en cada visita, no al construir.
+ *
+ * Next intenta generar estaticamente las paginas que puede. Aqui no sirve: el
+ * codigo es distinto en cada visita y los datos cambian, asi que la pagina tiene
+ * que armarse en el momento.
+ */
+export const dynamic = 'force-dynamic'
+
 export default function Page({ params }: { params: { codigo: string } }) {
   return <PanelReferidor codigo={params.codigo} />
 }

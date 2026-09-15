@@ -68,9 +68,12 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
   const [form, setForm] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
-  const { data, isLoading, isError } = useQuery<Panel>({
+  const { data, isLoading, isError, error: errorPanel } = useQuery<Panel>({
     queryKey: ['panel-referidor', codigo],
     queryFn: () => api.get(`/referidos/panel/${codigo}`).then((r) => r.data),
+    // Sin reintentos: si el código no existe, insistir no lo va a crear, y
+    // deja la pantalla cargando varios segundos sin decir nada.
+    retry: false,
   })
 
   const referir = useMutation({
@@ -92,11 +95,36 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
   }
 
   if (isError || !data) {
+    /**
+     * Se distingue el código que no existe de un fallo del servidor.
+     *
+     * Antes los dos decían "no encontramos ese código", así que un error de
+     * conexión parecía un enlace mal copiado y no había forma de saber cuál de
+     * los dos era.
+     */
+    const estado = (errorPanel as any)?.response?.status
+    const noExiste = estado === 404
+    const detalle = (errorPanel as any)?.response?.data?.message ?? (errorPanel as any)?.message
+
     return (
-      <div className="mx-auto max-w-sm px-4 py-20 text-center">
-        <p className="text-sm text-muted-foreground">
-          No encontramos ese código. Revisa el enlace que te compartieron.
-        </p>
+      <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="max-w-sm text-center">
+          <p className="text-sm" style={{ color: NAVY }}>
+            {noExiste
+              ? 'No encontramos ese código.'
+              : 'No pudimos cargar tu información en este momento.'}
+          </p>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {noExiste
+              ? 'Revisa el enlace que te compartieron, o pídelo de nuevo.'
+              : 'Vuelve a intentarlo en un momento.'}
+          </p>
+          {/* El detalle técnico, en pequeño: sirve para poder decir qué pasó
+              cuando alguien reporta el problema. */}
+          {!noExiste && detalle && (
+            <p className="mt-3 text-[10px] text-muted-foreground/60">{String(detalle)}</p>
+          )}
+        </div>
       </div>
     )
   }

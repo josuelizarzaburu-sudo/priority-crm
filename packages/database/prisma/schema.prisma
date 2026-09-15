@@ -17,6 +17,9 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String?  @unique
+  referidoReglas  ReferidoReglas?
+  referidos       Referido[]
+  referidores     Referidor[]
   logo      String?
   settings  Json?
   createdAt DateTime @default(now())
@@ -747,6 +750,7 @@ model Deal {
   // SetNull: si se borra un equipo, el lead NO se borra: vuelve a la bolsa comun
   // para que gerencia lo reparta de nuevo.
   equipo           Equipo?          @relation("EquipoDeals", fields: [equipoId], references: [id], onDelete: SetNull)
+  referido        Referido?
   activities       Activity[]
   whatsappMessages WhatsappMessage[]
   inspeccion      Inspeccion?
@@ -1563,4 +1567,123 @@ model PriorityHelpConsulta {
   @@index([createdAt])
   @@index([sinRespuesta])
   @@map("priority_help_consultas")
+}
+
+/// Quien refiere: una persona externa —no es cliente ni empleado— que trae
+/// contactos y gana dinero y puntos cuando la venta se cierra.
+model Referidor {
+  id             String  @id @default(cuid())
+  /// Su codigo, lo que comparte: "DANI-4417".
+  codigo         String  @unique
+  nombres        String
+  apellidos      String
+  identificacion String?
+  email          String?
+  celular        String
+  /// ACTIVO o INACTIVO. No se borra: sus referidos y pagos siguen haciendo falta.
+  estado         String  @default("ACTIVO")
+
+  /// Saldo de puntos, guardado calculado para no sumar el historial entero cada
+  /// vez que abre la pantalla.
+  puntos    Int     @default(0)
+  /// Lo ganado y lo ya pagado, en dolares.
+  acumulado Decimal @default(0) @db.Decimal(10, 2)
+  pagado    Decimal @default(0) @db.Decimal(10, 2)
+  notas     String?
+
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referidos    Referido[]
+  movimientos  ReferidoMovimiento[]
+
+  @@index([organizationId, estado])
+  @@map("referidores")
+}
+
+/// Un contacto que mando un referidor.
+model Referido {
+  id          String  @id @default(cuid())
+  referidorId String
+  nombres     String
+  celular     String
+  email       String?
+  /// Que le interesa: SALUD, AUTO, VIDA, HOGAR.
+  interes     String?
+  nota        String?
+  /// RECIBIDO, EN_GESTION, CERRADO, ACREDITADO, NO_PROSPERO
+  estado      String  @default("RECIBIDO")
+
+  /// El lead que nacio de este referido.
+  dealId String? @unique
+
+  /// Lo que se acredito, cuando se acredito.
+  puntos       Int?
+  monto        Decimal?  @db.Decimal(10, 2)
+  acreditadoEn DateTime?
+  /// Por que no prospero. Se le dice al referidor para que aprenda a referir
+  /// mejor: si no sabe que fallo, manda otro igual.
+  motivo       String?
+
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  referidor    Referidor            @relation(fields: [referidorId], references: [id], onDelete: Cascade)
+  deal         Deal?                @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  movimientos  ReferidoMovimiento[]
+
+  @@index([referidorId, estado])
+  @@index([organizationId, estado])
+  @@map("referidos")
+}
+
+/// Cada movimiento de puntos o dinero.
+///
+/// Se guarda el historial y no solo el saldo: cuando alguien reclame "me faltan
+/// puntos" hay que poder decirle de donde salio cada uno.
+model ReferidoMovimiento {
+  id          String  @id @default(cuid())
+  referidorId String
+  referidoId  String?
+  /// ACREDITACION, CANJE, PAGO, AJUSTE
+  tipo        String
+  puntos      Int     @default(0)
+  monto       Decimal @default(0) @db.Decimal(10, 2)
+  detalle     String
+  autorId     String?
+  autorNombre String?
+
+  createdAt DateTime @default(now())
+
+  referidor Referidor @relation(fields: [referidorId], references: [id], onDelete: Cascade)
+  referido  Referido? @relation(fields: [referidoId], references: [id], onDelete: SetNull)
+
+  @@index([referidorId, createdAt])
+  @@map("referido_movimientos")
+}
+
+/// Reglas del programa: los numeros que se van a ajustar con el tiempo.
+///
+/// Van en la base y no en el codigo porque cambian: si los premios se piden muy
+/// rapido se sube el costo, si nadie llega se baja. Fijos en el codigo, cada
+/// ajuste seria un despliegue.
+model ReferidoReglas {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  puntosPorReferido Int     @default(10)
+  /// Hasta este monto de prima anual se paga el monto bajo; sobre el, el alto.
+  cortePrima        Decimal @default(2000) @db.Decimal(10, 2)
+  montoBajo         Decimal @default(20) @db.Decimal(10, 2)
+  montoAlto         Decimal @default(30) @db.Decimal(10, 2)
+
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("referido_reglas")
 }

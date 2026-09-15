@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS "referido_reglas" (
   "organizationId" TEXT NOT NULL,
   "puntosPorReferido" INTEGER NOT NULL DEFAULT 10,
   -- Hasta este monto de prima anual se paga el monto bajo; sobre el, el alto.
-  "corteePrima"    DECIMAL(10,2) NOT NULL DEFAULT 2000,
+  "cortePrima"    DECIMAL(10,2) NOT NULL DEFAULT 2000,
   "montoBajo"      DECIMAL(10,2) NOT NULL DEFAULT 20,
   "montoAlto"      DECIMAL(10,2) NOT NULL DEFAULT 30,
   "updatedAt"      TIMESTAMP(3) NOT NULL,

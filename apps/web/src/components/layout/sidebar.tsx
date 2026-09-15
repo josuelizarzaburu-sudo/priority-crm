@@ -37,11 +37,15 @@ import {
   Trophy,
   ShieldCheck,
   ClipboardCheck,
+  Users2,
   CalendarClock,
   Sparkles,
 } from 'lucide-react'
 
 const ELEVATED = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+// Referidos lo administra gerencia y el jefe de operaciones: son quienes
+// reparten los contactos que entran y autorizan los pagos.
+const REFERIDOS_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES']
 // El jefe de equipo ve las mismas pantallas comerciales que un vendedor, mas el
 // reparto de leads. La diferencia no esta en QUE pantallas ve, sino en que todas
 // le llegan acotadas a su equipo desde el backend.
@@ -59,6 +63,7 @@ const NAV_ITEMS = [
   { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: OPS_ADMIN },
   { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN },
   { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN },
+  { href: '/referidos',        label: 'Referidos',          icon: Users2,          roles: REFERIDOS_ROLES },
   // Vehiculos: las dos bandejas de Fidelizacion.
   { href: '/inspecciones',     label: 'Inspecciones',       icon: ClipboardCheck,  roles: OPS_ADMIN },
   { href: '/emisiones',        label: 'Emisiones',          icon: Car,             roles: OPS_ADMIN },

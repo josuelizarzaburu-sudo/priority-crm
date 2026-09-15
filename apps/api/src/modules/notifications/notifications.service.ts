@@ -470,9 +470,16 @@ export class NotificationsService {
              </p>`
           : ''
       }
-      <!-- Firma institucional. Se referencia por URL y no se adjunta: incrustarla
+      <!-- Firma de Gianella, al final del texto y antes del pie.
+           Se quito al poner el pie de Canva por parecer repetida, pero no lo es:
+           el pie trae la direccion de la oficina y esto dice QUIEN escribe y
+           como contactarla. Se referencia por URL y no se adjunta: incrustarla
            haria el correo mucho mas pesado y algunos clientes de correo la
            mostrarian como archivo adjunto en vez de como imagen. -->
+      <p style="margin:22px 0 0;">
+        <img src="https://priority.ec/img/firma-priority.png" alt="Gianella Pozo — Priority Asesores de Seguros"
+             style="max-width:340px;width:100%;height:auto;display:block;border:0;" />
+      </p>
     </div>
     <img src="https://priority.ec/img/correo-pie.png"
          alt="Av. de los Shyris N35-174 y Suecia, Edificio Renazzo Plaza, oficina 905 — www.priority.ec"

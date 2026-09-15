@@ -20,7 +20,9 @@ const TIPOS = [
 const ESTADOS = [
   { valor: 'NUEVO', label: 'Nuevo' },
   { valor: 'RENOVADO', label: 'Renovado' },
-  { valor: 'CARTA_DE_NOMBRAMIENTO', label: 'Carta de nombramiento' },
+  // 'Cambio de broker' es como lo llama el equipo; el valor guardado sigue
+  // siendo CARTA_DE_NOMBRAMIENTO para no tocar los datos ya cargados.
+  { valor: 'CARTA_DE_NOMBRAMIENTO', label: 'Cambio de bróker' },
   { valor: 'CANCELADA', label: 'Cancelada' },
 ]
 

@@ -110,8 +110,22 @@ const fmtMonto = (v: string | number | null) => {
   return Number.isNaN(n) ? '—' : `$${n.toLocaleString('es-EC', { minimumFractionDigits: 2 })}`
 }
 
+/**
+ * Estados de póliza como los nombra el equipo.
+ *
+ * El valor guardado sigue siendo CARTA_DE_NOMBRAMIENTO —cambiarlo obligaría a
+ * migrar las pólizas ya cargadas— pero en pantalla se dice "Cambio de bróker",
+ * que es como se le llama en la operación.
+ */
+const NOMBRE_ESTADO: Record<string, string> = {
+  CARTA_DE_NOMBRAMIENTO: 'Cambio de bróker',
+  POR_RENOVAR: 'Por renovar',
+}
+
 const bonito = (v: string | null) =>
-  v ? v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ') : '—'
+  v
+    ? (NOMBRE_ESTADO[v] ?? v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' '))
+    : '—'
 
 // Resalta en dorado como prefiere que le llamen. Ej: "PABLO ALEJANDRO CARRILLO"
 // con preferido "PABLO" -> pinta solo esa palabra.

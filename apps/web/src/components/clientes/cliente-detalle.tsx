@@ -110,15 +110,10 @@ const fmtMonto = (v: string | number | null) => {
   return Number.isNaN(n) ? '—' : `$${n.toLocaleString('es-EC', { minimumFractionDigits: 2 })}`
 }
 
-/**
- * Estados de póliza como los nombra el equipo.
- *
- * El valor guardado sigue siendo CARTA_DE_NOMBRAMIENTO —cambiarlo obligaría a
- * migrar las pólizas ya cargadas— pero en pantalla se dice "Cambio de bróker",
- * que es como se le llama en la operación.
- */
+/** Estados cuyo nombre no sale bien de la conversión automática. */
 const NOMBRE_ESTADO: Record<string, string> = {
-  CARTA_DE_NOMBRAMIENTO: 'Cambio de bróker',
+  CARTA_DE_NOMBRAMIENTO: 'Carta de nombramiento',
+  CAMBIO_DE_BROKER: 'Cambio de bróker',
   POR_RENOVAR: 'Por renovar',
 }
 

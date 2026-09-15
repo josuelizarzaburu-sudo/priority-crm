@@ -3,7 +3,14 @@ import { Type } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
 
 const TIPOS = ['SALUD', 'AUTO', 'VIDA', 'HOGAR']
-const ESTADOS = ['NUEVO', 'RENOVADO', 'CARTA_DE_NOMBRAMIENTO', 'CANCELADA']
+const ESTADOS = [
+  'NUEVO',
+  'RENOVADO',
+  'POR_RENOVAR',
+  'CARTA_DE_NOMBRAMIENTO',
+  'CAMBIO_DE_BROKER',
+  'CANCELADA',
+]
 const PAGOS = ['CONTADO', 'MENSUAL', 'DIFERIDO', 'DIFERIDO_ESPECIAL']
 
 export class CreatePolizaDto {

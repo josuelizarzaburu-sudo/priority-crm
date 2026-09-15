@@ -1172,6 +1172,10 @@ enum EstadoPoliza {
   POR_RENOVAR
   RENOVADO
   CARTA_DE_NOMBRAMIENTO
+  /// Distinto de la carta de nombramiento: esa es el documento del tramite, y
+  /// esto la situacion comercial. Puede estar en cambio de broker antes de que
+  /// la carta se emita.
+  CAMBIO_DE_BROKER
   CANCELADA
 }
 

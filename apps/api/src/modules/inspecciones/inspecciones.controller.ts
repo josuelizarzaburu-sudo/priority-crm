@@ -28,6 +28,18 @@ export class InspeccionesController {
     return this.service.enviar(dealId, body ?? {}, req.user.organizationId, req.user.id)
   }
 
+  @Post('deal/:dealId/comentar')
+  @ApiOperation({ summary: 'Comenta sin cambiar el estado, y avisa al comercial' })
+  comentar(@Param('dealId') dealId: string, @Body() body: { texto: string }, @Req() req: any) {
+    return this.service.comentar(
+      dealId,
+      body?.texto ?? '',
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Post('deal/:dealId/resolver')
   @ApiOperation({ summary: 'Registra el resultado. Solo Fidelización.' })
   resolver(

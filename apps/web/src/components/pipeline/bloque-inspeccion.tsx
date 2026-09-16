@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Car, Check, Paperclip, Send, TriangleAlert, X } from 'lucide-react'
+import { Car, Check, MessageSquare, Paperclip, Send, TriangleAlert, X } from 'lucide-react'
 import { ASEGURADORAS_VEHICULO, FORMAS_PAGO_VEHICULO, planesDe } from './planes-vehiculo'
 
 const NAVY = '#0C2057'
@@ -127,6 +127,28 @@ export function BloqueInspeccion({
     onSuccess: () => {
       setAdjuntos([])
       setNota('')
+      setError(null)
+      refrescar()
+    },
+    onError: fallo,
+  })
+
+  /**
+   * Comentar sin cambiar el estado.
+   *
+   * Va en los dos sentidos: Fidelización avisa que coordinó la cita, el comercial
+   * responde que el cliente cambió de día. Antes eso se hablaba por fuera y no
+   * quedaba en ningún lado.
+   */
+  const [comentando, setComentando] = useState(false)
+  const [comentario, setComentario] = useState('')
+
+  const comentar = useMutation({
+    mutationFn: () =>
+      api.post(`/inspecciones/deal/${dealId}/comentar`, { texto: comentario }),
+    onSuccess: () => {
+      setComentario('')
+      setComentando(false)
       setError(null)
       refrescar()
     },
@@ -496,6 +518,52 @@ export function BloqueInspeccion({
               </Button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Comentar: disponible siempre que exista la inspección, sin importar su
+          estado. La coordinación pasa antes, durante y después del resultado. */}
+      {insp && (
+        <div className="mt-2.5 border-t pt-2.5">
+          {comentando ? (
+            <div className="flex gap-1.5">
+              <input
+                autoFocus
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && comentario.trim()) comentar.mutate()
+                  if (e.key === 'Escape') setComentando(false)
+                }}
+                placeholder="Ej: el cliente pidió cambiar la cita al viernes"
+                className="h-8 flex-1 rounded-md border bg-background px-2 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => comentar.mutate()}
+                disabled={!comentario.trim() || comentar.isPending}
+                className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
+                style={{ color: NAVY }}
+              >
+                Enviar
+              </button>
+              <button
+                type="button"
+                onClick={() => setComentando(false)}
+                className="px-1 text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setComentando(true)}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:underline"
+            >
+              <MessageSquare className="h-3 w-3" /> Comentar
+            </button>
+          )}
         </div>
       )}
 

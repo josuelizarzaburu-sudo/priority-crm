@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Car, Check } from 'lucide-react'
+import { Car, Check, MessageSquare, X } from 'lucide-react'
 
 const NAVY = '#0C2057'
 const VERDE = '#15803d'
@@ -49,12 +49,85 @@ interface Inspeccion {
  * no anda abriendo negocios ajenos en el pipeline: necesita ver de una vez todo
  * lo que tiene pendiente de gestionar con las aseguradoras.
  */
+/**
+ * Campo para comentar.
+ *
+ * En su propio componente con su propio estado: con el texto en el estado de la
+ * página, cada letra volvería a dibujar la lista entera y el campo perdería el
+ * foco. Ya pasó en tareas.
+ */
+function CampoComentario({
+  onEnviar,
+  onCerrar,
+  enviando,
+}: {
+  onEnviar: (texto: string) => void
+  onCerrar: () => void
+  enviando: boolean
+}) {
+  const [texto, setTexto] = useState('')
+
+  const enviar = () => {
+    const t = texto.trim()
+    if (!t) return
+    onEnviar(t)
+    setTexto('')
+  }
+
+  return (
+    <div className="flex gap-1.5">
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            enviar()
+          }
+          if (e.key === 'Escape') onCerrar()
+        }}
+        placeholder="Ej: inspección coordinada para el jueves a las 10"
+        className="h-8 flex-1 rounded-md border bg-background px-2 text-xs"
+      />
+      <button
+        type="button"
+        onClick={enviar}
+        disabled={!texto.trim() || enviando}
+        className="rounded-md px-2 text-xs font-medium disabled:opacity-40"
+        style={{ color: NAVY }}
+      >
+        Enviar
+      </button>
+      <button type="button" onClick={onCerrar} className="px-1 text-muted-foreground">
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
 export function InspeccionesPage() {
   const qc = useQueryClient()
   const [estado, setEstado] = useState<Estado | ''>('DE_INSPECCION')
   const [resolviendo, setResolviendo] = useState<{ id: string; estado: Estado } | null>(null)
   const [observacion, setObservacion] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /** Comentario que se está escribiendo, por inspección. */
+  const [comentando, setComentando] = useState<string | null>(null)
+
+  const comentar = useMutation({
+    mutationFn: ({ dealId, texto }: { dealId: string; texto: string }) =>
+      api.post(`/inspecciones/deal/${dealId}/comentar`, { texto }),
+    onSuccess: () => {
+      setComentando(null)
+      setError(null)
+      qc.invalidateQueries({ queryKey: ['inspecciones'] })
+    },
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      setError(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo comentar'))
+    },
+  })
 
   const { data: lista = [], isLoading } = useQuery<Inspeccion[]>({
     queryKey: ['inspecciones', estado],
@@ -192,6 +265,24 @@ export function InspeccionesPage() {
                         onChange={(e) => setObservacion(e.target.value)}
                         className="h-9 text-sm"
                       />
+                    )}
+
+                    {/* Comentar sin cambiar el estado: la mayoría de lo que pasa
+                        en una inspección es coordinación, no un resultado. */}
+                    {comentando === i.id ? (
+                      <CampoComentario
+                        enviando={comentar.isPending}
+                        onEnviar={(texto) => comentar.mutate({ dealId: i.dealId, texto })}
+                        onCerrar={() => setComentando(null)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setComentando(i.id)}
+                        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:underline"
+                      >
+                        <MessageSquare className="h-3 w-3" /> Comentar
+                      </button>
                     )}
 
                     <div className="flex flex-wrap gap-1.5">

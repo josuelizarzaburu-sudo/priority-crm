@@ -289,6 +289,90 @@ export class InspeccionesService {
   }
 
   /**
+   * Deja un comentario sin cambiar el estado, y avisa al comercial.
+   *
+   * La mayoría de lo que pasa en una inspección no es aprobar ni rechazar: es
+   * coordinación —"quedó para el jueves a las 10", "el cliente no contesta"—.
+   * Antes eso obligaba a elegir un estado que no correspondía o a llamar al
+   * vendedor por fuera.
+   *
+   * El comercial se entera igual que con un resultado: en la campanita y en la
+   * actividad del negocio.
+   */
+  async comentar(
+    dealId: string,
+    texto: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    const limpio = (texto ?? '').trim()
+    if (!limpio) throw new BadRequestException('El comentario está vacío')
+
+    const inspeccion = await this.prisma.inspeccion.findFirst({
+      where: { dealId, organizationId },
+      include: { deal: { include: { contact: { select: { firstName: true, lastName: true } } } } },
+    })
+    if (!inspeccion) throw new NotFoundException('Esta inspección no existe')
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const nota = await this.prisma.inspeccionNota.create({
+      data: {
+        inspeccionId: inspeccion.id,
+        texto: limpio,
+        autorId: userId,
+        autorNombre: autor?.name ?? null,
+      },
+    })
+
+    const cliente = `${inspeccion.deal?.contact?.firstName ?? ''} ${
+      inspeccion.deal?.contact?.lastName ?? ''
+    }`.trim()
+
+    // Queda en la historia del negocio, junto a todo lo demás.
+    await this.prisma.activity
+      .create({
+        data: {
+          dealId,
+          organizationId,
+          type: 'NOTE',
+          description: `Inspección: ${limpio}`,
+          userId,
+        },
+      })
+      .catch((e) => this.logger.error(`[inspecciones] no se pudo registrar la actividad: ${e}`))
+
+    /**
+     * Se avisa a quien la pidió, y también a Fidelización si el comentario lo
+     * escribió el comercial: la conversación va en los dos sentidos.
+     */
+    const aQuien = new Set<string>()
+    if (inspeccion.enviadaPorId) aQuien.add(inspeccion.enviadaPorId)
+    if (!PUEDE_RESOLVER.includes(role)) {
+      const gestores = await this.prisma.user.findMany({
+        where: { organizationId, role: { in: PUEDE_RESOLVER as any }, activo: true },
+        select: { id: true },
+      })
+      gestores.forEach((g) => aQuien.add(g.id))
+    }
+
+    await this.notificaciones.crearParaVarios([...aQuien], {
+      organizationId,
+      tipo: 'INSPECCION_COMENTARIO',
+      titulo: `${autor?.name ?? 'Alguien'} comentó en una inspección`,
+      detalle: `${cliente}: ${limpio.slice(0, 90)}${limpio.length > 90 ? '…' : ''}`,
+      enlace: '/inspecciones',
+      provocadoPor: userId,
+    })
+
+    return nota
+  }
+
+  /**
    * Registra el resultado de la inspección.
    *
    * Lo hace Fidelización cuando la aseguradora responde. El comercial se entera

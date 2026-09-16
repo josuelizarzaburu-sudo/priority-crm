@@ -435,6 +435,11 @@ export class RenovacionesService {
       // que ya está en cola y se pueda cancelar.
       programadoPara: r.programadoPara,
       copiasProgramadas: r.copiasProgramadas,
+      // Solo los nombres: el contenido pesa y no hace falta para mostrarlos.
+      // Al reenviar se usan los que estan guardados en el servidor.
+      adjuntosProgramados: Array.isArray(r.adjuntosProgramados)
+        ? (r.adjuntosProgramados as any[]).map((a) => ({ filename: a.filename }))
+        : [],
       plantilla: plantillaId,
       // El texto guardado gana sobre el generado: son las correcciones de la
       // ejecutiva y no deben perderse al recargar.
@@ -553,7 +558,13 @@ export class RenovacionesService {
    */
   async programar(
     id: string,
-    dto: { cuando: string; texto?: string; copias?: string; destinatario?: string },
+    dto: {
+      cuando: string
+      texto?: string
+      copias?: string
+      destinatario?: string
+      adjuntos?: { filename: string; content: string }[]
+    },
     organizationId: string,
     userId: string,
   ) {
@@ -582,6 +593,12 @@ export class RenovacionesService {
         // A quien se le envia. Sin esto la tarea no tiene de donde sacarlo y el
         // envio falla con "el correo del destinatario no es valido".
         destinatarioProgramado: dto.destinatario?.trim() || null,
+        // Los archivos se guardan tal como llegan. Se validan aquí y no al
+        // enviar: si algo está mal, conviene saberlo ahora y no mañana cuando
+        // la tarea intente mandarlo.
+        adjuntosProgramados: dto.adjuntos?.length
+          ? (this.validarAdjuntos(dto.adjuntos) as any)
+          : undefined,
         programadoPorId: userId,
       },
     })
@@ -602,6 +619,7 @@ export class RenovacionesService {
         textoProgramado: null,
         copiasProgramadas: null,
         destinatarioProgramado: null,
+        adjuntosProgramados: undefined,
         programadoPorId: null,
       },
     })
@@ -628,6 +646,7 @@ export class RenovacionesService {
         textoProgramado: true,
         copiasProgramadas: true,
         destinatarioProgramado: true,
+        adjuntosProgramados: true,
         programadoPorId: true,
         // De respaldo, por si la renovacion se programo antes de que se
         // guardara el destinatario.
@@ -647,6 +666,7 @@ export class RenovacionesService {
             // El que se guardo al programar; si no hay, el del cliente.
             destinatario:
               r.destinatarioProgramado ?? r.poliza?.cliente?.email ?? undefined,
+            adjuntos: (r.adjuntosProgramados as any) ?? undefined,
           } as any,
           r.organizationId,
           r.programadoPorId ?? '',

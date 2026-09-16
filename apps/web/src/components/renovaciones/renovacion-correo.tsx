@@ -23,6 +23,8 @@ interface CorreoRenovacion {
   /** Cuándo sale el envío programado, si lo hay. */
   programadoPara?: string | null
   copiasProgramadas?: string | null
+  /** Nombres de los archivos ya guardados con la programación. */
+  adjuntosProgramados?: { filename: string }[]
 }
 
 /**
@@ -142,6 +144,11 @@ export function RenovacionCorreo({
         // A quien se le envia: sin esto la tarea no tiene de donde sacarlo.
         destinatario,
         ...(copias.trim() ? { copias } : {}),
+        // Los archivos van guardados con la programacion: sin esto el correo
+        // salia sin el cuadro de beneficios que se adjunto.
+        ...(adjuntos.length
+          ? { adjuntos: adjuntos.map(({ filename, content }) => ({ filename, content })) }
+          : {}),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['renovaciones'] })
@@ -464,6 +471,13 @@ export function RenovacionCorreo({
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               Este es el texto que va a salir. Puedes corregirlo o cancelar el envío.
             </p>
+            {/* Los archivos guardados, para que se vea que van a ir. */}
+            {data.adjuntosProgramados && data.adjuntosProgramados.length > 0 && (
+              <p className="mt-1 text-[11px]" style={{ color: '#B87A15' }}>
+                Con {data.adjuntosProgramados.length} archivo(s):{' '}
+                {data.adjuntosProgramados.map((a) => a.filename).join(', ')}
+              </p>
+            )}
           </div>
           <Button
             size="sm"

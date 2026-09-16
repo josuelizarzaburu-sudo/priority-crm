@@ -321,6 +321,9 @@ model Renovacion {
   /// tenia de donde sacar el correo del cliente.
   destinatarioProgramado String?
   copiasProgramadas String?
+  /// Archivos del envio programado, en base64 igual que viajan en la peticion.
+  /// Sin esto el correo salia sin el cuadro de beneficios que se adjunto.
+  adjuntosProgramados Json?
   programadoPorId   String?
   fechaPrimerEnvio DateTime?
 

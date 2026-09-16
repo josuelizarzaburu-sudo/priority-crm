@@ -317,6 +317,9 @@ model Renovacion {
   /// quedo, para que salga exactamente lo que reviso.
   programadoPara    DateTime?
   textoProgramado   String?
+  /// A quien se le envia. Sin esto el envio programado fallaba: la tarea no
+  /// tenia de donde sacar el correo del cliente.
+  destinatarioProgramado String?
   copiasProgramadas String?
   programadoPorId   String?
   fechaPrimerEnvio DateTime?

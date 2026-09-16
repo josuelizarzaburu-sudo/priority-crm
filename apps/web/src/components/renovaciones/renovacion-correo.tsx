@@ -20,6 +20,9 @@ interface CorreoRenovacion {
   datos: Record<string, string | null>
   plantillasDisponibles: { id: string; etiqueta: string }[]
   faltantes: string[]
+  /** Cuándo sale el envío programado, si lo hay. */
+  programadoPara?: string | null
+  copiasProgramadas?: string | null
 }
 
 /**
@@ -119,11 +122,25 @@ export function RenovacionCorreo({
     setAdjuntos(juntos)
   }
 
+  const cancelarProgramado = useMutation({
+    mutationFn: () => api.post(`/renovaciones/${renovacionId}/cancelar-programado`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['renovacion', renovacionId] })
+      qc.invalidateQueries({ queryKey: ['renovaciones'] })
+    },
+    onError: (e: any) => {
+      const m = e?.response?.data?.message
+      setError(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo cancelar'))
+    },
+  })
+
   const programar = useMutation({
     mutationFn: () =>
       api.post(`/renovaciones/${renovacionId}/programar`, {
         cuando: new Date(cuando).toISOString(),
         texto,
+        // A quien se le envia: sin esto la tarea no tiene de donde sacarlo.
+        destinatario,
         ...(copias.trim() ? { copias } : {}),
       }),
     onSuccess: () => {
@@ -423,6 +440,39 @@ export function RenovacionCorreo({
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* Ya programado: se dice cuándo sale y se puede cancelar. Antes no había
+          forma de saber que estaba en cola. */}
+      {data?.programadoPara && !enviado && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5"
+          style={{ backgroundColor: '#fffbf3', border: '1px solid #DBAA59' }}
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-medium" style={{ color: '#B87A15' }}>
+              Programado para el{' '}
+              {new Date(data.programadoPara).toLocaleString('es-EC', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Este es el texto que va a salir. Puedes corregirlo o cancelar el envío.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => cancelarProgramado.mutate()}
+            disabled={cancelarProgramado.isPending}
+          >
+            Cancelar envío
+          </Button>
         </div>
       )}
 

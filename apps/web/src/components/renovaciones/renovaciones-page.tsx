@@ -78,7 +78,10 @@ export function RenovacionesPage() {
         await api.get('/renovaciones', {
           params: {
             mes: mes || undefined,
-            estado: estado || undefined,
+            // "Programadas" no es un estado de la renovación sino un filtro
+            // aparte: la renovación sigue en el estado que tenga.
+            estado: estado === '__PROGRAMADAS' ? undefined : estado || undefined,
+            ...(estado === '__PROGRAMADAS' ? { programadas: 'true' } : {}),
             search: search.trim() || undefined,
           },
         })
@@ -149,6 +152,7 @@ export function RenovacionesPage() {
             className="h-9 rounded-md border bg-background px-2 text-sm"
           >
             <option value="">Todos los estados</option>
+            <option value="__PROGRAMADAS">Programadas para envío</option>
             {ESTADOS.map((e) => (
               <option key={e.valor} value={e.valor}>
                 {e.label}
@@ -217,6 +221,24 @@ export function RenovacionesPage() {
                   >
                     <td className="px-3 py-2 font-medium" style={{ color: NAVY }}>
                       {c ? `${c.nombres} ${c.apellidos ?? ''}`.trim() : '—'}
+                      {/* Un correo programado no se ve en ningún estado: la
+                          renovación sigue "por enviar" hasta que salga. Sin esta
+                          marca no había forma de saber cuáles quedaron en cola
+                          ni a qué hora salen. */}
+                      {r.programadoPara && (
+                        <span
+                          className="ml-1.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                          style={{ backgroundColor: '#fffbf3', color: '#B87A15' }}
+                          title={`Se envía el ${new Date(r.programadoPara).toLocaleString('es-EC')}`}
+                        >
+                          ⏱ {new Date(r.programadoPara).toLocaleString('es-EC', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2">{r.poliza?.aseguradora ?? '—'}</td>
                     <td className="max-w-[160px] truncate px-3 py-2">

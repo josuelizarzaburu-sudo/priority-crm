@@ -42,4 +42,11 @@ export class RenovacionesQueryDto {
   @Type(() => Number)
   @IsOptional()
   limit?: number = 50
+
+  /** 'true' para ver solo las que tienen un envío programado. */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  programadas?: string
+
 }

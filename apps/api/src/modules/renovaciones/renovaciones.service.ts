@@ -430,7 +430,11 @@ export class RenovacionesService {
       // "ENVIADO": distingue PRIMER_ENVIO del SEGUNDO_ENVIO, que es el
       // recordatorio cuando el cliente no contesta.
       yaEnviado: r.envio !== 'NO_ENVIADO' ? r.fechaPrimerEnvio : null,
-      destinatario: r.correoDestinatario ?? cliente?.email ?? '',
+      destinatario: r.destinatarioProgramado ?? r.correoDestinatario ?? cliente?.email ?? '',
+      // Cuándo sale, si está programado. La pantalla lo muestra para que se vea
+      // que ya está en cola y se pueda cancelar.
+      programadoPara: r.programadoPara,
+      copiasProgramadas: r.copiasProgramadas,
       plantilla: plantillaId,
       // El texto guardado gana sobre el generado: son las correcciones de la
       // ejecutiva y no deben perderse al recargar.
@@ -438,7 +442,16 @@ export class RenovacionesService {
       // Salvo cuando pide una plantilla concreta: ahi quiere justamente el texto
       // de esa plantilla. Sin esta excepcion, elegir una plantilla no cambiaba
       // nada y el cuadro se quedaba en blanco para siempre.
-      texto: plantillaPedida ? (textoGenerado ?? '') : (r.correoTexto ?? textoGenerado ?? ''),
+      /**
+       * Si hay un envío programado, se muestra ESE texto.
+       *
+       * Antes se armaba uno nuevo desde la plantilla, así que abrir una
+       * renovación ya preparada perdía lo que la ejecutiva había escrito y
+       * parecía que la programación no existía.
+       */
+      texto: plantillaPedida
+        ? (textoGenerado ?? '')
+        : (r.textoProgramado ?? r.correoTexto ?? textoGenerado ?? ''),
       // Se devuelve aparte para poder ofrecer "regenerar desde la plantilla" si
       // cambian los valores y quiere partir de cero otra vez.
       textoGenerado,
@@ -540,7 +553,7 @@ export class RenovacionesService {
    */
   async programar(
     id: string,
-    dto: { cuando: string; texto?: string; copias?: string },
+    dto: { cuando: string; texto?: string; copias?: string; destinatario?: string },
     organizationId: string,
     userId: string,
   ) {
@@ -566,6 +579,9 @@ export class RenovacionesService {
         programadoPara: cuando,
         textoProgramado: dto.texto?.trim() || null,
         copiasProgramadas: dto.copias?.trim() || null,
+        // A quien se le envia. Sin esto la tarea no tiene de donde sacarlo y el
+        // envio falla con "el correo del destinatario no es valido".
+        destinatarioProgramado: dto.destinatario?.trim() || null,
         programadoPorId: userId,
       },
     })
@@ -585,6 +601,7 @@ export class RenovacionesService {
         programadoPara: null,
         textoProgramado: null,
         copiasProgramadas: null,
+        destinatarioProgramado: null,
         programadoPorId: null,
       },
     })
@@ -610,7 +627,11 @@ export class RenovacionesService {
         organizationId: true,
         textoProgramado: true,
         copiasProgramadas: true,
+        destinatarioProgramado: true,
         programadoPorId: true,
+        // De respaldo, por si la renovacion se programo antes de que se
+        // guardara el destinatario.
+        poliza: { select: { cliente: { select: { email: true } } } },
       },
       take: 50,
     })
@@ -623,6 +644,9 @@ export class RenovacionesService {
           {
             texto: r.textoProgramado ?? undefined,
             copias: r.copiasProgramadas ?? undefined,
+            // El que se guardo al programar; si no hay, el del cliente.
+            destinatario:
+              r.destinatarioProgramado ?? r.poliza?.cliente?.email ?? undefined,
           } as any,
           r.organizationId,
           r.programadoPorId ?? '',

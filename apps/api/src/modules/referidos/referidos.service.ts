@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { NotificacionesService } from '../notificaciones/notificaciones.service'
+import { LeadsService } from '../leads/leads.service'
 
 /**
  * Programa de referidos.
@@ -37,6 +38,7 @@ export class ReferidosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificaciones: NotificacionesService,
+    private readonly leads: LeadsService,
   ) {}
 
   private exigirAdmin(role: string) {
@@ -184,10 +186,12 @@ export class ReferidosService {
   }
 
   /**
-   * Registra un contacto referido.
+   * Registra un contacto referido y le abre el lead.
    *
-   * Todavía no crea el lead: eso lo hace operaciones al revisarlo. Crear el deal
-   * de una permitiría llenar el pipeline con datos inventados desde fuera.
+   * El lead entra como PRIORITY_HEALTH, igual que los del formulario web, para
+   * que el bot lo atienda y el equipo lo trabaje sin distinguirlo de los demás.
+   * Lo que sí lo distingue es el código del referidor, que queda en el negocio
+   * para saber a quién acreditarle el cierre.
    */
   async crearReferido(
     codigo: string,
@@ -216,6 +220,40 @@ export class ReferidosService {
         organizationId: referidor.organizationId,
       },
     })
+
+    /**
+     * Se crea el lead con el mismo camino que los del formulario web.
+     *
+     * Reutilizar ingestLead y no escribir el deal a mano importa: ahí ya está
+     * el reparto al vendedor, el origen y todo lo que el equipo espera de un
+     * lead. Duplicarlo aquí haría que los referidos se comporten distinto sin
+     * que nadie sepa por qué.
+     *
+     * Si falla, el referido queda registrado igual: se le abre el lead a mano y
+     * no se pierde el trabajo del referidor.
+     */
+    try {
+      const partes = referido.nombres.split(/\s+/)
+      const creado = await this.leads.ingestLead({
+        firstName: partes[0],
+        lastName: partes.slice(1).join(' ') || undefined,
+        phone: referido.celular,
+        email: referido.email ?? undefined,
+        insuranceType: (referido.interes as any) ?? 'SALUD',
+        // El código viaja al negocio: es lo que dice a quién acreditarle el
+        // cierre cuando esta venta se concrete.
+        referidoPor: referidor.codigo,
+      } as any)
+
+      if ((creado as any)?.dealId) {
+        await this.prisma.referido.update({
+          where: { id: referido.id },
+          data: { dealId: (creado as any).dealId, estado: 'EN_GESTION' },
+        })
+      }
+    } catch (e) {
+      this.logger.error(`[referidos] no se pudo abrir el lead de ${referido.nombres}: ${e}`)
+    }
 
     // Se avisa a quien reparte: un referido parado es plata perdida y el
     // referidor ya hizo su parte.

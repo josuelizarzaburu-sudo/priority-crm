@@ -120,7 +120,9 @@ export class LeadsService {
         position,
         notes: dto.notes
           ? `${dto.notes} | Fuente: ${dto.source ?? LeadSource.WEB}`
-          : `Fuente: ${dto.source ?? LeadSource.WEB} | Seguro: ${dto.insuranceType}`,
+          : `Fuente: ${dto.source ?? LeadSource.WEB} | Seguro: ${dto.insuranceType}${
+              dto.referidoPor ? ` | Referido por ${dto.referidoPor}` : ''
+            }`,
         customFields: {
           insuranceType: dto.insuranceType,
           source: dto.source ?? LeadSource.WEB,
@@ -130,6 +132,9 @@ export class LeadsService {
           insured,
           ...(profileType ? { profileType } : {}),
           ...(dto.sessionId ? { chatSessionId: dto.sessionId } : {}),
+          // Codigo de quien lo refirio. Es lo que dice a quien acreditarle el
+          // cierre cuando esta venta se concrete.
+          ...(dto.referidoPor ? { referidoPor: dto.referidoPor } : {}),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           ...(dto.autoData ? { autoData: JSON.parse(JSON.stringify(dto.autoData)) } : {}),
         },

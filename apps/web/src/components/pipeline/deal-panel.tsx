@@ -900,6 +900,23 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                 )
               })()}
 
+              {/* Codigo de quien lo refirio. Va junto al origen porque responde
+                  a la misma pregunta —de donde salio este lead— y es lo que
+                  dice a quien acreditarle el cierre. */}
+              {(deal?.customFields as any)?.referidoPor && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Referido por
+                  </span>
+                  <span
+                    className="rounded-full px-3 py-1 text-sm font-semibold"
+                    style={{ backgroundColor: '#fffbf3', color: '#0C2057', border: '1px solid #DBAA59' }}
+                  >
+                    {(deal.customFields as any).referidoPor}
+                  </span>
+                </div>
+              )}
+
               <Separator />
 
               {/* ── Etapa del pipeline ───────────────────────────────────── */}

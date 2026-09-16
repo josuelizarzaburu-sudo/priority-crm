@@ -54,6 +54,17 @@ export class IngestLeadDto {
   @IsEnum(InsuranceType)
   insuranceType!: InsuranceType
 
+  /**
+   * Codigo de quien lo refirio, si vino del programa de referidos.
+   *
+   * Sin esto no habria forma de saber a quien acreditarle el cierre: el lead se
+   * ve igual que cualquier otro.
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  referidoPor?: string
+
   @ApiProperty({ enum: LeadSource, required: false })
   @IsEnum(LeadSource)
   @IsOptional()

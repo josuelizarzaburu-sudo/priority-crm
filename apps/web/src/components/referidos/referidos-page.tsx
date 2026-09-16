@@ -559,7 +559,9 @@ function NuevoReferidor({
    * Aquí solo hace falta el de su panel: el de invitar lo comparte él desde
    * ahí. Confundirlos haría que su amigo vea sus puntos en vez de un formulario.
    */
-  const base = typeof window !== 'undefined' ? window.location.origin : ''
+  const base =
+    process.env.NEXT_PUBLIC_DOMINIO_REFERIDOS ??
+    (typeof window !== 'undefined' ? window.location.origin : '')
   const enlacePanel = creado ? `${base}/r/${creado.codigo}` : ''
 
   return (

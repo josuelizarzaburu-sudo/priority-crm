@@ -144,9 +144,16 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
    * /r/CODIGO es privado —sus puntos, sus referidos— y /ref/CODIGO es donde su
    * contacto pone sus datos. Compartir el primero le habria mostrado a su amigo
    * los puntos de ella en vez de un formulario.
+   *
+   * Se usa el dominio publico y no la direccion desde donde se abre: quien
+   * recibe el enlace no es del equipo, y "crm.priorityhealth.ec" le diria que
+   * esta entrando a un sistema interno.
    */
-  const enlaceInvitar =
-    typeof window !== 'undefined' ? `${window.location.origin}/ref/${data.codigo}` : ''
+  const dominioPublico =
+    process.env.NEXT_PUBLIC_DOMINIO_REFERIDOS ??
+    (typeof window !== 'undefined' ? window.location.origin : '')
+
+  const enlaceInvitar = `${dominioPublico}/ref/${data.codigo}`
 
   /** Mensaje listo para WhatsApp, que es por donde lo va a mandar. */
   const mensajeWhatsapp = encodeURIComponent(

@@ -2,8 +2,14 @@ import { IsString, IsOptional, IsNumber, IsIn } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
 
+/**
+ * Estados de la RENOVACION.
+ *
+ * "POR_RENOVAR" no esta: es un estado de la POLIZA, no de la renovacion.
+ * Figuraba aqui y el enum de la base no lo tiene, asi que elegirlo hacia fallar
+ * la actualizacion con un error de base de datos.
+ */
 const ESTADOS = [
-  'POR_RENOVAR',
   'ENVIAR',
   'ENVIADO',
   'EN_PROCESO',

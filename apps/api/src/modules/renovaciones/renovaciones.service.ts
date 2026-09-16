@@ -846,6 +846,22 @@ export class RenovacionesService {
         // La fecha del primer envio no se pisa en el recordatorio: sirve para
         // saber cuanto lleva esperando respuesta el cliente.
         ...(r.envio === 'NO_ENVIADO' ? { fechaPrimerEnvio: new Date() } : {}),
+        /**
+         * El estado pasa a ENVIADO.
+         *
+         * Antes se quedaba en POR_RENOVAR aunque el correo ya hubiera salido,
+         * asi que la lista no distinguia lo trabajado de lo pendiente y habia
+         * que cambiarlo a mano.
+         *
+         * Solo desde ENVIAR, que es donde nacen: si ya esta en proceso o
+         * renovada, el correo es un recordatorio y retroceder el estado seria
+         * perder el avance.
+         *
+         * "POR_RENOVAR" no entra aqui porque no es un estado de la renovacion
+         * sino de la POLIZA. Se ven parecidos en pantalla y es facil
+         * confundirlos.
+         */
+        ...(r.estado === 'ENVIAR' ? { estado: 'ENVIADO' as any } : {}),
         correoTexto: dto.texto,
         correoDestinatario: destinatario,
         ...(dto.plantilla ? { correoPlantilla: dto.plantilla } : {}),

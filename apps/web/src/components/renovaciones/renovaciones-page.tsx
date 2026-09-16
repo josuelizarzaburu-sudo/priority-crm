@@ -11,9 +11,14 @@ import { RenovacionDetalle } from './renovacion-detalle'
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
 
+/**
+ * Estados de la RENOVACION.
+ *
+ * "Por renovar" es de la POLIZA y estaba aqui por error: el enum de la base no
+ * lo tiene, asi que elegirlo fallaba al guardar.
+ */
 export const ESTADOS = [
-  { valor: 'POR_RENOVAR', label: 'Por renovar', color: '#6B7280' },
-  { valor: 'ENVIAR', label: 'Enviar', color: '#B87A15' },
+  { valor: 'ENVIAR', label: 'Por enviar', color: '#B87A15' },
   { valor: 'ENVIADO', label: 'Enviado', color: '#2563EB' },
   { valor: 'EN_PROCESO', label: 'En proceso', color: '#7C3AED' },
   { valor: 'RENOVADO_PAGO_PENDIENTE', label: 'Renovado · pago pendiente', color: '#D97706' },

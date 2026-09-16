@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Check, Copy, Share2, UserPlus, X } from 'lucide-react'
+import { Check, Copy, Share2, Sparkles, TrendingUp, UserPlus, X } from 'lucide-react'
+import { NIVELES, nivelDe, progresoNivel, siguienteNivel } from './niveles'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -46,6 +47,13 @@ const ESTADO: Record<Referido['estado'], { label: string; color?: string; fondo?
   ACREDITADO: { label: 'Acreditado', color: VERDE, fondo: '#f0fdf4' },
   NO_PROSPERO: { label: 'No prosperó', color: AMBAR, fondo: '#fffbeb' },
 }
+
+/** Premios de referencia, hasta que se cargue el catálogo real. */
+const ESCALONES = [
+  { puntos: 20, nombre: 'Café y desayuno' },
+  { puntos: 50, nombre: 'Entrada al cine' },
+  { puntos: 80, nombre: 'Un día en Jacarandá' },
+]
 
 const RAMOS = [
   { valor: 'SALUD', label: 'Salud' },
@@ -129,14 +137,22 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
     )
   }
 
-  /** Cuánto falta para el premio más cercano. */
-  const faltaParaPremio = (() => {
-    // Los premios reales se cargan después; esto da la sensación de meta desde
-    // el primer día, que es lo que sostiene la participación.
-    const escalones = [20, 50, 80]
-    const siguiente = escalones.find((e) => e > data.puntos)
-    return siguiente ? siguiente - data.puntos : null
-  })()
+  /**
+   * Nivel y progreso.
+   *
+   * Es lo que hace funcionar a Vitality: no basta con acumular puntos, tiene que
+   * haber una categoría visible y un siguiente escalón cerca. "Te faltan 2 para
+   * Plata" mueve más que "tienes 30 puntos".
+   */
+  const acreditados = data.referidos.filter((r) => r.estado === 'ACREDITADO').length
+  const enCamino = data.referidos.filter((r) =>
+    ['RECIBIDO', 'EN_GESTION', 'CERRADO'].includes(r.estado),
+  ).length
+
+  const nivel = nivelDe(acreditados)
+  const siguiente = siguienteNivel(acreditados)
+  const progreso = progresoNivel(acreditados)
+  const proximoPremio = ESCALONES.find((e) => e.puntos > data.puntos)
 
   /**
    * El enlace que comparte NO es el de su panel.
@@ -162,22 +178,72 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
   )
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <div>
-        <p className="text-sm text-muted-foreground">Hola, {data.nombres}</p>
-        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>
-          Tus referidos
-        </h1>
+    <div className="min-h-screen pb-10" style={{ backgroundColor: '#f4f5f7' }}>
+      {/*
+        Cabecera con el nivel y el progreso.
+        Es lo primero que se ve y lo que da sensación de avance: un número de
+        puntos suelto no dice nada, "te faltan 2 para Plata" sí.
+      */}
+      <div
+        className="px-5 pb-16 pt-7"
+        style={{ background: `linear-gradient(160deg, ${NAVY} 0%, #16307a 100%)` }}
+      >
+        <div className="mx-auto max-w-lg">
+          <p className="text-xs text-white/60">Hola, {data.nombres.split(' ')[0]}</p>
+
+          <div className="mt-3 flex items-end justify-between gap-4">
+            <div>
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
+                style={{ backgroundColor: 'rgba(255,255,255,.12)' }}
+              >
+                <Sparkles className="h-3 w-3" style={{ color: GOLD }} />
+                <span className="text-xs font-semibold" style={{ color: GOLD }}>
+                  Nivel {nivel.nombre}
+                </span>
+              </div>
+              <p className="mt-2 text-4xl font-bold text-white">{data.puntos}</p>
+              <p className="text-xs text-white/60">puntos acumulados</p>
+            </div>
+
+            <div className="text-right">
+              <p className="text-2xl font-bold" style={{ color: GOLD }}>
+                ${data.porCobrar.toFixed(0)}
+              </p>
+              <p className="text-[11px] text-white/60">por cobrar</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-white/70">
+              <span>{nivel.nombre}</span>
+              <span>
+                {siguiente
+                  ? `${siguiente.faltan} ${siguiente.faltan === 1 ? 'referido' : 'referidos'} para ${siguiente.nivel.nombre}`
+                  : 'Nivel máximo'}
+              </span>
+            </div>
+            <div
+              className="h-2 overflow-hidden rounded-full"
+              style={{ backgroundColor: 'rgba(255,255,255,.15)' }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${progreso * 100}%`, backgroundColor: GOLD }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* El código, grande: es lo que comparte y lo que le van a preguntar. */}
-      <div
-        className="flex items-center justify-between gap-3 rounded-xl p-4"
-        style={{ backgroundColor: NAVY }}
-      >
+      {/* El contenido sube sobre el degradado: da profundidad y hace que la
+          primera tarjeta sea lo que se toca. */}
+      <div className="mx-auto -mt-10 max-w-lg space-y-3 px-4">
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-white/70">Tu código</p>
-          <p className="text-xl font-bold tracking-wide text-white">{data.codigo}</p>
+          <p className="text-[11px] text-muted-foreground">Tu código</p>
+          <p className="text-lg font-bold tracking-wide" style={{ color: NAVY }}>{data.codigo}</p>
         </div>
         <button
           type="button"
@@ -186,51 +252,113 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
             setCopiado(true)
             setTimeout(() => setCopiado(false), 2000)
           }}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium"
-          style={{ backgroundColor: GOLD, color: NAVY }}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium"
+          style={{ color: NAVY }}
         >
           {copiado ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {copiado ? 'Copiado' : 'Copiar enlace'}
+          {copiado ? 'Copiado' : 'Copiar'}
+        </button>
+        </div>
+
+        {/* WhatsApp primero: es por donde de verdad se comparte, y con el
+            mensaje ya escrito no tiene que pensar qué decir. */}
+        <a
+          href={`https://wa.me/?text=${mensajeWhatsapp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white active:scale-[.98]"
+          style={{ backgroundColor: '#25D366', transition: 'transform .1s' }}
+        >
+          <Share2 className="h-4 w-4" /> Compartir por WhatsApp
+        </a>
+
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 py-1.5 text-xs text-muted-foreground"
+        >
+          <UserPlus className="h-3.5 w-3.5" /> o agrégalo tú mismo
         </button>
       </div>
 
-      {/* WhatsApp primero: es por donde de verdad se comparte, y con el mensaje
-          ya escrito no tiene que pensar qué decir. */}
-      <a
-        href={`https://wa.me/?text=${mensajeWhatsapp}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white"
-        style={{ backgroundColor: '#25D366' }}
-      >
-        <Share2 className="h-4 w-4" /> Compartir por WhatsApp
-      </a>
+        {/* Dos cifras que cuentan la historia: lo cerrado y lo que viene. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white p-3.5">
+            <p className="text-[11px] text-muted-foreground">Cerrados</p>
+            <p className="text-2xl font-bold" style={{ color: NAVY }}>
+              {acreditados}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-3.5">
+            <p className="text-[11px] text-muted-foreground">En camino</p>
+            <p className="text-2xl font-bold" style={{ color: enCamino > 0 ? GOLD : NAVY }}>
+              {enCamino}
+            </p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl border p-3">
-          <p className="text-[11px] text-muted-foreground">Puntos</p>
-          <p className="text-xl font-bold" style={{ color: NAVY }}>
-            {data.puntos}
-          </p>
-          {faltaParaPremio !== null && (
-            <p className="mt-0.5 text-[10px] text-muted-foreground">
-              {faltaParaPremio} para el siguiente premio
+        {/* El próximo premio. Lo que sostiene la participación no es el premio
+            grande, sino ver que el primero está cerca. */}
+        {proximoPremio && (
+          <div className="rounded-2xl bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">Tu próximo premio</p>
+                <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                  {proximoPremio.nombre}
+                </p>
+              </div>
+              <p className="shrink-0 text-xs font-medium" style={{ color: GOLD }}>
+                faltan {proximoPremio.puntos - data.puntos} pts
+              </p>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${(data.puntos / proximoPremio.puntos) * 100}%`,
+                  backgroundColor: GOLD,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Los niveles, para que vea a dónde puede llegar. */}
+        <div className="rounded-2xl bg-white p-4">
+          <p className="mb-3 text-[11px] text-muted-foreground">Tus niveles</p>
+          <div className="flex items-stretch gap-1.5">
+            {NIVELES.map((n) => {
+              const alcanzado = acreditados >= n.desde
+              const actual = n.id === nivel.id
+              return (
+                <div
+                  key={n.id}
+                  className="flex-1 rounded-xl px-2 py-2.5 text-center"
+                  style={{
+                    backgroundColor: alcanzado ? n.fondo : '#fafafa',
+                    border: actual ? `1.5px solid ${n.color}` : '1px solid transparent',
+                    opacity: alcanzado ? 1 : 0.5,
+                  }}
+                >
+                  <p
+                    className="text-[11px] font-semibold"
+                    style={{ color: alcanzado ? n.color : '#9ca3af' }}
+                  >
+                    {n.nombre}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{n.desde}+</p>
+                </div>
+              )
+            })}
+          </div>
+          {siguiente?.nivel.beneficio && (
+            <p className="mt-2.5 flex items-start gap-1.5 text-[11px] text-muted-foreground">
+              <TrendingUp className="mt-0.5 h-3 w-3 shrink-0" style={{ color: GOLD }} />
+              En {siguiente.nivel.nombre}: {siguiente.nivel.beneficio}
             </p>
           )}
         </div>
-        <div className="rounded-xl border p-3">
-          <p className="text-[11px] text-muted-foreground">Ganado</p>
-          <p className="text-xl font-bold" style={{ color: NAVY }}>
-            ${data.ganado.toFixed(0)}
-          </p>
-        </div>
-        <div className="rounded-xl border p-3">
-          <p className="text-[11px] text-muted-foreground">Por cobrar</p>
-          <p className="text-xl font-bold" style={{ color: data.porCobrar > 0 ? VERDE : NAVY }}>
-            ${data.porCobrar.toFixed(0)}
-          </p>
-        </div>
-      </div>
 
       {!abierto ? (
         <button
@@ -373,12 +501,33 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
         </div>
       )}
 
-      {data.referidos.length === 0 && !abierto && (
-        <p className="py-8 text-center text-xs text-muted-foreground">
-          Todavía no has referido a nadie. Cada persona que contrate te suma{' '}
-          {data.puntosPorReferido} puntos.
-        </p>
-      )}
+        {/* Primera vez: en vez de ceros, cómo funciona. Alguien que entra y ve
+            todo en cero sin explicación no vuelve. */}
+        {data.referidos.length === 0 && (
+          <div className="rounded-2xl bg-white p-5">
+            <p className="text-sm font-semibold" style={{ color: NAVY }}>
+              Cómo funciona
+            </p>
+            <div className="mt-3 space-y-3">
+              {[
+                'Compartes tu enlace con quien creas que le sirve un seguro.',
+                'Un asesor lo contacta y le explica sus opciones, sin compromiso.',
+                `Si contrata, ganas dinero y ${data.puntosPorReferido} puntos.`,
+              ].map((t, i) => (
+                <div key={i} className="flex gap-3">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                    style={{ backgroundColor: '#fffbf3', color: GOLD }}
+                  >
+                    {i + 1}
+                  </span>
+                  <p className="text-xs text-muted-foreground">{t}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

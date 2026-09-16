@@ -418,6 +418,24 @@ export class ReferidosService {
     return actualizado
   }
 
+  /**
+   * Solo el nombre de quien refiere, para saludar en la invitación.
+   *
+   * Separado de miPanel a proposito: esta pantalla la abre un desconocido y no
+   * tiene por que ver los puntos ni los referidos de nadie.
+   */
+  async quienRefiere(codigo: string) {
+    const referidor = await this.prisma.referidor.findUnique({
+      where: { codigo: codigo.trim().toUpperCase() },
+      select: { nombres: true, estado: true },
+    })
+    if (!referidor || referidor.estado !== 'ACTIVO') {
+      throw new NotFoundException('Ese código no existe')
+    }
+    // Solo el primer nombre: es un saludo, no un dato de contacto.
+    return { nombres: referidor.nombres.split(/\s+/)[0] }
+  }
+
   /** Lo que ve el referidor en su pantalla. */
   async miPanel(codigo: string) {
     const referidor = await this.prisma.referidor.findUnique({

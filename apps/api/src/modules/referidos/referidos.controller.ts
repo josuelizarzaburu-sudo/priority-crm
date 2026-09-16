@@ -13,6 +13,12 @@ export class ReferidosController {
    * propia pantalla, y el codigo es su credencial. Van primero para que no las
    * tape el guard de abajo.
    */
+  @Get('invitacion/:codigo')
+  @ApiOperation({ summary: 'Nombre de quien refiere, para saludar en la invitación' })
+  quienRefiere(@Param('codigo') codigo: string) {
+    return this.service.quienRefiere(codigo)
+  }
+
   @Get('panel/:codigo')
   @ApiOperation({ summary: 'Lo que ve el referidor: sus puntos y sus referidos' })
   miPanel(@Param('codigo') codigo: string) {

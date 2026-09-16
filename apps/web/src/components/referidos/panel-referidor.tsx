@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Check, Share2, UserPlus, X } from 'lucide-react'
+import { Check, Copy, Share2, UserPlus, X } from 'lucide-react'
 
 const NAVY = '#0C2057'
 const GOLD = '#DBAA59'
@@ -138,7 +138,21 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
     return siguiente ? siguiente - data.puntos : null
   })()
 
-  const enlace = typeof window !== 'undefined' ? `${window.location.origin}/r/${data.codigo}` : ''
+  /**
+   * El enlace que comparte NO es el de su panel.
+   *
+   * /r/CODIGO es privado —sus puntos, sus referidos— y /ref/CODIGO es donde su
+   * contacto pone sus datos. Compartir el primero le habria mostrado a su amigo
+   * los puntos de ella en vez de un formulario.
+   */
+  const enlaceInvitar =
+    typeof window !== 'undefined' ? `${window.location.origin}/ref/${data.codigo}` : ''
+
+  /** Mensaje listo para WhatsApp, que es por donde lo va a mandar. */
+  const mensajeWhatsapp = encodeURIComponent(
+    `Hola! Te recomiendo a Priority, mis asesores de seguros. Son muy buenos. ` +
+      `Déjales tus datos aquí y te contactan sin compromiso: ${enlaceInvitar}`,
+  )
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -161,17 +175,29 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
         <button
           type="button"
           onClick={() => {
-            navigator.clipboard?.writeText(enlace)
+            navigator.clipboard?.writeText(enlaceInvitar)
             setCopiado(true)
             setTimeout(() => setCopiado(false), 2000)
           }}
           className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium"
           style={{ backgroundColor: GOLD, color: NAVY }}
         >
-          {copiado ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
-          {copiado ? 'Copiado' : 'Compartir'}
+          {copiado ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copiado ? 'Copiado' : 'Copiar enlace'}
         </button>
       </div>
+
+      {/* WhatsApp primero: es por donde de verdad se comparte, y con el mensaje
+          ya escrito no tiene que pensar qué decir. */}
+      <a
+        href={`https://wa.me/?text=${mensajeWhatsapp}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white"
+        style={{ backgroundColor: '#25D366' }}
+      >
+        <Share2 className="h-4 w-4" /> Compartir por WhatsApp
+      </a>
 
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-xl border p-3">
@@ -203,10 +229,10 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
         <button
           type="button"
           onClick={() => setAbierto(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white"
-          style={{ backgroundColor: NAVY }}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium"
+          style={{ color: NAVY }}
         >
-          <UserPlus className="h-4 w-4" /> Referir a alguien
+          <UserPlus className="h-4 w-4" /> O agrégalo tú mismo
         </button>
       ) : (
         <div className="space-y-2.5 rounded-xl border p-4">

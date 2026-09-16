@@ -553,10 +553,14 @@ function NuevoReferidor({
     onError,
   })
 
-  const enlace =
-    creado && typeof window !== 'undefined'
-      ? `${window.location.origin}/r/${creado.codigo}`
-      : ''
+  /**
+   * Se muestran los DOS enlaces, que son para cosas distintas.
+   *
+   * Aquí solo hace falta el de su panel: el de invitar lo comparte él desde
+   * ahí. Confundirlos haría que su amigo vea sus puntos en vez de un formulario.
+   */
+  const base = typeof window !== 'undefined' ? window.location.origin : ''
+  const enlacePanel = creado ? `${base}/r/${creado.codigo}` : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCerrar}>
@@ -572,23 +576,33 @@ function NuevoReferidor({
             <div className="rounded-xl p-4 text-center" style={{ backgroundColor: NAVY }}>
               <p className="text-2xl font-bold tracking-wide text-white">{creado.codigo}</p>
             </div>
-            {/* El enlace es lo que de verdad se comparte: el código solo sirve
-                para decirlo por teléfono. */}
-            <div className="flex items-center gap-2 rounded-lg border p-2">
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{enlace}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard?.writeText(enlace)
-                  setCopiado(true)
-                  setTimeout(() => setCopiado(false), 2000)
-                }}
-                className="shrink-0 text-xs font-medium"
-                style={{ color: NAVY }}
-              >
-                {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
+            <div>
+              <p className="mb-1 text-[11px] text-muted-foreground">
+                Mándale ESTE enlace: es su panel, donde ve sus puntos
+              </p>
+              <div className="flex items-center gap-2 rounded-lg border p-2">
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                  {enlacePanel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(enlacePanel)
+                    setCopiado(true)
+                    setTimeout(() => setCopiado(false), 2000)
+                  }}
+                  className="shrink-0"
+                  style={{ color: NAVY }}
+                >
+                  {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Desde ahí él comparte su propio enlace de invitación con sus contactos. No hace
+              falta que se lo pases tú.
+            </p>
             <Button className="w-full" onClick={onCreado} style={{ backgroundColor: NAVY, color: '#fff' }}>
               Listo
             </Button>

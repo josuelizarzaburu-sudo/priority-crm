@@ -1,9 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Check, Copy, Share2, Sparkles, TrendingUp, UserPlus, X } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Download,
+  Share2,
+  Sparkles,
+  TrendingUp,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import { NIVELES, nivelDe, progresoNivel, siguienteNivel } from './niveles'
 
 const NAVY = '#0C2057'
@@ -69,8 +78,51 @@ const RAMOS = [
  * pedirle crear una cuenta para mandar un contacto perdería a la mitad antes de
  * empezar.
  */
+/**
+ * Invitacion a instalar la app.
+ *
+ * El navegador avisa cuando se puede instalar y hay que guardar ese aviso para
+ * dispararlo despues: si no se captura, el unico camino es el menu del
+ * navegador, que casi nadie encuentra.
+ *
+ * En iPhone no existe ese aviso, asi que ahi se explica el paso a mano.
+ */
+function useInstalar() {
+  const [evento, setEvento] = useState<any>(null)
+  const [esIphone, setEsIphone] = useState(false)
+  const [yaInstalada, setYaInstalada] = useState(true)
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    setYaInstalada(standalone)
+    setEsIphone(/iphone|ipad|ipod/i.test(window.navigator.userAgent))
+
+    const alInstalar = (e: Event) => {
+      e.preventDefault()
+      setEvento(e)
+    }
+    window.addEventListener('beforeinstallprompt', alInstalar)
+    return () => window.removeEventListener('beforeinstallprompt', alInstalar)
+  }, [])
+
+  return {
+    puede: !yaInstalada && (!!evento || esIphone),
+    esIphone,
+    instalar: async () => {
+      if (!evento) return
+      evento.prompt()
+      await evento.userChoice
+      setEvento(null)
+    },
+  }
+}
+
 export function PanelReferidor({ codigo }: { codigo: string }) {
   const qc = useQueryClient()
+  const instalacion = useInstalar()
+  const [verComoInstalar, setVerComoInstalar] = useState(false)
   const [abierto, setAbierto] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({})
@@ -281,6 +333,31 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
         </button>
       </div>
 
+        {/* Instalar: va arriba porque cuanto antes la tenga en la pantalla de
+            inicio, mas probable es que vuelva. */}
+        {instalacion.puede && (
+          <button
+            type="button"
+            onClick={() => (instalacion.esIphone ? setVerComoInstalar(true) : instalacion.instalar())}
+            className="flex w-full items-center gap-2.5 rounded-2xl bg-white p-3.5 text-left"
+          >
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+              style={{ backgroundColor: '#fffbf3' }}
+            >
+              <Download className="h-4 w-4" style={{ color: GOLD }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium" style={{ color: NAVY }}>
+                Ténla a mano
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Instálala en tu celular y entra con un toque
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Dos cifras que cuentan la historia: lo cerrado y lo que viene. */}
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white p-3.5">
@@ -359,6 +436,45 @@ export function PanelReferidor({ codigo }: { codigo: string }) {
             </p>
           )}
         </div>
+
+      {/* En iPhone no hay aviso de instalacion: se explica el paso a mano. */}
+      {verComoInstalar && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+          onClick={() => setVerComoInstalar(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-3xl bg-white p-5"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                Instalar en tu iPhone
+              </p>
+              <button type="button" onClick={() => setVerComoInstalar(false)}>
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                'Toca el botón de compartir, abajo en el centro de la pantalla.',
+                'Baja y elige «Añadir a pantalla de inicio».',
+                'Toca «Añadir». Listo, te queda el ícono.',
+              ].map((t, i) => (
+                <div key={i} className="flex gap-3">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                    style={{ backgroundColor: '#fffbf3', color: GOLD }}
+                  >
+                    {i + 1}
+                  </span>
+                  <p className="text-xs text-muted-foreground">{t}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!abierto ? (
         <button

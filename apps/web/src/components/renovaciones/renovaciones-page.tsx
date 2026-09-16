@@ -58,6 +58,26 @@ export function RenovacionesPage() {
   const qc = useQueryClient()
   const [mes, setMes] = useState('')
   const [estado, setEstado] = useState('')
+
+  /**
+   * Dispara ahora los envíos que ya cumplieron su hora.
+   *
+   * La tarea corre sola cada 2 minutos, pero esperar sin saber si funciona hace
+   * dudar de que esté programado. Con esto se comprueba en el momento.
+   */
+  const enviarAhora = useMutation({
+    mutationFn: () => api.post('/renovaciones/enviar-programadas').then((r) => r.data),
+    onSuccess: (d: any) => {
+      qc.invalidateQueries({ queryKey: ['renovaciones'] })
+      setAvisoEnvio(
+        d?.revisadas === 0
+          ? 'No hay ninguna cuya hora ya haya llegado.'
+          : `${d.enviadas} de ${d.revisadas} enviada(s).`,
+      )
+      setTimeout(() => setAvisoEnvio(null), 6000)
+    },
+  })
+  const [avisoEnvio, setAvisoEnvio] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [abierta, setAbierta] = useState<any>(null)
 
@@ -145,7 +165,23 @@ export function RenovacionesPage() {
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Dispara ahora los envios que ya cumplieron su hora. La tarea corre
+              sola cada 2 minutos; esto sirve para comprobarlo sin esperar. */}
+          <button
+            type="button"
+            onClick={() => enviarAhora.mutate()}
+            disabled={enviarAhora.isPending}
+            className="h-9 rounded-md border px-3 text-xs font-medium"
+            style={{ color: NAVY }}
+            title="Envía las renovaciones programadas cuya hora ya pasó"
+          >
+            {enviarAhora.isPending ? 'Enviando…' : 'Enviar programadas'}
+          </button>
+          {avisoEnvio && (
+            <span className="text-[11px] text-muted-foreground">{avisoEnvio}</span>
+          )}
+
           <select
             value={estado}
             onChange={(e) => setEstado(e.target.value)}

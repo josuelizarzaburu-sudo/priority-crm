@@ -7,12 +7,12 @@ export const COLA_RENOVACIONES = 'renovaciones-programadas'
 const TAREA = 'enviar-programadas'
 
 /**
- * Revisa cada 10 minutos si hay renovaciones cuya hora de envío ya llegó.
+ * Revisa cada 2 minutos si hay renovaciones cuya hora de envío ya llegó.
  *
- * Diez minutos es un punto medio deliberado: la ejecutiva programa para "mañana
- * a las 9", no para las 9:00:00 exactas, así que un margen de minutos no cambia
- * nada. Revisar cada minuto sería consultar la base 1.440 veces al día para algo
- * que pasa unas pocas veces al mes.
+ * Empezó en 10 minutos por ahorro, pero el efecto práctico era malo: se programa
+ * para las 9:25, llegan las 9:27 y no ha salido nada, así que parece roto. Dos
+ * minutos es margen suficiente para no dudar y sigue siendo una consulta trivial
+ * —solo mira si hay alguna con la hora cumplida.
  *
  * Se usa un trabajo repetible de Bull y no un cron en memoria por lo mismo que
  * en cumpleaños: si Railway corre dos instancias, un cron normal se ejecutaría
@@ -37,12 +37,12 @@ export class RenovacionesScheduler implements OnModuleInit {
       TAREA,
       {},
       {
-        repeat: { cron: '*/10 * * * *', tz: 'America/Guayaquil' },
+        repeat: { cron: '*/2 * * * *', tz: 'America/Guayaquil' },
         removeOnComplete: true,
         removeOnFail: false,
       },
     )
-    this.logger.log('Revisión de renovaciones programadas — cada 10 minutos')
+    this.logger.log('Revisión de renovaciones programadas — cada 2 minutos')
   }
 }
 

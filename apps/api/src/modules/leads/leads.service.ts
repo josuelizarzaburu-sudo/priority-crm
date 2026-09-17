@@ -194,12 +194,15 @@ export class LeadsService {
      * asignaba solo, le llegaba al vendedor por correo, y si no, se quedaba sin
      * asignar hasta que alguien entrara a mirar la bandeja.
      *
-     * Se avisa a gerencia y a la jefa de operaciones, que son quienes reparten.
+     * Se avisa a GERENCIA, que es quien reparte leads. Operaciones no entra
+     * aqui: su trabajo empieza cuando la venta se cierra y nace el cliente, no
+     * cuando llega un interesado. Meterla aqui le llenaria la campanita de
+     * leads que no va a tocar.
      */
     const repartidores = await this.prisma.user.findMany({
       where: {
         organizationId: org.id,
-        role: { in: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES'] as any },
+        role: { in: ['SUPER_ADMIN', 'OWNER', 'MANAGER'] as any },
         activo: true,
       },
       select: { id: true },

@@ -531,6 +531,21 @@ export class PipelineService {
         organizationId,
         userId,
       )
+
+      /**
+       * Tambien se avisa cuando el cliente YA EXISTIA.
+       *
+       * Este caso es frecuente —un cliente de salud que ahora contrata el auto,
+       * o alguien de la base historica— y hasta ahora pasaba en silencio: se le
+       * sumaba la poliza y nadie en operaciones se enteraba, aunque hay trabajo
+       * nuevo que atender.
+       */
+      await this.avisarClienteNuevo(
+        organizationId,
+        `${mayus(deal.contact.firstName)} ${mayus(deal.contact.lastName ?? '')}`.trim(),
+        'Le sumaron una póliza nueva',
+      )
+
       return yaExiste
     }
 
@@ -665,19 +680,11 @@ export class PipelineService {
        * No tumba el cierre si falla: la venta ya esta hecha y perderla por un
        * aviso seria mucho peor.
        */
-      const jefes = await this.prisma.user.findMany({
-        where: { organizationId, role: 'JEFE_OPERACIONES' as any, activo: true },
-        select: { id: true },
-      })
-      await this.notificaciones
-        .crearParaVarios(jefes.map((j) => j.id), {
-          organizationId,
-          tipo: 'CLIENTE_NUEVO',
-          titulo: 'Llegó un cliente nuevo por asignar',
-          detalle: `${mayus(deal.contact.firstName)} ${mayus(deal.contact.lastName ?? '')} — asígnale una ejecutiva para la bienvenida`.trim(),
-          enlace: '/clientes',
-        })
-        .catch((e) => this.logger.error(`[pipeline] no se pudo avisar del cliente nuevo: ${e}`))
+      await this.avisarClienteNuevo(
+        organizationId,
+        `${mayus(deal.contact.firstName)} ${mayus(deal.contact.lastName ?? '')}`.trim(),
+        'Asígnale una ejecutiva para la bienvenida',
+      )
 
       return creado
     } catch (e) {
@@ -727,6 +734,50 @@ export class PipelineService {
    * mismo fallo que ya tuvimos en la importacion —se creaban y la poliza decia
    * que no cubria a nadie.
    */
+  /**
+   * Avisa a operaciones que hay un cliente nuevo que atender.
+   *
+   * Aqui SI entra la jefa de operaciones: su trabajo empieza cuando la venta se
+   * cierra. En el lead nuevo no, porque eso todavia es comercial.
+   *
+   * No lanza: la venta ya esta hecha y perderla por un aviso seria mucho peor.
+   */
+  private async avisarClienteNuevo(organizationId: string, cliente: string, queHacer: string) {
+    try {
+      const jefes = await this.prisma.user.findMany({
+        where: {
+          organizationId,
+          role: { in: ['JEFE_OPERACIONES', 'SUPER_ADMIN'] as any },
+          activo: true,
+        },
+        select: { id: true },
+      })
+
+      // Si no hay nadie a quien avisar, queda registrado: el aviso "no llega"
+      // casi siempre es porque nadie tiene el rol o esta desactivado, y sin
+      // esta linea no hay forma de saberlo.
+      if (!jefes.length) {
+        this.logger.warn(
+          '[pipeline] cliente nuevo sin avisar: no hay ningun JEFE_OPERACIONES activo',
+        )
+        return
+      }
+
+      await this.notificaciones.crearParaVarios(
+        jefes.map((j) => j.id),
+        {
+          organizationId,
+          tipo: 'CLIENTE_NUEVO',
+          titulo: 'Llegó un cliente nuevo',
+          detalle: `${cliente} — ${queHacer}`,
+          enlace: '/clientes',
+        },
+      )
+    } catch (e) {
+      this.logger.error(`[pipeline] no se pudo avisar del cliente nuevo: ${e}`)
+    }
+  }
+
   private async migrarDependientes(clienteId: string, cf: any): Promise<string[]> {
     const creados: string[] = []
     const lista = Array.isArray(cf?.additionalContacts) ? cf.additionalContacts : []

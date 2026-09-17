@@ -853,15 +853,13 @@ export class RenovacionesService {
          * asi que la lista no distinguia lo trabajado de lo pendiente y habia
          * que cambiarlo a mano.
          *
-         * Solo desde ENVIAR, que es donde nacen: si ya esta en proceso o
+         * Solo desde los dos estados previos al envio. Si ya esta en proceso o
          * renovada, el correo es un recordatorio y retroceder el estado seria
-         * perder el avance.
-         *
-         * "POR_RENOVAR" no entra aqui porque no es un estado de la renovacion
-         * sino de la POLIZA. Se ven parecidos en pantalla y es facil
-         * confundirlos.
+         * perder el avance de la gestion.
          */
-        ...(r.estado === 'ENVIAR' ? { estado: 'ENVIADO' as any } : {}),
+        ...(['POR_RENOVAR', 'ENVIAR'].includes(r.estado)
+          ? { estado: 'ENVIADO' as any }
+          : {}),
         correoTexto: dto.texto,
         correoDestinatario: destinatario,
         ...(dto.plantilla ? { correoPlantilla: dto.plantilla } : {}),

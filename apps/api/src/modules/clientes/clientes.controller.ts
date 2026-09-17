@@ -148,6 +148,22 @@ export class ClientesController {
     )
   }
 
+  @Post('traspasar-cartera')
+  @ApiOperation({ summary: 'Pasa todos los clientes de una ejecutiva a otra' })
+  traspasarCartera(
+    @Body() body: { de: string; a: string; motivo: string },
+    @Req() req: any,
+  ) {
+    return this.clientesService.traspasarCartera(
+      body?.de,
+      body?.a,
+      body?.motivo,
+      req.user.organizationId,
+      req.user.id,
+      req.user.role,
+    )
+  }
+
   @Post('recalcular-revisar')
   @ApiOperation({ summary: 'Actualiza la marca "datos por revisar" en todos los clientes' })
   recalcularRevisar(@Req() req: any) {

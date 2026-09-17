@@ -78,7 +78,9 @@ const NAV_ITEMS = [
   // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
   // personales con las reuniones haria inutiles a las dos.
   { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES },
-  { href: '/cumpleanos',       label: 'Cumpleaños',         icon: Cake,            roles: ['SUPER_ADMIN'] },
+  // Gerencia tambien ve los cumpleaños: es informacion de la cartera, util para
+  // saber a quien saludar en una visita o una llamada.
+  { href: '/cumpleanos',       label: 'Cumpleaños',         icon: Cake,            roles: ELEVATED },
   // Solo SUPER_ADMIN: esta pantalla puede vaciar la base entera.
   { href: '/importar',         label: 'Importar clientes',  icon: Upload,          roles: ['SUPER_ADMIN'] },
   { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },

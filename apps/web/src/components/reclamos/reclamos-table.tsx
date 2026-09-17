@@ -224,6 +224,12 @@ export function ReclamosTable() {
                       <div className="font-medium" style={{ color: NAVY }}>
                         {r.clienteNombre}
                       </div>
+                      {/* La empresa, en corporativos. */}
+                      {(r as any).cliente?.empresa && (
+                        <div className="text-xs font-medium" style={{ color: '#B87A15' }}>
+                          {(r as any).cliente.empresa}
+                        </div>
+                      )}
                       {r.pacienteNombre && r.pacienteNombre !== r.clienteNombre && (
                         <div className="text-xs text-muted-foreground">
                           Paciente: {r.pacienteNombre}

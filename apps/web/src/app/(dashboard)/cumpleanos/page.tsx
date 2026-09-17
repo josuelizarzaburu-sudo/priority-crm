@@ -9,8 +9,12 @@ export const metadata: Metadata = { title: 'Saludos de cumpleaños' }
 export default async function Page() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
-  // Solo SUPER_ADMIN, igual que los endpoints: desde aqui se envian correos a
+  // Gerencia ve la pantalla; el ENVIO sigue siendo solo de SUPER_ADMIN, porque
+  // desde aqui salen correos de verdad a los clientes.
+  // Antes era solo SUPER_ADMIN: desde aqui se envian correos a
   // clientes reales.
-  if ((session.user as any)?.role !== 'SUPER_ADMIN') redirect('/pipeline')
+  if (!['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes((session.user as any)?.role)) {
+    redirect('/pipeline')
+  }
   return <CumpleanosPage />
 }

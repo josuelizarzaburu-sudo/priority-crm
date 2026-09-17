@@ -48,6 +48,28 @@ export function ClientesTable() {
 
   const qc = useQueryClient()
 
+  /** Traspaso de cartera: cuando alguien deja la empresa o cambia de cartera. */
+  const [traspaso, setTraspaso] = useState<{ de: string; a: string; motivo: string } | null>(null)
+  const [resultadoTraspaso, setResultadoTraspaso] = useState<string | null>(null)
+
+  const { data: equipo = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users').then((r) => r.data),
+    enabled: !!traspaso,
+  })
+
+  const traspasar = useMutation({
+    mutationFn: () => api.post('/clientes/traspasar-cartera', traspaso).then((r) => r.data),
+    onSuccess: (d: any) => {
+      setTraspaso(null)
+      setResultadoTraspaso(
+        `${d.clientes} cliente(s) de ${d.de} pasaron a ${d.a}. ` +
+          `También ${d.requerimientos} requerimiento(s) y ${d.renovaciones} renovación(es).`,
+      )
+      qc.invalidateQueries({ queryKey: ['clientes'] })
+    },
+  })
+
   const recalcular = useMutation({
     mutationFn: () => api.post('/clientes/recalcular-revisar').then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes'] }),
@@ -120,6 +142,19 @@ export function ClientesTable() {
           {/* Recalcular: la marca se ponia al importar y no se volvia a mirar,
               asi que las fichas ya corregidas seguian saliendo como incompletas.
               Hace falta una vez; despues cada edicion la mantiene al dia. */}
+          {/* Traspaso de cartera: solo para quien reparte. Hacerlo uno por uno
+              con 250 clientes no es viable. */}
+          {['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(rol) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setTraspaso({ de: '', a: '', motivo: '' })}
+            >
+              Traspasar cartera
+            </Button>
+          )}
+
           {soloRevisar && (
             <Button
               type="button"
@@ -149,6 +184,95 @@ export function ClientesTable() {
           </span>
         </div>
       </div>
+
+      {resultadoTraspaso && (
+        <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+          {resultadoTraspaso}
+        </p>
+      )}
+
+      {traspaso && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setTraspaso(null)}
+        >
+          <div
+            className="w-full max-w-md space-y-3 rounded-xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                Traspasar cartera
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Pasa todos los clientes de una persona a otra, con sus requerimientos y
+                renovaciones abiertos.
+              </p>
+            </div>
+
+            {(
+              [
+                ['de', 'Quién la entrega'],
+                ['a', 'Quién la recibe'],
+              ] as const
+            ).map(([k, label]) => (
+              <div key={k}>
+                <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+                <select
+                  value={traspaso[k]}
+                  onChange={(e) => setTraspaso((t) => ({ ...t!, [k]: e.target.value }))}
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                >
+                  <option value="">Selecciona…</option>
+                  {equipo.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Motivo</label>
+              <input
+                value={traspaso.motivo}
+                onChange={(e) => setTraspaso((t) => ({ ...t!, motivo: e.target.value }))}
+                placeholder="Ej: salida de la empresa"
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Se guarda en la bitácora de cada cliente.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setTraspaso(null)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => traspasar.mutate()}
+                disabled={
+                  !traspaso.de ||
+                  !traspaso.a ||
+                  traspaso.de === traspaso.a ||
+                  !traspaso.motivo.trim() ||
+                  traspasar.isPending
+                }
+                style={{ backgroundColor: NAVY, color: '#fff' }}
+              >
+                {traspasar.isPending ? 'Traspasando…' : 'Traspasar'}
+              </Button>
+            </div>
+
+            {traspasar.isError && (
+              <p className="text-xs text-red-700">
+                {(traspasar.error as any)?.response?.data?.message ?? 'No se pudo traspasar'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Tabla (escritorio) ── */}
       <div className="hidden rounded-lg border bg-card md:block">

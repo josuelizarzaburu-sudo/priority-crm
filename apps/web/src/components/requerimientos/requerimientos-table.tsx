@@ -224,6 +224,17 @@ export function RequerimientosTable() {
                       <div className="font-medium" style={{ color: NAVY }}>
                         {r.clienteNombre}
                       </div>
+                      {/* La empresa, en corporativos: con varios contactos de la
+                          misma empresa, el nombre solo no dice de quién es el
+                          trámite. */}
+                      {(r as any).cliente?.empresa && (
+                        <div
+                          className="text-xs font-medium"
+                          style={{ color: '#B87A15' }}
+                        >
+                          {(r as any).cliente.empresa}
+                        </div>
+                      )}
                       {r.pacienteNombre && r.pacienteNombre !== r.clienteNombre && (
                         <div className="text-xs text-muted-foreground">
                           Paciente: {r.pacienteNombre}

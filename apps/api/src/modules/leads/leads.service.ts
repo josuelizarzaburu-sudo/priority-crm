@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
 import { IngestLeadDto, LeadSource, InsuranceType } from './dto/ingest-lead.dto'
 import { NotificationsService } from '../notifications/notifications.service'
+import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { EquiposService } from '../equipos/equipos.service'
 
 @Injectable()
@@ -13,6 +14,7 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly notificaciones: NotificacionesService,
     private readonly equipos: EquiposService,
   ) {}
 
@@ -184,6 +186,37 @@ export class LeadsService {
         .notifyDealAssigned(autoAssignee, { ...leadNotifData, notes: vehicleInfo })
         .catch(err => this.logger.error(`Auto assign notification error: ${err}`))
     }
+
+    /**
+     * Aviso en el CRM a quien reparte leads.
+     *
+     * Hasta ahora un lead nuevo no avisaba a nadie dentro del CRM: si se
+     * asignaba solo, le llegaba al vendedor por correo, y si no, se quedaba sin
+     * asignar hasta que alguien entrara a mirar la bandeja.
+     *
+     * Se avisa a gerencia y a la jefa de operaciones, que son quienes reparten.
+     */
+    const repartidores = await this.prisma.user.findMany({
+      where: {
+        organizationId: org.id,
+        role: { in: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'JEFE_OPERACIONES'] as any },
+        activo: true,
+      },
+      select: { id: true },
+    })
+
+    await this.notificaciones
+      .crearParaVarios(
+        repartidores.map((r) => r.id),
+        {
+          organizationId: org.id,
+          tipo: 'LEAD_NUEVO',
+          titulo: autoAssignee ? 'Lead nuevo, ya asignado' : 'Lead nuevo por asignar',
+          detalle: `${dto.firstName} ${dto.lastName ?? ''} — ${dto.insuranceType}`.trim(),
+          enlace: '/pipeline',
+        },
+      )
+      .catch((e) => this.logger.error(`[leads] no se pudo avisar del lead nuevo: ${e}`))
 
     return { status: 'ok', contactId: contact.id, dealId: deal.id }
   }

@@ -30,7 +30,11 @@ export class CorreosAutomaticosController {
     summary: 'A quién le tocaría saludo hoy. Solo consulta, no envía nada.',
   })
   async cumpleanerosDeHoy(@Req() req: any, @Query('fecha') fecha?: string) {
-    if (req.user.role !== 'SUPER_ADMIN') return { error: 'Solo SUPER_ADMIN' }
+    // Consultar es informacion de la cartera: la ve gerencia. Enviar sigue
+    // siendo solo de SUPER_ADMIN, porque de ahi salen correos a los clientes.
+    if (!['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(req.user.role)) {
+      return { error: 'No tienes acceso a esta información' }
+    }
     // El parametro fecha permite revisar otro dia (formato YYYY-MM-DD), util
     // para comprobar que las fechas cuadran sin esperar al cumpleaños de nadie.
     const dia = fecha ?? hoyEnEcuador()

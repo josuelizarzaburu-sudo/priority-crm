@@ -77,7 +77,19 @@ export class RequerimientosService {
         take: limit,
         orderBy: [{ fechaRecepcion: 'desc' }, { createdAt: 'desc' }],
         include: {
-          cliente: { select: { id: true, nombres: true, apellidos: true, identificacion: true } },
+          cliente: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              identificacion: true,
+              // La empresa, para los clientes corporativos: en una cartera con
+              // varios contactos de la misma empresa, el nombre solo no dice de
+              // quien es el tramite.
+              empresa: true,
+              tipoCliente: true,
+            },
+          },
           ejecutivo: { select: { id: true, name: true } },
         },
       }),

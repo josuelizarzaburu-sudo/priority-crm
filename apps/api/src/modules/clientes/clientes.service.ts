@@ -718,6 +718,124 @@ export class ClientesService {
    * reasignó. Ambas escrituras van en una transacción: si falla la nota, no se
    * cambia la ejecutiva (nunca queda un cambio sin justificación).
    */
+  /**
+   * Pasa TODOS los clientes de una ejecutiva a otra.
+   *
+   * Hace falta cuando alguien deja la empresa o cambia de cartera: hacerlo uno
+   * por uno con 250 clientes no es viable, y dejarlos sin ejecutiva significa
+   * que nadie los atiende.
+   *
+   * Tambien se traspasan sus requerimientos y renovaciones abiertos: la cartera
+   * no es solo la lista de clientes, es el trabajo en curso sobre ellos.
+   */
+  async traspasarCartera(
+    deEjecutivoId: string,
+    aEjecutivoId: string,
+    motivo: string,
+    organizationId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (!['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'].includes(role)) {
+      throw new ForbiddenException('No tienes permiso para traspasar una cartera')
+    }
+    if (deEjecutivoId === aEjecutivoId) {
+      throw new BadRequestException('Es la misma persona')
+    }
+    if (!motivo?.trim()) {
+      throw new BadRequestException('Escribe el motivo del traspaso')
+    }
+
+    const [de, a] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: deEjecutivoId, organizationId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.user.findFirst({
+        where: { id: aEjecutivoId, organizationId },
+        select: { id: true, name: true },
+      }),
+    ])
+    if (!de || !a) throw new NotFoundException('Alguna de las dos personas no existe')
+
+    const autor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    const clientes = await this.prisma.cliente.findMany({
+      where: { organizationId, ejecutivoId: deEjecutivoId },
+      select: { id: true },
+    })
+
+    /**
+     * Todo junto o nada.
+     *
+     * Si se traspasan los clientes y falla el resto, la cartera queda partida:
+     * los clientes con una persona y sus requerimientos con otra.
+     */
+    const [movidos, reqs, renovs] = await this.prisma.$transaction([
+      this.prisma.cliente.updateMany({
+        where: { organizationId, ejecutivoId: deEjecutivoId },
+        data: { ejecutivoId: aEjecutivoId, ejecutivoNombre: a.name },
+      }),
+      this.prisma.requerimiento.updateMany({
+        where: {
+          organizationId,
+          ejecutivoId: deEjecutivoId,
+          // Solo los abiertos: SOLUCIONADO es historia y debe seguir
+          // diciendo quien lo atendio.
+          estado: { not: 'SOLUCIONADO' as any },
+        },
+        data: { ejecutivoId: aEjecutivoId },
+      }),
+      this.prisma.renovacion.updateMany({
+        where: {
+          organizationId,
+          ejecutivoId: deEjecutivoId,
+          estado: { notIn: ['RENOVADO'] as any },
+        },
+        data: { ejecutivoId: aEjecutivoId, ejecutivoNombre: a.name },
+      }),
+    ])
+
+    // Queda en la bitacora de cada cliente: dentro de un año hay que poder
+    // saber por que cambio de ejecutiva.
+    if (clientes.length) {
+      await this.prisma.notaCliente.createMany({
+        data: clientes.map((c) => ({
+          clienteId: c.id,
+          contenido: `Cartera traspasada de ${de.name} a ${a.name}. ${motivo.trim()}`,
+          autorId: userId,
+          autorNombre: autor?.name ?? null,
+        })),
+      })
+    }
+
+    await this.notificaciones.crear({
+      usuarioId: aEjecutivoId,
+      organizationId,
+      tipo: 'CARTERA_TRASPASADA',
+      titulo: `Recibiste la cartera de ${de.name}`,
+      detalle: `${movidos.count} cliente(s). ${motivo.trim()}`,
+      enlace: '/clientes',
+      provocadoPor: userId,
+    })
+
+    this.logger.warn(
+      `[clientes] cartera de ${de.name} -> ${a.name}: ${movidos.count} clientes, ` +
+        `${reqs.count} requerimientos, ${renovs.count} renovaciones`,
+    )
+
+    return {
+      de: de.name,
+      a: a.name,
+      clientes: movidos.count,
+      requerimientos: reqs.count,
+      renovaciones: renovs.count,
+    }
+  }
+
   async cambiarEjecutiva(
     clienteId: string,
     nuevoEjecutivoId: string,

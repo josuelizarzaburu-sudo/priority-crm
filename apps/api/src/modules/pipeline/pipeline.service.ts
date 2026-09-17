@@ -652,8 +652,8 @@ export class PipelineService {
       this.logger.log(
         `[crearClienteDesdeDeal] cliente ${creado.id} creado desde el deal ${dealId} (cedula: ${identificacion})`,
       )
-      await this.migrarDependientes(creado.id, cf)
-      await this.crearPolizasYNota(creado.id, cf, organizationId, userId)
+      const dependientes = await this.migrarDependientes(creado.id, cf)
+      await this.crearPolizasYNota(creado.id, cf, organizationId, userId, dependientes)
 
       /**
        * Se avisa a operaciones que llego un cliente nuevo.
@@ -719,9 +719,18 @@ export class PipelineService {
    *
    * No revienta si algo falla: el cliente ya se creo y es lo importante.
    */
-  private async migrarDependientes(clienteId: string, cf: any) {
+  /**
+   * Copia los dependientes del lead a la ficha del cliente.
+   *
+   * Devuelve los ids para poder ENLAZARLOS a la poliza: crearlos no basta, la
+   * ficha muestra a quien cubre cada poliza a traves de PolizaDependiente. Es el
+   * mismo fallo que ya tuvimos en la importacion —se creaban y la poliza decia
+   * que no cubria a nadie.
+   */
+  private async migrarDependientes(clienteId: string, cf: any): Promise<string[]> {
+    const creados: string[] = []
     const lista = Array.isArray(cf?.additionalContacts) ? cf.additionalContacts : []
-    if (lista.length === 0) return
+    if (lista.length === 0) return creados
 
     // El lead usa etiquetas sueltas ('esposa', 'hijo'); la ficha usa el enum
     // Parentesco. Lo que no cuadre entra como OTRO en vez de perderse.
@@ -748,7 +757,7 @@ export class PipelineService {
             ? new Date(`${d.birthDate.slice(0, 10)}T00:00:00.000Z`)
             : null
 
-        await this.prisma.dependiente.create({
+        const creado = await this.prisma.dependiente.create({
           data: {
             clienteId,
             nombres: mayus(nombres),
@@ -760,6 +769,7 @@ export class PipelineService {
             parentesco: (PARENTESCO[String(d?.relationship ?? '').toLowerCase()] ?? 'OTRO') as any,
           },
         })
+        creados.push(creado.id)
       } catch (err) {
         // Uno que falle no debe impedir que se copien los demas.
         this.logger.error(
@@ -767,6 +777,8 @@ export class PipelineService {
         )
       }
     }
+
+    return creados
   }
 
   private async crearPolizasYNota(
@@ -774,6 +786,8 @@ export class PipelineService {
     customFields: any,
     organizationId: string,
     userId: string,
+    /** Dependientes recien creados, para enlazarlos a la poliza. */
+    dependientesIds: string[] = [],
   ) {
     const entradas: any[] = Array.isArray(customFields?.insuranceData)
       ? customFields.insuranceData
@@ -825,6 +839,30 @@ export class PipelineService {
               'Datos capturados por el comercial al cerrar el deal. Confirmar contra la póliza emitida.',
           },
         })
+
+        /**
+         * Los dependientes se enlazan a la poliza.
+         *
+         * Sin esto la ficha dice que la poliza no cubre a nadie, aunque los
+         * dependientes existan en el cliente: la cobertura se lee de
+         * PolizaDependiente, no de la lista del cliente.
+         *
+         * Se enlazan a las polizas de SALUD y VIDA: en un seguro de vehiculo o
+         * de hogar no aplica, ahi lo asegurado es el bien.
+         */
+        if (dependientesIds.length && ['SALUD', 'VIDA'].includes(tipo)) {
+          await this.prisma.polizaDependiente
+            .createMany({
+              data: dependientesIds.map((dependienteId) => ({
+                polizaId: polizaCreada.id,
+                dependienteId,
+              })),
+              skipDuplicates: true,
+            })
+            .catch((e) =>
+              this.logger.error(`[crearPolizas] no se pudieron enlazar los dependientes: ${e}`),
+            )
+        }
 
         /**
          * En vehiculos se abre la EMISION, no el requerimiento de bienvenida.
@@ -1320,6 +1358,24 @@ export class PipelineService {
       )
       if (!inspeccion.puede) {
         throw new ForbiddenException(inspeccion.motivo)
+      }
+
+      /**
+       * Los datos del titular se guardan en el negocio antes de crear el
+       * cliente, que es de donde los lee despues.
+       *
+       * Antes el modal los pedia y no los mandaba: se llenaban y se perdian, y
+       * el cliente nacia sin direccion ni fecha de nacimiento.
+       */
+      if (dto.datosCliente) {
+        const d = dto.datosCliente
+        Object.assign(extraFields, {
+          ...(d.email ? { email: d.email } : {}),
+          ...(d.direccion ? { direccion: d.direccion } : {}),
+          ...(d.fechaNacimiento ? { birthDate: d.fechaNacimiento } : {}),
+          ...(d.vieneDeOtroSeguro ? { vieneDeOtroSeguro: d.vieneDeOtroSeguro } : {}),
+          ...(d.preexistencias ? { preexistencias: d.preexistencias } : {}),
+        })
       }
 
       if (problemas.length) {

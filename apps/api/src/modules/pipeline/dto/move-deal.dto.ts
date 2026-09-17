@@ -36,4 +36,20 @@ export class MoveDealDto {
     placa?: string
     sumaAsegurada?: number
   }>
+
+  /**
+   * Datos del TITULAR que se capturan al cerrar.
+   *
+   * Van aparte de insuranceData porque son del cliente y no de cada poliza: con
+   * dos polizas, la direccion es una sola.
+   */
+  @IsOptional()
+  datosCliente?: {
+    email?: string
+    direccion?: string
+    fechaNacimiento?: string
+    vieneDeOtroSeguro?: string
+    preexistencias?: string
+  }
+
 }

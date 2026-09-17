@@ -37,7 +37,11 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
-import { WonDealModal, type WonInsuranceData } from './won-deal-modal'
+import {
+  WonDealModal,
+  type DatosClienteCierre,
+  type WonInsuranceData,
+} from './won-deal-modal'
 import { BloqueInspeccion } from './bloque-inspeccion'
 import { LeadOriginBadge } from './lead-origin-badge'
 import { WhatsappChat } from './whatsapp-chat'
@@ -405,8 +409,23 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
   })
 
   const moveStage = useMutation({
-    mutationFn: ({ stageId, insuranceData }: { stageId: string; insuranceData?: WonInsuranceData[] }) =>
-      api.put(`/pipeline/deals/${dealId}/move`, { stageId, position: 1000, insuranceData }).then((r) => r.data),
+    mutationFn: ({
+      stageId,
+      insuranceData,
+      datosCliente,
+    }: {
+      stageId: string
+      insuranceData?: WonInsuranceData[]
+      datosCliente?: DatosClienteCierre
+    }) =>
+      api
+        .put(`/pipeline/deals/${dealId}/move`, {
+          stageId,
+          position: 1000,
+          insuranceData,
+          datosCliente,
+        })
+        .then((r) => r.data),
     onSuccess: (_, vars) => {
       invalidate()
       toast({ title: vars.insuranceData ? '🏆 ¡Deal ganado!' : 'Etapa actualizada' })
@@ -680,7 +699,15 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
 
         <WonDealModal
           open={showWonModal}
-          onConfirm={(entries) => moveStage.mutate({ stageId: WON_STAGE_ID, insuranceData: entries })}
+          onConfirm={(entries, datosCliente) =>
+            moveStage.mutate({
+              stageId: WON_STAGE_ID,
+              insuranceData: entries,
+              // Los datos del titular viajan aparte de las polizas: son del
+              // cliente, no de cada poliza.
+              datosCliente,
+            })
+          }
           onCancel={() => setShowWonModal(false)}
           loading={moveStage.isPending}
           datosIniciales={insuranceEntries as any}

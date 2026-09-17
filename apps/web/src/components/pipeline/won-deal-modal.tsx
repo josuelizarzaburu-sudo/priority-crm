@@ -30,6 +30,15 @@ import {
 } from '@/lib/ramos-seguros'
 import { revisarIdentificacion } from '@/components/clientes/nuevo-cliente'
 
+/** Datos del titular que se capturan al cerrar. */
+export interface DatosClienteCierre {
+  email?: string
+  direccion?: string
+  fechaNacimiento?: string
+  vieneDeOtroSeguro?: string
+  preexistencias?: string
+}
+
 export interface WonInsuranceData {
   netPremium: number
   plan: string
@@ -102,7 +111,14 @@ function emptyEntry(): EntryDraft {
 
 interface WonDealModalProps {
   open: boolean
-  onConfirm: (entries: WonInsuranceData[]) => void
+  /**
+   * Los datos del CLIENTE viajan aparte de las pólizas.
+   *
+   * Antes solo salían las entradas del seguro, así que la dirección y la fecha
+   * de nacimiento se pedían en el formulario y se perdían: el cliente nacía sin
+   * ellas y operaciones tenía que volver a pedirlas.
+   */
+  onConfirm: (entries: WonInsuranceData[], datosCliente?: DatosClienteCierre) => void
   onCancel: () => void
   loading?: boolean
   /**
@@ -164,6 +180,15 @@ export function WonDealModal({
   const [fechaNacimiento, setFechaNacimiento] = useState('')
   const [vieneDeOtroSeguro, setVieneDeOtroSeguro] = useState('')
   const [aseguradoraAnterior, setAseguradoraAnterior] = useState('')
+  /**
+   * Preexistencias del titular.
+   *
+   * Obligatorio: la aseguradora las pide para emitir y decidirlas después
+   * significa volver a llamar al cliente. Se admite "NINGUNA" —es una respuesta
+   * válida— pero no dejarlo en blanco, que no distingue "no tiene" de "no
+   * pregunté".
+   */
+  const [preexistencias, setPreexistencias] = useState('')
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()])
   // Nota unica del cierre: viaja a la ficha del cliente en el CRM operativo.
   const [notaOperaciones, setNotaOperaciones] = useState('')
@@ -296,6 +321,9 @@ export function WonDealModal({
     else if (vieneDeOtroSeguro === 'SI' && !aseguradoraAnterior.trim()) {
       faltantesContacto.push('de qué aseguradora viene')
     }
+    // "NINGUNA" es respuesta válida; en blanco no, porque no distingue "no
+    // tiene" de "no pregunté".
+    if (!preexistencias.trim()) faltantesContacto.push('preexistencias')
   }
   const canConfirm =
     entries.length > 0 &&
@@ -352,6 +380,13 @@ export function WonDealModal({
         // llegue igual sin importar cual poliza procese primero el operativo.
         ...(notaOperaciones.trim() ? { notaOperaciones: notaOperaciones.trim() } : {}),
       })),
+      {
+        ...(email.trim() ? { email: email.trim() } : {}),
+        ...(direccion.trim() ? { direccion: direccion.trim() } : {}),
+        ...(fechaNacimiento ? { fechaNacimiento } : {}),
+        ...(vieneDeOtroSeguro ? { vieneDeOtroSeguro } : {}),
+        ...(preexistencias.trim() ? { preexistencias: preexistencias.trim() } : {}),
+      },
     )
   }
 
@@ -674,6 +709,21 @@ export function WonDealModal({
                     className="h-8 max-w-[200px] text-sm"
                   />
                 )}
+              </div>
+
+              {/* Preexistencias: la aseguradora las pide para emitir, y
+                  preguntarlas después significa volver a llamar al cliente. */}
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  Preexistencias <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={preexistencias}
+                  onChange={(e) => setPreexistencias(e.target.value)}
+                  placeholder="Diagnósticos declarados, uno por línea. Si no tiene, escribe NINGUNA."
+                  rows={2}
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                />
               </div>
             </div>
           </div>

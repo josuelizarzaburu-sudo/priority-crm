@@ -787,8 +787,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 40.000",
           "USD 40.000",
           "USD 40.000",
-          "Red LATAM: Colombia y México",
-          "Red LATAM: Colombia y México"
+          "USD 30.000",
+          "USD 30.000"
         ]
       },
       {
@@ -823,8 +823,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "30 Días Por Viaje",
           "30 Días Por Viaje",
           "30 Días Por Viaje",
-          null,
-          null
+          "60 Días Por Viaje",
+          "60 Días Por Viaje"
         ]
       },
       {

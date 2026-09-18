@@ -51,6 +51,14 @@ const SEGURO_CAMPESINO = 0.005
 const DESC_ANUAL_TRANSFERENCIA = 0.1
 const DESC_ANUAL_TARJETA = 0.06
 const CASHBACK_VITALITY = 0.2
+/**
+ * El cashback solo lo generan los mayores de 18.
+ *
+ * Es regla de Vitality: los puntos se ganan haciendo ejercicio y cumpliendo
+ * metas, y los menores no participan. La prima de un hijo de 5 años no genera
+ * cashback.
+ */
+const EDAD_MINIMA_CASHBACK = 18
 const EDAD_MAXIMA_TABLA = 99
 
 /** Descuento por número de personas. Distinto al de Star/Sky/Pro. */
@@ -103,6 +111,12 @@ export function cotizarOptimusPlan(
   const descVolumen = descuentoVolumen(personas.length)
   const descuento = subtotal * descVolumen
 
+  // La parte de la prima que generan los adultos, que es sobre la que se
+  // calcula el cashback. El descuento por volumen se aplica igual sobre ella.
+  const primaAdultos = personas
+    .filter((p) => Math.round(p.edad) >= EDAD_MINIMA_CASHBACK)
+    .reduce((s, p) => s + primaPersona(planId, p.edad), 0)
+
   const conGasto = subtotal - descuento + GASTO_ADMIN
   const mensual = conGasto + conGasto * SEGURO_CAMPESINO
 
@@ -151,8 +165,13 @@ export function cotizarOptimusPlan(
      *     truncando   -> 16,95 -> cashback $40,68   <- lo que dice Saludsa
      * Sin esto quedaban dos centavos de diferencia al año contra la cotizacion
      * oficial, y el cliente tiene las dos cifras delante.
+     *
+     * Y se cuenta SOLO la prima de los mayores de 18: los menores no generan
+     * cashback porque no participan en Vitality.
      */
-    cashbackAnual: r2(Math.floor((subtotal - descuento) * 100) / 100 * 12 * CASHBACK_VITALITY),
+    cashbackAnual: r2(
+      (Math.floor(primaAdultos * (1 - descVolumen) * 100) / 100) * 12 * CASHBACK_VITALITY,
+    ),
   }
 }
 

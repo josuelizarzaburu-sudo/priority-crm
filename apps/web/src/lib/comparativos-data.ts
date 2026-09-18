@@ -200,6 +200,18 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
         "name": "CONFIAMED 10 RED 2",
         "insurer": "Confiamed",
         "network": "cerrada"
+      },
+      {
+        "id": "sal-optimus",
+        "name": "SALUD OPTIMUS",
+        "insurer": "Saludsa",
+        "network": "abierta"
+      },
+      {
+        "id": "sal-optimus-plus",
+        "name": "SALUD OPTIMUS PLUS",
+        "insurer": "Saludsa",
+        "network": "abierta"
       }
     ],
     "benefits": [
@@ -234,7 +246,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 30.000 Por Incapacidad",
           "USD 60.000 Por Incapacidad",
           "USD 110.000 Por Incapacidad",
-          "USD 10.000 por incapacidad"
+          "USD 10.000 por incapacidad",
+          "USD 500.000 / 150.000 / 70.000",
+          "USD 500.000 / 150.000 / 70.000"
         ]
       },
       {
@@ -268,7 +282,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 150 anual",
           "USD 200 anual",
           "USD 250 anual",
-          "USD 120 anual"
+          "USD 120 anual",
+          "A Elección: USD 5.000 / 10.000 / 20.000",
+          "A Elección: USD 5.000 / 10.000 / 20.000"
         ]
       },
       {
@@ -302,7 +318,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Red 1 Top y libre eleccion",
           "Red 1 Top y libre eleccion",
           "Red 1 Top y libre eleccion",
-          "Red Uno"
+          "Red Uno",
+          "Libre Elección + Red Optimus",
+          "Libre Elección + Red Optimus"
         ]
       },
       {
@@ -336,7 +354,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "90%",
           "90%",
           "90%",
-          "90%"
+          "90%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -370,7 +390,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "80%",
           "80%",
-          "80%"
+          "80%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -404,7 +426,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "90%",
           "90%",
           "90%",
-          "90%"
+          "90%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -438,7 +462,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "80%",
           "80%",
-          "80%"
+          "80%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -472,7 +498,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 180 Por día",
           "USD 180 Por día",
           "USD 250 Por día",
-          "USD 150 Por día"
+          "USD 150 Por día",
+          "Monto Total de Cobertura",
+          "Monto Total de Cobertura"
         ]
       },
       {
@@ -506,7 +534,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 50",
           "USD 60",
           "USD 70",
-          "USD 45"
+          "USD 45",
+          "USD 63 (nivel 7)",
+          "USD 63 (nivel 7)"
         ]
       },
       {
@@ -540,7 +570,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Posee",
           "No Posee",
           "No Posee",
-          "No Posee"
+          "No Posee",
+          "Superado el deducible 0%. Oncológico: 0% en red, 20% fuera de red",
+          "Superado el deducible 0%. Oncológico: 0% en red, 10% fuera de red"
         ]
       },
       {
@@ -574,7 +606,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "80%",
           "80%",
           "80%",
-          "80%"
+          "80%",
+          "100%",
+          "100%"
         ]
       },
       {
@@ -608,7 +642,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta USD 1.000 solo en red no cubre red abierta",
           "Hasta USD 1.000 solo en red no cubre red abierta",
           "Hasta USD 1.000 solo en red no cubre red abierta",
-          "Hasta USD 1.000 solo en red no cubre red abierta"
+          "Hasta USD 1.000 solo en red no cubre red abierta",
+          "Hasta el tope del plan (arancel nivel 7: USD 25)",
+          "Hasta el tope del plan (arancel nivel 7: USD 25)"
         ]
       },
       {
@@ -642,7 +678,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 1.000",
           "USD 1.500",
           "USD 2.000",
-          "USD 800"
+          "USD 800",
+          "Hasta el tope del plan",
+          "Hasta el tope del plan"
         ]
       },
       {
@@ -676,7 +714,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Incluido en maternidad",
           "Incluido en maternidad",
           "Incluido en maternidad",
-          "Incluido en maternidad"
+          "Incluido en maternidad",
+          "Monto adicional al tope",
+          "Monto adicional al tope"
         ]
       },
       {
@@ -710,7 +750,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Hasta USD. 30.000 con inclusión intrauterina",
           "Hasta USD. 60.000 con inclusión intrauterina",
           "Hasta USD. 110.000 con inclusión intrauterina",
-          "USD 10.000 con inclusión intrauterina"
+          "USD 10.000 con inclusión intrauterina",
+          "Intraútero: como un beneficiario más. Sin afiliar: hasta USD 750",
+          "Intraútero: como un beneficiario más. Sin afiliar: hasta USD 750"
         ]
       },
       {
@@ -744,7 +786,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 40.000",
           "USD 40.000",
           "USD 40.000",
-          "USD 40.000"
+          "USD 40.000",
+          "Red LATAM: Colombia y México",
+          "Red LATAM: Colombia y México"
         ]
       },
       {
@@ -778,7 +822,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "30 Días Por Viaje",
           "30 Días Por Viaje",
           "30 Días Por Viaje",
-          "30 Días Por Viaje"
+          "30 Días Por Viaje",
+          null,
+          null
         ]
       },
       {
@@ -812,6 +858,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No Incluye",
           "No Incluye",
           "No Incluye",
+          "No Incluye",
+          "No Incluye",
           "No Incluye"
         ]
       },
@@ -821,6 +869,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
           "USD 10.000 por accidente",
+          "No Incluye",
+          "No Incluye",
           "No Incluye",
           "No Incluye",
           "No Incluye",
@@ -880,6 +930,8 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Incluido",
           "Incluido",
           "Incluido",
+          "Incluido",
+          "Incluido",
           "Incluido"
         ]
       },
@@ -914,7 +966,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Bono de usd 200",
           "Bono de USD 200",
           "Bono de USD 200",
-          "Bono de USD 200"
+          "Bono de USD 200",
+          "No Incluye",
+          "Dental Básico Incluido"
         ]
       },
       {
@@ -948,7 +1002,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "No posee",
           "No posee",
           "No posee",
-          "No Incluye"
+          "No Incluye",
+          "Incluido",
+          "Incluido"
         ]
       },
       {
@@ -982,7 +1038,9 @@ export const CATALOGS: Record<CatalogKey, Catalog> = {
           "Desde el mes 13 USD. 600 y mes 25 hasta 20 salarios basicos unificados USD 9.600.",
           "Desde el mes 13 USD 800 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
           "Desde el mes 13 USD. 1.000 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
-          "Desde el mes 13 USD 500 y mes 25 hasta 20 salarios básicos unificados USD 9.600."
+          "Desde el mes 13 USD 500 y mes 25 hasta 20 salarios básicos unificados USD 9.600.",
+          "Desde el mes 25, hasta 20 SBU",
+          "Desde el mes 25, hasta 20 SBU"
         ]
       }
     ]

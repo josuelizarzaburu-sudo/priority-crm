@@ -102,6 +102,18 @@ const SALUDSA_CATALOG_ID: Record<string, string> = {
   pro150: 'ab10', // SALUD PRO 150
 }
 
+/**
+ * Línea de Optimus -> plan del comparativo.
+ *
+ * Depende de la LÍNEA y no del deducible: en el comparativo hay una columna por
+ * línea, y las coberturas y deducibles ya están dentro de la ficha ("500.000 /
+ * 150.000 / 70.000", "a elección"). Es la misma lógica que BMI GMM.
+ */
+const OPTIMUS_CATALOG_ID: Record<OptimusLinea, string> = {
+  base: 'sal-optimus',
+  plus: 'sal-optimus-plus',
+}
+
 const PLAN_ORDER: BmiPlanId[] = ['sigma', 'innova', 'gmm']
 
 // ── BMI Internacional ──────────────────────────────────────────────────────
@@ -1327,11 +1339,17 @@ export function CotizadorPage() {
                                 onClick={() =>
                                   toggleSeleccion({
                                     id: selId,
-                                    catalogId: '',
+                                    // Sin esto el plan no llegaba al comparativo:
+                                    // el botón marcaba la fila y nada más.
+                                    catalogId: OPTIMUS_CATALOG_ID[r.linea],
                                     aseguradora: 'Saludsa',
                                     plan: r.label,
                                     detalle: `Cashback anual $${money(r.cashbackAnual)}`,
                                     mensual: r.mensual,
+                                    // El deducible sale arriba en el comparativo,
+                                    // igual que en BMI. Se manda con el mismo
+                                    // formato que muestra la tabla ("$5K").
+                                    deducible: `$${(r.deducible / 1000).toLocaleString('es-EC')}K`,
                                   })
                                 }
                                 className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"

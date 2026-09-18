@@ -1077,6 +1077,26 @@ export class PipelineService {
   ) {
     const deal = await this.getDeal(id, organizationId, userId, role, puedeVender)
 
+    /**
+     * GANAR por esta vía NO se permite.
+     *
+     * Este endpoint ponía el deal en Ganado sin pasar por ninguna validación:
+     * sin cédula, sin aseguradora, sin prima, sin inspección en vehículos. Un
+     * deal se cerró así desde el celular y nació sin ningún dato.
+     *
+     * El cierre tiene UN solo camino —moveDeal, con el modal— y ahí están todas
+     * las comprobaciones. Tener dos puertas significaba que una estaba abierta.
+     *
+     * Perder sí se permite aquí: no crea cliente ni póliza, así que no hay datos
+     * que exigir.
+     */
+    if (dto.status === 'WON') {
+      throw new ForbiddenException(
+        'Para marcar un deal como ganado hay que completar los datos del cierre. ' +
+          'Usa el selector de etapa y elige "Ganado".',
+      )
+    }
+
     // Dar por PERDIDO un lead que reparte la empresa queda reservado a gerencia.
     //
     // Un lead de Priority Health o Priority costo dinero en campana, o vino de la

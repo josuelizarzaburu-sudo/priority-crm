@@ -1566,7 +1566,9 @@ export function DealPanel({ dealId, onClose, userRole, users }: DealPanelProps) 
                     variant="outline"
                     size="sm"
                     className="justify-start gap-2 border-green-200 text-green-700 hover:bg-green-50 disabled:opacity-50"
-                    onClick={() => closeDealMutation.mutate({ status: 'WON' })}
+                    // Abre el modal en vez de cerrar directo: por aqui se cerraba
+                    // sin pedir ningun dato, y el cliente nacia vacio.
+                    onClick={() => setShowWonModal(true)}
                     disabled={closeDealMutation.isPending || isClosed || isGanadoLocked}
                   >
                     <Trophy className="h-3.5 w-3.5" /> Ganado

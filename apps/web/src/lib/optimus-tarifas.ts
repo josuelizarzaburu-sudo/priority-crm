@@ -51,7 +51,6 @@ const SEGURO_CAMPESINO = 0.005
 const DESC_ANUAL_TRANSFERENCIA = 0.1
 const DESC_ANUAL_TARJETA = 0.06
 const CASHBACK_VITALITY = 0.2
-const EDAD_MINIMA_CASHBACK = 18
 const EDAD_MAXIMA_TABLA = 99
 
 /** Descuento por número de personas. Distinto al de Star/Sky/Pro. */
@@ -114,11 +113,6 @@ export function cotizarOptimusPlan(
     return (base + base * SEGURO_CAMPESINO) * 12
   }
 
-  // El cashback sale de la SUMA DE EDADES de los mayores de 18, no de la prima.
-  const sumaEdades = personas
-    .filter((p) => Math.round(p.edad) >= EDAD_MINIMA_CASHBACK)
-    .reduce((s, p) => s + Math.round(p.edad), 0)
-
   const r2 = (n: number) => Math.round(n * 100) / 100
   return {
     planId,
@@ -132,7 +126,33 @@ export function cotizarOptimusPlan(
     anual: r2(mensual * 12),
     anualTransferencia: r2(anualCon(DESC_ANUAL_TRANSFERENCIA)),
     anualTarjeta: r2(anualCon(DESC_ANUAL_TARJETA)),
-    cashbackAnual: r2(sumaEdades * CASHBACK_VITALITY * 12),
+    /**
+     * Cashback Vitality: el 20% de lo que paga en el año.
+     *
+     * Antes se calculaba sobre la SUMA DE LAS EDADES, asi que daba el mismo
+     * valor en los 18 planes —la edad no cambia con la cobertura— y un plan de
+     * 500.000 mostraba el mismo cashback que uno de 70.000.
+     *
+     * Se calcula sobre el VALOR DEL PLAN —la prima con su descuento— y no
+     * sobre el total mensual: el total incluye gastos administrativos y seguro
+     * campesino, que no son parte del plan y no generan cashback.
+     *
+     * Verificado contra la cotizacion oficial de Saludsa: Optimus Plus 500K,
+     * hombre de 32, deducible 5.000.
+     *   valor del plan  $46,75   ->  46,75 x 12 x 0,20 = $112,20
+     *   total mensual   $49,36   ->  daria $118,46, que no es lo que dice
+     * Coincide al centavo con el primero.
+     *
+     * Se calcula sobre el valor del plan TRUNCADO a dos decimales, porque es
+     * lo que hace Saludsa: usa la cifra que le muestra al cliente, y la corta
+     * en vez de redondearla.
+     *   Optimus 70K, 31 años: tarifa 16,957359
+     *     redondeando -> 16,96 -> cashback $40,70
+     *     truncando   -> 16,95 -> cashback $40,68   <- lo que dice Saludsa
+     * Sin esto quedaban dos centavos de diferencia al año contra la cotizacion
+     * oficial, y el cliente tiene las dos cifras delante.
+     */
+    cashbackAnual: r2(Math.floor((subtotal - descuento) * 100) / 100 * 12 * CASHBACK_VITALITY),
   }
 }
 

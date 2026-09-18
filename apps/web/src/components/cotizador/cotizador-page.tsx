@@ -1354,10 +1354,11 @@ export function CotizadorPage() {
                                     plan: r.label,
                                     detalle: `Cashback anual $${money(r.cashbackAnual)}`,
                                     mensual: r.mensual,
-                                    // El deducible sale arriba en el comparativo,
-                                    // igual que en BMI. Se manda con el mismo
-                                    // formato que muestra la tabla ("$5K").
-                                    deducible: `$${(r.deducible / 1000).toLocaleString('es-EC')}K`,
+                                    // El deducible va como NUMERO COMPLETO, no
+                                    // como "$5K": el comparativo le quita todo lo
+                                    // que no sea digito, asi que "5K" llegaba
+                                    // como 5 y salia "Deducible 5".
+                                    deducible: String(r.deducible),
                                     // Y la cobertura cotizada, para que la ficha
                                     // muestre la elegida y no las tres.
                                     cobertura: `USD ${r.cobertura.toLocaleString('es-EC')}`,

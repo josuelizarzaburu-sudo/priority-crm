@@ -1027,7 +1027,7 @@ export function ComparativosPage() {
                                   ${e.valor}
                                 </span>
                                 <span className="ml-1 text-[9px] text-muted-foreground">
-                                  /mes · Deducible {e.deducible.toLocaleString('es-EC')}
+                                  /mes · Deducible USD {e.deducible.toLocaleString('es-EC')}
                                 </span>
                               </div>
                             ))

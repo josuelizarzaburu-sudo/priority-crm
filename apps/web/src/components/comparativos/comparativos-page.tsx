@@ -67,6 +67,10 @@ const BMI_DEDUCIBLE_PLANS: Record<string, number[]> = {
   // entradas cada seleccion sobrescribia a la anterior y solo sobrevivia la ultima.
   'BMI IDEAL 1M': [500, 1000, 2500, 5000, 10000, 20000],
   'BMI IDEAL 2M': [500, 1000, 2500, 5000, 10000, 20000],
+  // Optimus: tambien por deducible. Sin estas entradas, mandar dos deducibles
+  // del mismo plan hacia que el segundo pisara al primero.
+  'SALUD OPTIMUS': [5000, 10000, 20000],
+  'SALUD OPTIMUS PLUS': [5000, 10000, 20000],
 }
 
 // Planes de Confiamed que permiten elegir Red 1 o Red 2. El texto que sale en la
@@ -100,6 +104,13 @@ function parseCotizacion(raw: string | null): {
   primas: Record<string, string>
   primasExtra: Record<string, PrimaExtra[]>
   redes: Record<string, 'red1' | 'red2'>
+  /**
+   * Monto de cobertura cotizado, por plan.
+   *
+   * Solo llega si el plan ofrece varios y se vino del cotizador. La ficha lista
+   * los tres porque el cliente elige, pero si ya eligió hay que mostrar el suyo.
+   */
+  coberturas: Record<string, string>
 } | null {
   if (!raw) return null
   let items: Array<{
@@ -107,6 +118,7 @@ function parseCotizacion(raw: string | null): {
     mensual: number
     deducible?: string
     red?: 'red1' | 'red2'
+    cobertura?: string
   }>
   try {
     items = JSON.parse(raw)
@@ -124,6 +136,7 @@ function parseCotizacion(raw: string | null): {
   const primas: Record<string, string> = {}
   const primasExtra: Record<string, PrimaExtra[]> = {}
   const redes: Record<string, 'red1' | 'red2'> = {}
+  const coberturas: Record<string, string> = {}
 
   const parseDed = (d?: string): number | null => {
     if (!d) return null
@@ -162,6 +175,10 @@ function parseCotizacion(raw: string | null): {
     if (CONFIAMED_RED_PLANS[plan.name] && it.red) {
       redes[plan.id] = it.red
     }
+
+    if (it.cobertura) {
+      coberturas[plan.id] = it.cobertura
+    }
   }
   if (saludIds.length === 0 && internacionalIds.length === 0) return null
 
@@ -169,7 +186,7 @@ function parseCotizacion(raw: string | null): {
   // gana salud, que es el caso mas comun.
   const tabInicial: CatalogKey = saludIds.length > 0 ? 'salud' : 'internacional'
 
-  return { saludIds, internacionalIds, tabInicial, primas, primasExtra, redes }
+  return { saludIds, internacionalIds, tabInicial, primas, primasExtra, redes, coberturas }
 }
 
 function isNegativeValue(v: string | null | undefined) {
@@ -289,6 +306,14 @@ export function ComparativosPage() {
   const [confiamedRed, setConfiamedRed] = useState<Record<string, 'red1' | 'red2'>>(
     preload?.redes ?? {},
   )
+  /**
+   * Cobertura cotizada por plan, cuando viene del cotizador.
+   *
+   * Sin esto, un plan con varias coberturas mostraba las tres —"500.000 /
+   * 150.000 / 70.000"— aunque el asesor ya hubiera cotizado una, y tocaba
+   * explicarle al cliente cuál era la suya.
+   */
+  const [coberturasCotizadas] = useState<Record<string, string>>(preload?.coberturas ?? {})
   const [preview, setPreview] = useState(false)
   const [recommended, setRecommended] = useState<Record<CatalogKey, string | null>>({
     salud: null, internacional: null, vehiculos: null,
@@ -929,7 +954,9 @@ export function ComparativosPage() {
                             backgroundColor: recommended[tab] === p.id ? 'rgba(219,170,89,.10)' : undefined,
                           }}
                         >
-                          {r.label.startsWith('Deducible') && BMI_DEDUCIBLE_PLANS[p.name]
+                          {r.label === 'Monto de Cobertura' && coberturasCotizadas[p.id]
+                            ? coberturasCotizadas[p.id]
+                            : r.label.startsWith('Deducible') && BMI_DEDUCIBLE_PLANS[p.name]
                             ? 'A Elección'
                             : r.label === 'Red Medica' && CONFIAMED_RED_PLANS[p.name]
                             ? CONFIAMED_RED_PLANS[p.name][confiamedRed[p.id] ?? 'red1']

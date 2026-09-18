@@ -142,6 +142,14 @@ interface SeleccionComparativo {
   mensual: number // prima mensual
   deducible?: string // para BMI: el deducible elegido (ej "D500", "5000")
   red?: 'red1' | 'red2' // para Confiamed: la red elegida
+  /**
+   * Monto de cobertura cotizado, cuando el plan ofrece varios.
+   *
+   * En Optimus la ficha lista los tres —500.000 / 150.000 / 70.000— porque el
+   * cliente elige. Pero si viene del cotizador ya eligió uno, y mostrar los tres
+   * obliga a explicar cuál es el suyo.
+   */
+  cobertura?: string
 }
 
 // Mapeo de plan del cotizador -> id del plan en el catálogo del comparativo
@@ -1350,6 +1358,9 @@ export function CotizadorPage() {
                                     // igual que en BMI. Se manda con el mismo
                                     // formato que muestra la tabla ("$5K").
                                     deducible: `$${(r.deducible / 1000).toLocaleString('es-EC')}K`,
+                                    // Y la cobertura cotizada, para que la ficha
+                                    // muestre la elegida y no las tres.
+                                    cobertura: `USD ${r.cobertura.toLocaleString('es-EC')}`,
                                   })
                                 }
                                 className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
@@ -1760,6 +1771,7 @@ export function CotizadorPage() {
                   mensual: s.mensual,
                   deducible: s.deducible,
                   red: s.red,
+                  cobertura: s.cobertura,
                 }))
                 const encoded = encodeURIComponent(JSON.stringify(payload))
                 // Las edades cotizadas viajan aparte: el comparativo las muestra

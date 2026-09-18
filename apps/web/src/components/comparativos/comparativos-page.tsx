@@ -957,7 +957,21 @@ export function ComparativosPage() {
                           {r.label === 'Monto de Cobertura' && coberturasCotizadas[p.id]
                             ? coberturasCotizadas[p.id]
                             : r.label.startsWith('Deducible') && BMI_DEDUCIBLE_PLANS[p.name]
-                            ? 'A Elección'
+                            ? /**
+                               * Con UN solo deducible cotizado se dice cuál es.
+                               *
+                               * "A Elección" solo describe bien el caso de varios:
+                               * si el asesor cotizó uno, el cliente ya tiene el
+                               * suyo y leer "a elección" le hace preguntar cuál.
+                               */
+                              (() => {
+                                const deds = (primasExtra[p.id] ?? []).filter(
+                                  (e) => e.valor.trim() !== '',
+                                )
+                                return deds.length === 1
+                                  ? `USD ${deds[0].deducible.toLocaleString('es-EC')}`
+                                  : 'A Elección'
+                              })()
                             : r.label === 'Red Medica' && CONFIAMED_RED_PLANS[p.name]
                             ? CONFIAMED_RED_PLANS[p.name][confiamedRed[p.id] ?? 'red1']
                             : r.values[vi] ?? '—'}

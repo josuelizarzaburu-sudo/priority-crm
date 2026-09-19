@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -59,50 +60,68 @@ const OPS_ADMIN = [...OPS, 'SUPER_ADMIN', 'OWNER']
 const COMUNES = [...ALL_ROLES, ...OPS]
 
 
+/**
+ * Los grupos del menu, en el orden en que se muestran.
+ *
+ * Los tres primeros quedan abiertos porque son el trabajo del dia; los otros
+ * tres, plegados. Con 32 opciones seguidas costaba encontrar cualquier cosa.
+ *
+ * `abierto` es solo el valor inicial: lo que cada persona abra o cierre se
+ * recuerda en su navegador.
+ */
+const GRUPOS = [
+  { id: 'comercial', label: 'Comercial', abierto: true },
+  { id: 'operaciones', label: 'Operaciones', abierto: true },
+  { id: 'dia', label: 'Día a día', abierto: true },
+  { id: 'analisis', label: 'Análisis', abierto: false },
+  { id: 'admin', label: 'Administración', abierto: false },
+  { id: 'recursos', label: 'Recursos', abierto: false },
+] as const
+
 const NAV_ITEMS = [
-  { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: OPS_ADMIN },
-  { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN },
-  { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN },
-  { href: '/referidos',        label: 'Referidos',          icon: Users2,          roles: REFERIDOS_ROLES },
-  { href: '/proteccion-datos', label: 'Protección de datos', icon: ShieldCheck,    roles: ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'] },
+  { href: '/clientes',         label: 'Clientes',           icon: ClipboardList,   roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/referidos',        label: 'Referidos',          icon: Users2,          roles: REFERIDOS_ROLES, grupo: 'admin' },
+  { href: '/proteccion-datos', label: 'Protección de datos', icon: ShieldCheck,    roles: ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'], grupo: 'admin' },
   // Vehiculos: las dos bandejas de Fidelizacion.
-  { href: '/inspecciones',     label: 'Inspecciones',       icon: ClipboardCheck,  roles: OPS_ADMIN },
-  { href: '/emisiones',        label: 'Emisiones',          icon: Car,             roles: OPS_ADMIN },
-  { href: '/renovaciones',     label: 'Renovaciones',        icon: CalendarClock,   roles: OPS_ADMIN },
-  { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: OPS_ADMIN },
-  { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED },
-  { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED },
-  { href: '/registro-acceso',  label: 'Registro de acceso', icon: ShieldCheck,     roles: ['SUPER_ADMIN', 'OWNER'] },
-  { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES },
-  { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ['SUPER_ADMIN'] },
-  { href: '/equipos',          label: 'Equipos',            icon: Users,           roles: ['SUPER_ADMIN', 'OWNER'] },
+  { href: '/inspecciones',     label: 'Inspecciones',       icon: ClipboardCheck,  roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/emisiones',        label: 'Emisiones',          icon: Car,             roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/renovaciones',     label: 'Renovaciones',        icon: CalendarClock,   roles: OPS_ADMIN, grupo: 'operaciones' },
+  { href: '/reportes-operaciones', label: 'Reportes Operaciones', icon: FileSpreadsheet, roles: OPS_ADMIN, grupo: 'analisis' },
+  { href: '/overview',         label: 'Overview',           icon: BarChart3,       roles: ELEVATED, grupo: 'analisis' },
+  { href: '/reports',          label: 'Reportes',           icon: TrendingUp,      roles: ELEVATED, grupo: 'analisis' },
+  { href: '/registro-acceso',  label: 'Registro de acceso', icon: ShieldCheck,     roles: ['SUPER_ADMIN', 'OWNER'], grupo: 'admin' },
+  { href: '/ranking',          label: 'Ranking',            icon: Trophy,          roles: ALL_ROLES, grupo: 'analisis' },
+  { href: '/commissions',      label: 'Comisiones',         icon: DollarSign,      roles: ['SUPER_ADMIN'], grupo: 'analisis' },
+  { href: '/equipos',          label: 'Equipos',            icon: Users,           roles: ['SUPER_ADMIN', 'OWNER'], grupo: 'admin' },
   // Modulo propio, aparte del Calendario de la empresa: mezclar las tareas
   // personales con las reuniones haria inutiles a las dos.
-  { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES },
+  { href: '/cursos',           label: 'Capacitaciones',     icon: GraduationCap,   roles: COMUNES, grupo: 'recursos' },
   // Gerencia tambien ve los cumpleaños: es informacion de la cartera, util para
   // saber a quien saludar en una visita o una llamada.
-  { href: '/cumpleanos',       label: 'Cumpleaños',         icon: Cake,            roles: ELEVATED },
+  { href: '/cumpleanos',       label: 'Cumpleaños',         icon: Cake,            roles: ELEVATED, grupo: 'admin' },
   // Solo SUPER_ADMIN: esta pantalla puede vaciar la base entera.
-  { href: '/importar',         label: 'Importar clientes',  icon: Upload,          roles: ['SUPER_ADMIN'] },
-  { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'] },
-  { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES },
+  { href: '/importar',         label: 'Importar clientes',  icon: Upload,          roles: ['SUPER_ADMIN'], grupo: 'admin' },
+  { href: '/tareas',           label: 'Tareas',             icon: CheckSquare,     roles: [...ELEVATED, 'JEFE_OPERACIONES', 'OPERACIONES'], grupo: 'dia' },
+  { href: '/pipeline',         label: 'Pipeline',           icon: LayoutDashboard, roles: ALL_ROLES, grupo: 'comercial' },
   // Gerencia entra tambien: reparte leads y lleva su propia cartera.
-  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP', 'JEFE_EQUIPO'] },
-  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN', 'JEFE_EQUIPO'] },
-  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: [...ELEVATED, 'JEFE_EQUIPO'] },
-  { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES },
-  { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES },
-  { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES },
-  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: [...COMUNES, 'SUPER_ADMIN'] },
-  { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: [...COMUNES, 'SUPER_ADMIN'] },
+  { href: '/my-pipeline',      label: 'Mi Pipeline',        icon: Kanban,          roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'SALES_REP', 'JEFE_EQUIPO'], grupo: 'comercial' },
+  { href: '/my-performance',   label: 'Mi Rendimiento',     icon: Activity,        roles: ['SALES_REP', 'OWNER', 'SUPER_ADMIN', 'JEFE_EQUIPO'], grupo: 'analisis' },
+  { href: '/leads',            label: 'Leads sin asignar',  icon: UserCheck,       roles: [...ELEVATED, 'JEFE_EQUIPO'], grupo: 'comercial' },
+  { href: '/contacts',         label: 'Contactos',          icon: Users,           roles: COMUNES, grupo: 'comercial' },
+  { href: '/calendar',         label: 'Calendario',         icon: CalendarDays,    roles: COMUNES, grupo: 'dia' },
+  { href: '/communications',   label: 'Comunicaciones',     icon: MessageSquare,   roles: COMUNES, grupo: 'dia' },
+  { href: '/comparativos',     label: 'Comparativos',       icon: FileSpreadsheet, roles: [...COMUNES, 'SUPER_ADMIN'], grupo: 'comercial' },
+  { href: '/cotizador',        label: 'Cotizador',          icon: Calculator,      roles: [...COMUNES, 'SUPER_ADMIN'], grupo: 'comercial' },
   // Visible solo con el permiso individual puedePriorityHelp (o SUPER_ADMIN);
   // la lista de roles queda vacia a proposito para que no entre nadie por rol.
-  { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: [] },
+  { href: '/priority-help',    label: 'Priority Help',      icon: Sparkles,        roles: [], grupo: 'recursos' },
   // Videoteca suelta, anterior a los cursos. Se renombra para que se distinga:
   // con el mismo nombre en dos entradas, nadie sabria cual abrir.
-  { href: '/training',         label: 'Biblioteca de videos', icon: PlayCircle,    roles: COMUNES },
-  { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED },
-  { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED },
+  { href: '/training',         label: 'Biblioteca de videos', icon: PlayCircle,    roles: COMUNES, grupo: 'recursos' },
+  { href: '/automations',      label: 'Automatizaciones',   icon: Zap,             roles: ELEVATED, grupo: 'admin' },
+  { href: '/settings/users',   label: 'Usuarios',           icon: UsersRound,      roles: ELEVATED, grupo: 'admin' },
 ]
 
 export function Sidebar() {
@@ -128,6 +147,32 @@ export function Sidebar() {
   // Ajustes queda solo para administracion. Un vendedor o una ejecutiva no debe
   // poder cambiar su propia clave ni tocar su perfil: eso lo maneja el admin.
   const puedeVerAjustes = ['SUPER_ADMIN', 'OWNER'].includes(role)
+
+  /**
+   * Que grupos estan abiertos. Se guarda en el navegador para que cada quien
+   * deje el menu como le sirve y siga asi mañana.
+   */
+  const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>(() => {
+    const inicial = Object.fromEntries(GRUPOS.map((g) => [g.id, g.abierto]))
+    if (typeof window === 'undefined') return inicial
+    try {
+      const guardado = window.localStorage.getItem('menu-grupos')
+      return guardado ? { ...inicial, ...JSON.parse(guardado) } : inicial
+    } catch {
+      return inicial
+    }
+  })
+
+  const alternarGrupo = (id: string) =>
+    setGruposAbiertos((prev) => {
+      const nuevo = { ...prev, [id]: !prev[id] }
+      try {
+        window.localStorage.setItem('menu-grupos', JSON.stringify(nuevo))
+      } catch {
+        // Si el navegador no deja guardar, el menu funciona igual.
+      }
+      return nuevo
+    })
 
   const navItemClass = (href: string) =>
     cn(
@@ -217,20 +262,52 @@ export function Sidebar() {
 
         {/* Nav items */}
         <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-          {visibleItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={closeMobileMenu}
-              className={navItemClass(href)}
-              title={sidebarCollapsed ? label : undefined}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" />
-              <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
-                {label}
-              </span>
-            </Link>
-          ))}
+          {GRUPOS.map((grupo) => {
+            const items = visibleItems.filter((i) => i.grupo === grupo.id)
+            // Un grupo vacío para este rol no se muestra, ni su título: un
+            // vendedor no tiene por qué ver "Administración" aunque esté cerrada.
+            if (items.length === 0) return null
+
+            const abierto = gruposAbiertos[grupo.id]
+
+            return (
+              <div key={grupo.id} className="mb-1">
+                {/* Plegado el menú lateral, los títulos estorban y las opciones
+                    se muestran todas: ahí solo se ven íconos. */}
+                {!sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={() => alternarGrupo(grupo.id)}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d3ac76]/70 transition-colors hover:text-[#d3ac76]"
+                  >
+                    {grupo.label}
+                    <span
+                      className="text-white/40 transition-transform duration-200"
+                      style={{ transform: abierto ? 'rotate(90deg)' : 'none' }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                )}
+
+                {(abierto || sidebarCollapsed) &&
+                  items.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={closeMobileMenu}
+                      className={navItemClass(href)}
+                      title={sidebarCollapsed ? label : undefined}
+                    >
+                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                      <span className={cn(sidebarCollapsed ? 'md:hidden' : '', 'block')}>
+                        {label}
+                      </span>
+                    </Link>
+                  ))}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Divider */}

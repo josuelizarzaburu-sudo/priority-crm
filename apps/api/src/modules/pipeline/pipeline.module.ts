@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { ConsentimientosModule } from '../consentimientos/consentimientos.module'
 import { PipelineController } from './pipeline.controller'
 import { PipelineService } from './pipeline.service'
 import { PipelineGateway } from './pipeline.gateway'
@@ -9,7 +10,7 @@ import { EquiposModule } from '../equipos/equipos.module'
 import { ClientesModule } from '../clientes/clientes.module'
 
 @Module({
-  imports: [
+  imports: [ConsentimientosModule, 
     InspeccionesModule,
     EmisionesModule,NotificationsModule, EquiposModule, ClientesModule],
   controllers: [PipelineController],

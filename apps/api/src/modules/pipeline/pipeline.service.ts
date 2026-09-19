@@ -23,6 +23,7 @@ const PUEDEN_PERDER_LEADS_REPARTIDOS = ['SUPER_ADMIN', 'OWNER']
 import { cedulaORucValido } from '../../common/identificacion'
 import { EquiposService } from '../equipos/equipos.service'
 import { NotificacionesService } from '../notificaciones/notificaciones.service'
+import { ConsentimientosService } from '../consentimientos/consentimientos.service'
 import { InspeccionesService } from '../inspecciones/inspecciones.service'
 import { EmisionesService } from '../emisiones/emisiones.service'
 
@@ -99,6 +100,7 @@ export class PipelineService {
     private readonly notifications: NotificationsService,
     private readonly equipos: EquiposService,
     private readonly notificaciones: NotificacionesService,
+    private readonly consentimientos: ConsentimientosService,
     private readonly inspecciones: InspeccionesService,
     private readonly emisiones: EmisionesService,
     private readonly clientes: ClientesService,
@@ -685,6 +687,23 @@ export class PipelineService {
         `${mayus(deal.contact.firstName)} ${mayus(deal.contact.lastName ?? '')}`.trim(),
         'Asígnale una ejecutiva para la bienvenida',
       )
+
+      /**
+       * Se le pide el consentimiento de datos en cuanto nace.
+       *
+       * Automático y no manual: si hubiera que acordarse de mandarlo, la base
+       * se desactualizaría sola y en un año habría cientos de clientes sin
+       * autorización. Pedirlo al cerrar la venta es además el momento en que el
+       * cliente está más receptivo.
+       *
+       * Si falla, no se cae el cierre: la venta ya está hecha y el enlace se
+       * puede reenviar desde el tablero.
+       */
+      await this.consentimientos
+        .solicitar(creado.id, organizationId, 'SUPER_ADMIN')
+        .catch((e) =>
+          this.logger.error(`[pipeline] no se pudo pedir el consentimiento: ${e}`),
+        )
 
       return creado
     } catch (e) {

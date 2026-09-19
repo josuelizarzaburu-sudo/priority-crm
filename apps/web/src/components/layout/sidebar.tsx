@@ -64,6 +64,7 @@ const NAV_ITEMS = [
   { href: '/reclamos',         label: 'Reembolsos',         icon: FileText,        roles: OPS_ADMIN },
   { href: '/requerimientos',   label: 'Requerimientos',      icon: ClipboardCheck,  roles: OPS_ADMIN },
   { href: '/referidos',        label: 'Referidos',          icon: Users2,          roles: REFERIDOS_ROLES },
+  { href: '/proteccion-datos', label: 'Protección de datos', icon: ShieldCheck,    roles: ['SUPER_ADMIN', 'OWNER', 'JEFE_OPERACIONES'] },
   // Vehiculos: las dos bandejas de Fidelizacion.
   { href: '/inspecciones',     label: 'Inspecciones',       icon: ClipboardCheck,  roles: OPS_ADMIN },
   { href: '/emisiones',        label: 'Emisiones',          icon: Car,             roles: OPS_ADMIN },

@@ -17,6 +17,7 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String?  @unique
+  consentimientos Consentimiento[]
   referidoReglas  ReferidoReglas?
   referidos       Referido[]
   referidores     Referidor[]
@@ -1296,6 +1297,7 @@ model Cliente {
   agente          User?         @relation("ClienteAgente", fields: [agenteId], references: [id], onDelete: SetNull)
   createdBy       User?         @relation("ClienteCreatedBy", fields: [createdById], references: [id])
   contact         Contact?      @relation(fields: [contactId], references: [id])
+  consentimientos  Consentimiento[]
   emisiones       Emision[]
   polizas         Poliza[]
   dependientes    Dependiente[]
@@ -1692,4 +1694,49 @@ model ReferidoReglas {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("referido_reglas")
+}
+
+/// Consentimiento de tratamiento de datos personales (LOPDP Ecuador).
+///
+/// La ley exige responsabilidad proactiva y DEMOSTRADA: hay que poder mostrar
+/// cuando acepto el cliente, desde donde y QUE TEXTO leyo. Por eso se guarda la
+/// version del documento y su huella, no solo un "si".
+///
+/// La tabla tiene un trigger que impide editar o borrar un consentimiento ya
+/// otorgado. Solo se permite revocarlo, que es un derecho del titular.
+model Consentimiento {
+  id        String @id @default(cuid())
+  clienteId String
+  /// Token del enlace que se le manda. Es lo que prueba que quien acepto tenia
+  /// acceso al correo del cliente.
+  token     String @unique
+  /// PENDIENTE, OTORGADO o REVOCADO.
+  estado    String @default("PENDIENTE")
+
+  otorgadoEn DateTime?
+  revocadoEn DateTime?
+
+  /// A que correo se envio y desde donde acepto.
+  correoEnviado String
+  ipAceptacion  String?
+  navegador     String?
+
+  /// Version del texto aceptado y su huella, para probar que no se altero.
+  versionTexto String
+  hashTexto    String
+
+  /// Seguimiento de los envios, para la campaña con los que no han aceptado.
+  enviadoEn    DateTime  @default(now())
+  vecesEnviado Int       @default(1)
+  ultimoEnvio  DateTime?
+
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId, estado])
+  @@index([organizationId, estado])
+  @@map("consentimientos")
 }
